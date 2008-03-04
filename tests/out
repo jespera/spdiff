@@ -1,0 +1,6 @@
+Reading and parsing and converting files...done.
+gt1:
+prg2[includeN[inc_elem(net),inc_elem(foo)],def[fname(bar),funtype[fulltype[ctype[btype(void)]],param[reg(),name(main),fulltype[ctype[btype[itype[sgn(signed),base(int)]]]]]],{}stmt[estmt[call[ident(f),ident(a)]]]]]
+gt2:
+prg2[includeN[inc_elem(net),inc_elem(foo)],includeN[inc_elem(net),inc_elem(new)],def[fname(bar),funtype[fulltype[ctype[btype(void)]],param[reg(),name(main),fulltype[ctype[btype[itype[sgn(signed),base(int)]]]]]],{}stmt[estmt[call[ident(f),ident(a),const_i(42)]]]]]
+Making solutions...

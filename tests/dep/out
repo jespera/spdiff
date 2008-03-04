@@ -1,0 +1,94 @@
+Spec. file is: specfile
+Parsed two: a.c, b.c
+Parsed two: d.c, e.c
+Reading file pair d.c e.c
+Reading file pair a.c b.c
+[Main] Common subterms: binary[aop(-),call[ident(f),const_i(2)],const_i(5)] const_i(5) call[ident(f),const_i(2)] const_i(2) ident(f) aop(-) binary[aop(+),call[ident(f),const_i(2)],const_i(1)] const_i(1) aop(+) funtype[fulltype[ctype[btype(void)]]] fulltype[ctype[btype(void)]] ctype[btype(void)] btype(void) [Main] terms that changed: binary[aop(+),call[ident(f),const_i(2)],const_i(1)] call[ident(f),const_i(2)] const_i(2) const_i(1) binary[aop(-),call[ident(f),const_i(2)],const_i(5)] const_i(5) 
+[Main] Constructing all safe parts for 2 term pairs
+[Main] Making safe parts for pair 1
+[Diff] abstracting concrete update:const_i(5) ==> const_i(9)
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:binary[aop(-),call[ident(f),const_i(2)],const_i(5)] ==> binary[aop(-),call[ident(f),const_i(3)],const_i(9)]
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:const_i(1) ==> const_i(4)
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:const_i(2) ==> const_i(3)
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:call[ident(f),const_i(2)] ==> call[ident(f),const_i(3)]
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:binary[aop(+),call[ident(f),const_i(2)],const_i(1)] ==> binary[aop(+),call[ident(f),const_i(3)],const_i(4)]
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:call[ident(m),binary[aop(+),call[ident(f),const_i(2)],const_i(1)],binary[aop(-),call[ident(f),const_i(2)],const_i(5)]] ==> call[ident(m),binary[aop(+),call[ident(f),const_i(3)],const_i(4)],binary[aop(-),call[ident(f),const_i(3)],const_i(9)]]
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:estmt[call[ident(m),binary[aop(+),call[ident(f),const_i(2)],const_i(1)],binary[aop(-),call[ident(f),const_i(2)],const_i(5)]]] ==> estmt[call[ident(m),binary[aop(+),call[ident(f),const_i(3)],const_i(4)],binary[aop(-),call[ident(f),const_i(3)],const_i(9)]]]
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:{}stmt[estmt[call[ident(m),binary[aop(+),call[ident(f),const_i(2)],const_i(1)],binary[aop(-),call[ident(f),const_i(2)],const_i(5)]]],estmt[call[ident(foo),const_i(42)]]] ==> {}stmt[estmt[call[ident(m),binary[aop(+),call[ident(f),const_i(3)],const_i(4)],binary[aop(-),call[ident(f),const_i(3)],const_i(9)]]],estmt[call[ident(foo),const_i(42)]]]
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:def[fname(bar),funtype[fulltype[ctype[btype(void)]]],{}stmt[estmt[call[ident(m),binary[aop(+),call[ident(f),const_i(2)],const_i(1)],binary[aop(-),call[ident(f),const_i(2)],const_i(5)]]],estmt[call[ident(foo),const_i(42)]]]] ==> def[fname(bar),funtype[fulltype[ctype[btype(void)]]],{}stmt[estmt[call[ident(m),binary[aop(+),call[ident(f),const_i(3)],const_i(4)],binary[aop(-),call[ident(f),const_i(3)],const_i(9)]]],estmt[call[ident(foo),const_i(42)]]]]
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:prg2[def[fname(bar),funtype[fulltype[ctype[btype(void)]]],{}stmt[estmt[call[ident(m),binary[aop(+),call[ident(f),const_i(2)],const_i(1)],binary[aop(-),call[ident(f),const_i(2)],const_i(5)]]],estmt[call[ident(foo),const_i(42)]]]]] ==> prg2[def[fname(bar),funtype[fulltype[ctype[btype(void)]]],{}stmt[estmt[call[ident(m),binary[aop(+),call[ident(f),const_i(3)],const_i(4)],binary[aop(-),call[ident(f),const_i(3)],const_i(9)]]],estmt[call[ident(foo),const_i(42)]]]]]
+[Diff] resulting abstract updates: 1
+[Main] Making safe parts for pair 2
+[Diff] abstracting concrete update:const_i(5) ==> const_i(9)
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:binary[aop(-),call[ident(f),const_i(2)],const_i(5)] ==> binary[aop(-),call[ident(f),const_i(3)],const_i(9)]
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:const_i(1) ==> const_i(4)
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:call[ident(f),const_i(2)] ==> call[ident(f),const_i(3)]
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:binary[aop(+),call[ident(f),const_i(2)],const_i(1)] ==> binary[aop(+),call[ident(f),const_i(3)],const_i(4)]
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:call[ident(q),binary[aop(+),call[ident(f),const_i(2)],const_i(1)],binary[aop(-),call[ident(f),const_i(2)],const_i(5)]] ==> call[ident(q),binary[aop(+),call[ident(f),const_i(3)],const_i(4)],binary[aop(-),call[ident(f),const_i(3)],const_i(9)]]
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:estmt[call[ident(q),binary[aop(+),call[ident(f),const_i(2)],const_i(1)],binary[aop(-),call[ident(f),const_i(2)],const_i(5)]]] ==> estmt[call[ident(q),binary[aop(+),call[ident(f),const_i(3)],const_i(4)],binary[aop(-),call[ident(f),const_i(3)],const_i(9)]]]
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:{}stmt[estmt[call[ident(q),binary[aop(+),call[ident(f),const_i(2)],const_i(1)],binary[aop(-),call[ident(f),const_i(2)],const_i(5)]]],estmt[assign[simple_assi(=),ident(x),call[ident(lo),const_i(2)]]]] ==> {}stmt[estmt[call[ident(q),binary[aop(+),call[ident(f),const_i(3)],const_i(4)],binary[aop(-),call[ident(f),const_i(3)],const_i(9)]]],estmt[assign[simple_assi(=),ident(x),call[ident(lo),const_i(2)]]]]
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:def[fname(foo),funtype[fulltype[ctype[btype(void)]]],{}stmt[estmt[call[ident(q),binary[aop(+),call[ident(f),const_i(2)],const_i(1)],binary[aop(-),call[ident(f),const_i(2)],const_i(5)]]],estmt[assign[simple_assi(=),ident(x),call[ident(lo),const_i(2)]]]]] ==> def[fname(foo),funtype[fulltype[ctype[btype(void)]]],{}stmt[estmt[call[ident(q),binary[aop(+),call[ident(f),const_i(3)],const_i(4)],binary[aop(-),call[ident(f),const_i(3)],const_i(9)]]],estmt[assign[simple_assi(=),ident(x),call[ident(lo),const_i(2)]]]]]
+[Diff] resulting abstract updates: 1
+[Diff] abstracting concrete update:prg2[def[fname(foo),funtype[fulltype[ctype[btype(void)]]],{}stmt[estmt[call[ident(q),binary[aop(+),call[ident(f),const_i(2)],const_i(1)],binary[aop(-),call[ident(f),const_i(2)],const_i(5)]]],estmt[assign[simple_assi(=),ident(x),call[ident(lo),const_i(2)]]]]]] ==> prg2[def[fname(foo),funtype[fulltype[ctype[btype(void)]]],{}stmt[estmt[call[ident(q),binary[aop(+),call[ident(f),const_i(3)],const_i(4)],binary[aop(-),call[ident(f),const_i(3)],const_i(9)]]],estmt[assign[simple_assi(=),ident(x),call[ident(lo),const_i(2)]]]]]]
+[Diff] resulting abstract updates: 1
+Before sorting list
+{{{
+binary[aop(+),call[ident(f),const_i(2)],const_i(1)] ==> binary[aop(+),call[ident(f),const_i(3)],const_i(4)]
+ ¶ 
+call[ident(f),const_i(2)] ==> call[ident(f),const_i(3)]
+ ¶ 
+const_i(1) ==> const_i(4)
+ ¶ 
+binary[aop(-),call[ident(f),const_i(2)],const_i(5)] ==> binary[aop(-),call[ident(f),const_i(3)],const_i(9)]
+ ¶ 
+const_i(5) ==> const_i(9)
+ ¶ 
+}}}
+[Main] making hierarchy
+[Main] patch:
+	>>>	binary[aop(+),call[ident(f),const_i(2)],const_i(1)] ==> binary[aop(+),call[ident(f),const_i(3)],const_i(4)]
+	binary[aop(+),call[ident(f),const_i(2)],const_i(1)] ==> binary[aop(+),call[ident(f),const_i(3)],const_i(4)] ### 
+	const_i(1) ==> const_i(4) ### 
+[Main] patch:
+	>>>	call[ident(f),const_i(2)] ==> call[ident(f),const_i(3)]
+	call[ident(f),const_i(2)] ==> call[ident(f),const_i(3)] ### 
+[Main] patch:
+	>>>	const_i(1) ==> const_i(4)
+	const_i(1) ==> const_i(4) ### 
+[Main] patch:
+	>>>	binary[aop(-),call[ident(f),const_i(2)],const_i(5)] ==> binary[aop(-),call[ident(f),const_i(3)],const_i(9)]
+	binary[aop(-),call[ident(f),const_i(2)],const_i(5)] ==> binary[aop(-),call[ident(f),const_i(3)],const_i(9)] ### 
+	const_i(5) ==> const_i(9) ### 
+[Main] patch:
+	>>>	const_i(5) ==> const_i(9)
+	const_i(5) ==> const_i(9) ### 
+[Main] removing subsumed pairs
+[Main] patch:
+	>>>	binary[aop(+),call[ident(f),const_i(2)],const_i(1)] ==> binary[aop(+),call[ident(f),const_i(3)],const_i(4)]
+	binary[aop(+),call[ident(f),const_i(2)],const_i(1)] ==> binary[aop(+),call[ident(f),const_i(3)],const_i(4)] ### 
+	const_i(1) ==> const_i(4) ### 
+[Main] patch:
+	>>>	call[ident(f),const_i(2)] ==> call[ident(f),const_i(3)]
+	call[ident(f),const_i(2)] ==> call[ident(f),const_i(3)] ### 
+[Main] patch:
+	>>>	binary[aop(-),call[ident(f),const_i(2)],const_i(5)] ==> binary[aop(-),call[ident(f),const_i(3)],const_i(9)]
+	binary[aop(-),call[ident(f),const_i(2)],const_i(5)] ==> binary[aop(-),call[ident(f),const_i(3)],const_i(9)] ### 
+	const_i(5) ==> const_i(9) ### 

@@ -1,0 +1,4 @@
+void main () {
+	mem(a,b->data,c);
+	mem(10,q->w,30);
+}

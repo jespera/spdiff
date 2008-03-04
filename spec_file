@@ -1,0 +1,3 @@
+tests/usb2.c tests/new-usb2.c
+tests/usb1.c tests/new-usb1.c
+tests/usb.c tests/new-usb.c
