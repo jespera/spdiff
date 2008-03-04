@@ -63,7 +63,7 @@ let no_exceptions = ref 0
 let print_abs = ref false
   (* should we allow non-matching parts to be safe? 
   *)
-let relaxed = ref false
+let relax = ref false
 
 (* check that list l1 is a sublist of l2 *)
 let subset_list l1 l2 =
@@ -945,7 +945,7 @@ and safe_part up (t, t'') =
       merge3 t t' t''
   with ( Nomatch | Merge3) -> false
 
-and relaxeded_safe_part up (t, t'') =
+and relaxed_safe_part up (t, t'') =
   try 
     let t' = apply_noenv up t in
       merge3 t t' t''
@@ -958,7 +958,7 @@ and relaxeded_safe_part up (t, t'') =
  * bp<=C
  * *)
 and safe_part_changeset bp chgset = 
-  let safe_f = if !relaxed then relaxeded_safe_part else safe_part in
+  let safe_f = if !relax then relaxed_safe_part else safe_part in
   List.for_all (safe_f bp) chgset
 
 (* the changeset after application of the basic patch bp; if there is a term to
@@ -1079,7 +1079,7 @@ let reject_term_pair (t, t'') bp bp' =
 
 (* apply a bp to all term pairs and return the new pairs *)
 let apply_changeset bp chgset =
-  let app_f = if !relaxed then apply_noenv else safe_apply in
+  let app_f = if !relax then apply_noenv else safe_apply in
   List.map (function (t,t'') -> (app_f bp t, t'')) chgset
 
 (* return the list of all those bp' that bp does not reject;
@@ -1711,7 +1711,7 @@ let make_subterms_patch ds =
  *)
 
 let inAll e ell =
-  if !relaxed
+  if !relax
   then List.exists (fun l -> List.mem e l) ell
   else List.for_all (fun l -> List.mem e l) ell
 
@@ -1723,9 +1723,9 @@ let filter_all ell =
   ) acc l) [] ell
 
 (* takes a diff list (patch) and finds the subterms in the small updates;
- * we should take a flag to enable strict frequency or relaxeded
+ * we should take a flag to enable strict frequency or relaxed
  * with strict freq. an item, must be in all small updates in all patches
- * with relaxeded an item, must appear somewhere in all patches (not necessarily
+ * with relaxed an item, must appear somewhere in all patches (not necessarily
  * in all small updates as in the strict version
  *
  *)
