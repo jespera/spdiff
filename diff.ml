@@ -943,7 +943,7 @@ and safe_part up (t, t'') =
   try 
     let t' = apply_noenv up t in
       merge3 t t' t''
-  with ( Nomatch | Merge3) -> false
+  with (Nomatch | Merge3) -> false
 
 and relaxed_safe_part up (t, t'') =
   try 
@@ -958,14 +958,15 @@ and relaxed_safe_part up (t, t'') =
  * bp<=C
  * *)
 and safe_part_changeset bp chgset = 
-  let safe_f = if !relax then relaxed_safe_part else safe_part in
-  List.for_all (safe_f bp) chgset
+  let safe_f = if !relax then relaxed_safe_part bp else safe_part bp in
+  List.for_all safe_f chgset
 
 (* the changeset after application of the basic patch bp; if there is a term to
  * which bp does not apply an exception is raise 
  * *)
 and chop_changeset chgset bp =
-  List.map (function (t, t'') -> (t,apply_noenv bp t)) chgset
+(*  List.map (function (t, t'') -> (t,apply_noenv bp t)) chgset *)
+  List.map (function (t, t'') -> (t,safe_apply bp t)) chgset
 
 (* bp <=(t,t) bp' <=> bp'<=(t,t') & bp'(t)=>t'' & bp<=(t,t'') *)
 and subpatch_single bp bp' (t, t') =
@@ -1079,8 +1080,7 @@ let reject_term_pair (t, t'') bp bp' =
 
 (* apply a bp to all term pairs and return the new pairs *)
 let apply_changeset bp chgset =
-  let app_f = if !relax then apply_noenv else safe_apply in
-  List.map (function (t,t'') -> (app_f bp t, t'')) chgset
+  List.map (function (t,t'') -> (safe_apply bp t, t'')) chgset
 
 (* return the list of all those bp' that bp does not reject;
    i.e. which are still applicable AFTER application of bp *)
@@ -1088,7 +1088,7 @@ let get_applicable chgset bp bps =
   try 
     let chgset' = apply_changeset bp chgset in
       (chgset', List.filter (function bp' -> 
-        not(subpatch_changeset chgset bp' bp) &&
+	not(subpatch_changeset chgset' bp' bp) &&
         safe_part_changeset bp' chgset') bps)
   with Nomatch -> (
     print_endline "[Diff] non-applying part-changeset?";
@@ -1911,23 +1911,23 @@ let commutes chgset bp bp' =
   let bp2 = SEQ(bp',bp) in
     eq_changeset chgset bp1 bp2
 
-  let make_abs terms_changed fixf (gt1, gt2) =
-    (* first make the list of concrete safe parts *)
-    debug_msg "[Diff] getting safe concrete parts";
-    let c_parts = get_ctf_diffs_safe [] gt1 gt2 in
-      debug_msg ("[Diff] number of concrete parts: " ^ string_of_int (List.length c_parts));
-      (* new generalize each such part and add it to our resulting list in case it
-       * is not already there and in case it is still a safe part
-       *)
-      debug_msg "[Diff] finding abstract parts";
-      let a_parts = List.flatten (
-	List.map (function c_up ->
-	  List.map
-	    renumber_metas_up
-	    (filter_safe (gt1, gt2) (abs_term_noenv terms_changed fixf
-					should_abs_depth c_up)))
-	  c_parts) in
-	a_parts
+let make_abs terms_changed fixf (gt1, gt2) =
+  (* first make the list of concrete safe parts *)
+  debug_msg "[Diff] getting safe concrete parts";
+  let c_parts = get_ctf_diffs_safe [] gt1 gt2 in
+    debug_msg ("[Diff] number of concrete parts: " ^ string_of_int (List.length c_parts));
+    (* new generalize each such part and add it to our resulting list in case it
+     * is not already there and in case it is still a safe part
+     *)
+    debug_msg "[Diff] finding abstract parts";
+    let a_parts = List.flatten (
+      List.map (function c_up ->
+	List.map
+	  renumber_metas_up
+	  (filter_safe (gt1, gt2) (abs_term_noenv terms_changed fixf
+				      should_abs_depth c_up)))
+	c_parts) in
+      a_parts
 	  (*print_endline "[Diff] removing duplicates";*)
 	  (*let nodup_a_parts = rm_dub a_parts in*)
 	  (*let nodup_a_parts = unique a_parts in*)

@@ -17,28 +17,29 @@ let fixed        = ref false
 let exceptions   = ref 0 
 let close        = ref false
 let print_raw    = ref false
+let print_uniq   = ref false 
 
 let speclist =
   Arg.align
-  ["-src",           Arg.Set_string src_file, "str   gives the name of the src file";
-   "-tgt",           Arg.Set_string tgt_file, "str   gives the name of the tgt file";
-   "-close",         Arg.Set closed,          "bool  indicates that we should also produce the closed db";
-   "-print",         Arg.Set toprint,         "bool  indicates printing of the (non-closed) db";
-   "-abs",           Arg.Set abs,             "bool  indicates whether to perform meta-variable abstraction";
-   "-specfile",      Arg.Set_string mfile,    "str   name of specification file";
-   "-level",         Arg.Set_int our_level,   "int   terms larger than this will not be abstracted";
-   "-top",           Arg.Set_int max_level,   "int   terms larger than this will not have subterms abstracted";
-   "-depth",         Arg.Set_int depth,       "int   recursion depth at which we still abstract terms";
-   "-strict",        Arg.Set strict,          "bool  strict: fv(lhs) = fv(rhs) or nonstrict(default): fv(rhs)<=fv(lhs)";
-   "-multiple",      Arg.Set mvars,           "bool  allow equal terms to have different metas";
-   "-fixed",         Arg.Set fixed,           "bool  never abstract fixed terms";
-   "-exceptions",    Arg.Set_int exceptions,  "int   the number of allowed exceptions to the rule derived";
-   "-close",         Arg.Set close,           "bool  whether to close the resulting mined database (default: no)";
-   "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing,
-                                              "bool  also parse if0 blocks";
-                                              "-print_abs",     Arg.Set Diff.print_abs,  "bool  print abstract updates for each term pair";
-                                              "-relax_safe",    Arg.Set Diff.relax,      "bool  consider non-application safe";
-   "-print_raw",     Arg.Set print_raw,       "bool  print the raw list of generated simple updates"
+    ["-src",           Arg.Set_string src_file, "str   gives the name of the src file";
+     "-tgt",           Arg.Set_string tgt_file, "str   gives the name of the tgt file";
+     "-close",         Arg.Set closed,          "bool  indicates that we should also produce the closed db";
+     "-print",         Arg.Set toprint,         "bool  indicates printing of the (non-closed) db";
+     "-abs",           Arg.Set abs,             "bool  indicates whether to perform meta-variable abstraction";
+     "-specfile",      Arg.Set_string mfile,    "str   name of specification file";
+     "-level",         Arg.Set_int our_level,   "int   terms larger than this will not be abstracted";
+     "-top",           Arg.Set_int max_level,   "int   terms larger than this will not have subterms abstracted";
+     "-depth",         Arg.Set_int depth,       "int   recursion depth at which we still abstract terms";
+     "-strict",        Arg.Set strict,          "bool  strict: fv(lhs) = fv(rhs) or nonstrict(default): fv(rhs)<=fv(lhs)";
+     "-multiple",      Arg.Set mvars,           "bool  allow equal terms to have different metas";
+     "-fixed",         Arg.Set fixed,           "bool  never abstract fixed terms";
+     "-exceptions",    Arg.Set_int exceptions,  "int   the number of allowed exceptions to the rule derived";
+     "-close",         Arg.Set close,           "bool  whether to close the resulting mined database (default: no)";
+     "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing, "bool  also parse if0 blocks";
+     "-print_abs",     Arg.Set Diff.print_abs,  "bool  print abstract updates for each term pair";
+     "-relax_safe",    Arg.Set Diff.relax,      "bool  consider non-application safe";
+     "-print_raw",     Arg.Set print_raw,       "bool  print the raw list of generated simple updates";
+     "-print_uniq",    Arg.Set print_uniq,      "bool  print the unique solutions before removing smaller ones"
   ]
 
 let old_main () =
@@ -148,6 +149,10 @@ let do_datamining abs_patches =
 
 
 let generate_sols chgset simple_patches =
+  let lcnt = ref 1 in
+  print_string "[Main] generating solutions for ";
+  print_string (string_of_int (List.length simple_patches));
+  print_endline " simple patches";
   let (^^) a b = List.map (function bs -> a :: bs) b in
   let make_one a = [[a]] in
   let rec loop chgset bp =
@@ -157,7 +162,12 @@ let generate_sols chgset simple_patches =
 	  bp ^^
 	  List.flatten (List.map (function bp' -> loop chgset' bp') bps)
   in
-    List.flatten (List.map (function bp -> loop chgset bp) simple_patches)
+    List.flatten (List.map (function bp -> 
+      print_string "[Main] generating for ";
+      print_string (string_of_int !lcnt);
+      print_endline " simple patch";
+      lcnt := !lcnt + 1;
+      loop chgset bp) simple_patches)
 
 (* function to detect whether two solutions (a solution is a list of
    bp's) are really equal, but with different orderings of the bp's
@@ -207,9 +217,14 @@ let filter_smaller chgset solutions =
   let bp_sols = List.map bp_of_list solutions in
     (* predicate for when to keep a solution: if all other solutions are
        smaller *)
-  let keep_sol bp = List.for_all 
-    (function bp' -> Diff.subpatch_changeset chgset bp' bp) 
-    bp_sols in
+  let keep_sol bp = 
+    if !Diff.relax
+    then List.exists
+      (function bp' -> Diff.subpatch_changeset chgset bp' bp) 
+      bp_sols
+    else List.for_all 
+      (function bp' -> Diff.subpatch_changeset chgset bp' bp) 
+      bp_sols in
     List.map list_of_bp (List.filter keep_sol bp_sols)
     
 
@@ -222,24 +237,24 @@ let filter_smaller chgset solutions =
       ) sol;
       print_endline "}}}"
 
-				   let print_sols sols =
-				     let cnt = ref 1 in
-				       List.iter (function sol ->
-					 print_string "[Main] solution #";
-					 print_endline (string_of_int !cnt);
-					 print_sol sol;
-					 cnt := !cnt + 1
-				       ) sols
-
-
-
-				   (* we are given a big list of TUs and now we wish to produce SEQ-patches
-				    * (basically lists of TUs) so that we have one which is largest. We note that
-				    * each TU is derived such that it should actually be applied in parallel with
-				    * all others. Thus, there could be cases where two patches overlap without
-				    * being in a subpatch relationship. The question is now: is it always the case
-				    * that one could be applied before the other?
-				    *)
+    let print_sols sols =
+      let cnt = ref 1 in
+	List.iter (function sol ->
+	  print_string "[Main] solution #";
+	  print_endline (string_of_int !cnt);
+	  print_sol sol;
+	  cnt := !cnt + 1
+	) sols
+	  
+	  
+	  
+    (* we are given a big list of TUs and now we wish to produce SEQ-patches
+     * (basically lists of TUs) so that we have one which is largest. We note that
+     * each TU is derived such that it should actually be applied in parallel with
+     * all others. Thus, there could be cases where two patches overlap without
+     * being in a subpatch relationship. The question is now: is it always the case
+     * that one could be applied before the other?
+     *)
 
 let spec_main () =
   Diff.abs_depth     := !depth;
@@ -318,6 +333,11 @@ let spec_main () =
     print_string "[Main] filtered ";
     print_string (string_of_int (List.length solutions - List.length uniq_sols));
     print_endline " solutions";
+    if !print_uniq then (
+      print_endline "[Main] printing unique solutions";
+      print_sols uniq_sols
+    );
+    print_endline "[Main] removing smaller solutions";
     let subsumed_sols = filter_smaller term_pairs uniq_sols in
       print_string "[Main] removed ";
       print_string (string_of_int (List.length uniq_sols - List.length subsumed_sols));
