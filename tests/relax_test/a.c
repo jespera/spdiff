@@ -1,5 +1,5 @@
 void test(void) {
 	f(a);
-	g(110);
+	g(a);
 	s = x;
 }

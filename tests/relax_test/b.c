@@ -1,6 +1,6 @@
 void test(void) {
 	f(a,a);
-	g(110);
+	g(a);
 	s = x;
 }
 

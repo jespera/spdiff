@@ -12,8 +12,8 @@ let type_a_term ty a  = A(ty, a)
 let make_type_expl t  = A("grammar",t)
 let (<<) a b = make_type_expl a :: b
 let (@@) a b' = match b' with
-  (*| C(b,l) -> C(a^":"^b,l)*)
-  | C(b,l) -> C(a, b << l)
+  | C(b,l) -> C(a^":"^b,l)
+  (* | C(b,l) -> C(a, b << l) *)
   | A(b,l) -> A(a^":"^b,l)
 let (@@@) a b = C(a, b)
 let (%%) a b = type_a_term a b

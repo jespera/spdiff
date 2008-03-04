@@ -1,5 +1,5 @@
 void tezt(void) {
 	f(b);
-	foo(117);
+	foo(b);
 	r = 42;
 }
