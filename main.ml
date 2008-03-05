@@ -148,7 +148,7 @@ let do_datamining abs_patches =
     cdb
 
 
-let generate_sols chgset simple_patches =
+let generate_sols chgset_orig simple_patches =
   let lcnt = ref 1 in
   print_string "[Main] generating solutions for ";
   print_string (string_of_int (List.length simple_patches));
@@ -167,7 +167,7 @@ let generate_sols chgset simple_patches =
       print_string (string_of_int !lcnt);
       print_endline " simple patch";
       lcnt := !lcnt + 1;
-      loop chgset bp) simple_patches)
+      loop chgset_orig bp) simple_patches)
 
 (* function to detect whether two solutions (a solution is a list of
    bp's) are really equal, but with different orderings of the bp's
@@ -218,13 +218,14 @@ let filter_smaller chgset solutions =
     (* predicate for when to keep a solution: if all other solutions are
        smaller *)
   let keep_sol bp = 
-    if !Diff.relax
-    then List.exists
-      (function bp' -> Diff.subpatch_changeset chgset bp' bp) 
-      bp_sols
-    else List.for_all 
-      (function bp' -> Diff.subpatch_changeset chgset bp' bp) 
+    List.for_all
+      (function bp' -> 
+	Diff.subpatch_changeset chgset bp' bp 
+      )
       bp_sols in
+    print_string "[Main] filter_small considering ";
+    print_string (string_of_int (List.length solutions));
+    print_endline " solutions";
     List.map list_of_bp (List.filter keep_sol bp_sols)
     
 
@@ -269,7 +270,7 @@ let spec_main () =
   (* we must now find the frequent subterms; 
    * that is, the subterms that occur in all term pair LHS'es *)
   (* {{{  Common subterms printing *)
-  print_string "[Main] Common subterms: ";
+  Diff.fdebug_string !Diff.print_abs "[Main] Common subterms: ";
   let frqnt_st = Diff.make_fixed_list term_pairs in
   List.iter (function st -> 
     print_string (Diff.string_of_gtree' st);
@@ -292,7 +293,7 @@ let spec_main () =
   let abs_patches = List.map (function (t, t'') ->
     print_endline ("[Main] Making safe parts for pair " ^ string_of_int !tcount);
     tcount := !tcount + 1;
-    print_endline (Diff.string_of_diff (Difftype.UP(t,t'')));
+    (* print_endline (Diff.string_of_diff (Difftype.UP(t,t'')));  *)
     let terms_changed_list = Diff.find_changed_terms_pair fixf (t,t'') in
     let terms_changed = function a -> List.mem a terms_changed_list in
     print_string "[Main] terms that changed: ";
@@ -332,7 +333,9 @@ let spec_main () =
   let uniq_sols = filter_redundant solutions in
     print_string "[Main] filtered ";
     print_string (string_of_int (List.length solutions - List.length uniq_sols));
-    print_endline " solutions";
+    print_string " solutions of ";
+    print_string (string_of_int (List.length solutions));
+    print_endline " possible";
     if !print_uniq then (
       print_endline "[Main] printing unique solutions";
       print_sols uniq_sols

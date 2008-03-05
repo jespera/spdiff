@@ -1,5 +1,7 @@
 let debug = false
 let debug_msg x = if debug then print_endline x else ()
+let fdebug_string f x = if f then print_string x else ()
+let fdebug_endline f x = if f then print_endline x else ()
 let debug_newline () = if debug then print_newline () else ()
 
 open Gtree
@@ -589,9 +591,15 @@ and apply_noenv up t =
 
 
 and eq_term t bp1 bp2 =
-  try
-    apply_noenv bp1 t = apply_noenv bp2 t
-  with Nomatch -> false
+  (try
+    let t1 = apply_noenv bp1 t in 
+      (try
+	 t1 = apply_noenv bp2 t
+      with Nomatch -> false)
+  with Nomatch -> 
+    try let t2 = apply_noenv bp2 t in 
+	  false 
+    with Nomatch -> true)
 
 and eq_changeset chgset bp1 bp2 =
   List.for_all (function (t,_) -> eq_term t bp1 bp2) chgset
@@ -1002,6 +1010,14 @@ and get_ctf_diffs_all work gt1 gt2 =
       in
 	traverse (all_pred gt1 gt2) work gt1 gt2
 
+let complete_changeset chgset bp_list =
+  let app_f t bp = safe_apply bp t in
+  List.for_all
+    (function (t,t'') ->
+      List.fold_left app_f t bp_list
+	= t''
+    )
+    chgset
 
 let make_subpatch_tree parts t t' =
   (*let parts = get_ctf_diffs_safe [] t t' in*)
@@ -1088,7 +1104,8 @@ let get_applicable chgset bp bps =
   try 
     let chgset' = apply_changeset bp chgset in
       (chgset', List.filter (function bp' -> 
-	not(subpatch_changeset chgset' bp' bp) &&
+	not(chgset' = chgset) &&
+	not(subpatch_changeset chgset bp' bp) &&
         safe_part_changeset bp' chgset') bps)
   with Nomatch -> (
     print_endline "[Diff] non-applying part-changeset?";
@@ -1420,7 +1437,7 @@ let rec abs_term_imp terms_changed is_fixed should_abs up =
           else 
             get_metas build_mode env t
 	  else (
-            print_endline ("[Diff] not abstracting atom: " ^ string_of_gtree' t);
+            debug_msg ("[Diff] not abstracting atom: " ^ string_of_gtree' t);
             [t], env)
     | C (ct, []) -> raise (Fail "whhaaattt")
     | C (ct, ts) when !abs_subterms <= gsize t -> 
@@ -1496,11 +1513,11 @@ let rec abs_term_imp terms_changed is_fixed should_abs up =
       | _ -> raise (Fail "non supported update given to abs_term_size_imp")
 
 let abs_term_noenv terms_changed is_fixed should_abs up = 
-  print_endline ("[Diff] abstracting concrete update:" ^
+  fdebug_endline !print_abs ("[Diff] abstracting concrete update:" ^
 		    string_of_diff up);
   (*let res, _ = abs_term_size terms_changed is_fixed should_abs up in *)
   let res, _ = abs_term_imp terms_changed is_fixed should_abs up in 
-    print_endline ("[Diff] resulting abstract updates: " ^ 
+    fdebug_endline !print_abs ("[Diff] resulting abstract updates: " ^ 
 		      string_of_int (List.length res));
     if !print_abs 
     then List.iter (function d -> print_endline (string_of_diff d)) res;
@@ -1760,7 +1777,7 @@ let frequent_subterms_changeset cs =
 let make_fixed_list term_pairs =
   let subterms = List.map 
     (function (gtn, _) -> 
-      print_string ("[Diff] making all subterms for :\n\t");
+      fdebug_string !print_abs ("[Diff] making all subterms for :\n\t");
       print_endline (string_of_gtree' gtn);
       make_all_subterms gtn) term_pairs in
     filter_all subterms
