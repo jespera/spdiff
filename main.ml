@@ -147,8 +147,26 @@ let do_datamining abs_patches =
     Diff.string_of_diff
     cdb
 
+let bp_of_list ls = 
+  let rec loop ls = match ls with
+    | [] -> None
+    | l :: ls -> match loop ls with
+	| None -> Some l
+	| Some bp -> Some (Difftype.SEQ (l, bp))
+  in
+    match loop ls with
+      | None -> raise (Diff.Fail "None?")
+      | Some bp -> bp
+	    
+let list_of_bp bp = 
+  let rec loop bp = match bp with
+    | Difftype.SEQ (Difftype.UP (a, b), bps) -> (Difftype.UP (a,b)) :: loop bps
+    | Difftype.UP _ -> [bp]
+    | _ -> raise (Diff.Fail "list_of_bp format")
+  in
+    loop bp
 
-let generate_sols chgset_orig simple_patches =
+let generate_sols_old chgset_orig simple_patches =
   let lcnt = ref 1 in
   print_string "[Main] generating solutions for ";
   print_string (string_of_int (List.length simple_patches));
@@ -168,6 +186,75 @@ let generate_sols chgset_orig simple_patches =
       print_endline " simple patch";
       lcnt := !lcnt + 1;
       loop chgset_orig bp) simple_patches)
+
+let generate_sols chgset_orig simple_patches =
+  let unwrap bp = match bp with 
+    | None -> raise (Diff.Fail "unable to unwrap")
+    | Some bp -> bp in
+  let extend_bp bp_old bp_new = 
+    let rec loop bp_old bp_new =
+      match bp_old with
+      | Difftype.UP _ -> Difftype.SEQ(bp_old,bp_new)
+      | Difftype.SEQ (a, b) -> Difftype.SEQ (a, loop b bp_new) 
+      | _ -> raise (Diff.Fail "extend_bp format")
+  in
+    match bp_old with
+    | None -> Some bp_new
+    | Some bp_old -> Some (loop bp_old bp_new) in
+  let app_pred cur_bp bp = 
+    (
+      not(Diff.subpatch_changeset chgset_orig bp cur_bp) &&
+      let nbp = unwrap (extend_bp (Some cur_bp) bp) in
+      (*print_endline "[Main] applying 1:";*)
+      (*print_endline (Diff.string_of_diff nbp);*)
+      let chgset' = Diff.apply_changeset nbp chgset_orig in
+      (*print_endline "[Main] applying 2:";*)
+      (*print_endline (Diff.string_of_diff cur_bp);*)
+      let chgset''= Diff.apply_changeset cur_bp chgset_orig in
+      not(chgset' = chgset'') &&
+      Diff.safe_part_changeset nbp chgset_orig 
+    )
+    in
+  let restrict_bps cur_bp bps =
+    List.filter (function bp ->
+      not(Diff.subpatch_changeset chgset_orig bp cur_bp)
+    ) bps in
+  let next_bps cur_bp bps = match cur_bp with
+    | None -> simple_patches
+    | Some cur_bp -> (
+        (*print_string "[Main] considering next w.r.t.\n\t";*)
+        (*print_endline (Diff.string_of_diff cur_bp);*)
+        let res = List.filter (function bp ->
+          try app_pred cur_bp bp with Diff.Nomatch -> false) 
+            (restrict_bps cur_bp bps) in
+        (*print_endline "[Updates added";*)
+        (*List.iter (function bp -> print_endline ("\t"^Diff.string_of_diff bp)) res;*)
+        res
+    )
+    in
+  let add_sol cur_bp sol = 
+    match cur_bp with 
+    | None -> raise (Diff.Fail "something is completely wrong")
+    | Some cur_bp -> (
+      (*print_string "[Main] added solution\n\t";*)
+      (*print_endline (Diff.string_of_diff cur_bp);*)
+      cur_bp :: sol) in
+  let rec gen sol bps cur_bp =
+    let bps' = next_bps cur_bp bps in
+    if bps' = []
+    then add_sol cur_bp sol
+    else
+      (
+        (*print_endline ("[Main] bps'.length " ^*)
+          (*string_of_int (List.length bps'));*)
+        List.fold_left (fun sol bp ->
+          let nbp = extend_bp cur_bp bp in
+          let nbps = restrict_bps (unwrap nbp) bps in
+          gen sol nbps nbp
+        ) sol bps'
+      )
+  in
+  List.map list_of_bp (gen [] simple_patches None)
 
 (* function to detect whether two solutions (a solution is a list of
    bp's) are really equal, but with different orderings of the bp's
@@ -195,22 +282,6 @@ let rec filter_redundant solutions =
 
    Clearly, we should remove the smaller solutions from the list.
 *)
-let bp_of_list ls = 
-  let rec loop ls = match ls with
-    | [] -> None
-    | l :: ls -> match loop ls with
-	| None -> Some l
-	| Some bp -> Some (Difftype.SEQ (l, bp))
-  in
-    match loop ls with
-      | None -> raise (Diff.Fail "None?")
-      | Some bp -> bp
-	    
-let list_of_bp bp = 
-  let rec loop bp = match bp with
-    | Difftype.SEQ (Difftype.UP (a, b), bps) -> (Difftype.UP (a,b)) :: loop bps
-    | Difftype.UP _ -> [bp] in
-    loop bp
 
 let filter_smaller chgset solutions =
   (* turn the lists into SEQ-bps *)
@@ -247,7 +318,25 @@ let filter_smaller chgset solutions =
 	  cnt := !cnt + 1
 	) sols
 	  
-	  
+(* if we are relaxed get all the simple patches that are relaxed_safe for
+ * the changeset and otherwise we can simply get all the ones that occur
+ * everywhere
+ *)
+let get_all_safe changeset abs_patches =
+  if not(!Diff.relax)
+  then Diff.filter_all abs_patches
+  else 
+    List.fold_left
+    (fun acc_bps bp_list ->
+      Diff.non_dub_app
+      (List.filter 
+        (function bp -> Diff.safe_part_changeset bp changeset)
+        bp_list)
+      acc_bps
+    )
+    []
+    abs_patches
+
 	  
     (* we are given a big list of TUs and now we wish to produce SEQ-patches
      * (basically lists of TUs) so that we have one which is largest. We note that
@@ -318,7 +407,7 @@ let spec_main () =
    * mine now; we use the db.ml functions for that
    *)
   (*do_datamining abs_patches*)(*}}}*)
-  let filtered_patches = Diff.filter_all abs_patches in
+  let filtered_patches = get_all_safe term_pairs abs_patches in
   if !print_raw
   then (
     print_endline "Raw list of simple updates";

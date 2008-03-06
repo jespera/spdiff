@@ -4,6 +4,8 @@ let fdebug_string f x = if f then print_string x else ()
 let fdebug_endline f x = if f then print_endline x else ()
 let debug_newline () = if debug then print_newline () else ()
 
+exception Fail of string
+
 open Gtree
 open Db
 open Difftype
@@ -275,8 +277,10 @@ let rec correlate rm_list add_list =
     | [], al -> al
     | rl, [] -> rl
     | RM r :: rl, ADD a :: al ->
-	let u = if r = a then ID a else UP(r,a) in
-	  u :: correlate rl al
+        let u = if r = a then ID a else UP(r,a) 
+        in
+        u :: correlate rl al
+    | _ -> raise (Fail "correleate")
 	    
 (* the list of diffs returned is not in the same order as the input list
 *)
@@ -317,7 +321,6 @@ let correlate_diffs d =
   make_diff (s,t) = make_diff (s',t')
 *)
 
-exception Fail of string
   (* occurs s l checks whether s occurs as a subterm of l; it is used to check for
    * conflicting updates; TODO extened to also handle meta variables
    *)
@@ -528,9 +531,15 @@ C(ct,ts), empty_env
   | _ -> raise Nomatch
 ) *)
   | SEQ(d1, d2) -> 
-      let t1, env1 = apply d1 t in
-      let t2, env2 = apply d2 t1 in
-      t2, env2
+        let t1, env1 = (try 
+          apply d1 t with Nomatch -> 
+            if !relax then t, empty_env else raise Nomatch)
+        in
+        (try apply d2 t1 with Nomatch ->
+          if !relax 
+          then t1, empty_env
+          else raise Nomatch
+        )
   | UP(src, tgt) -> (match src, t with
   | A ("meta", mvar), _ -> 
       let env = mk_env (mvar, t) in sub env tgt, env
@@ -594,10 +603,10 @@ and eq_term t bp1 bp2 =
   (try
     let t1 = apply_noenv bp1 t in 
       (try
-	 t1 = apply_noenv bp2 t
-      with Nomatch -> false)
-  with Nomatch -> 
-    try let t2 = apply_noenv bp2 t in 
+          t1 = apply_noenv bp2 t
+        with Nomatch -> false)
+    with Nomatch -> 
+      try let _ = apply_noenv bp2 t in 
 	  false 
     with Nomatch -> true)
 
@@ -970,7 +979,7 @@ and safe_part_changeset bp chgset =
   List.for_all safe_f chgset
 
 (* the changeset after application of the basic patch bp; if there is a term to
- * which bp does not apply an exception is raise 
+ * which bp does not apply an exception is raised unless we are in relaxed mode
  * *)
 and chop_changeset chgset bp =
 (*  List.map (function (t, t'') -> (t,apply_noenv bp t)) chgset *)
@@ -983,8 +992,23 @@ and subpatch_single bp bp' (t, t') =
       safe_part bp (t, t'')
 
 and subpatch_changeset chgset bp bp' = 
-  safe_part_changeset bp' chgset &&
-    safe_part_changeset bp (chop_changeset chgset bp')
+  if safe_part_changeset bp' chgset 
+  then
+    let chop = chop_changeset chgset bp' in
+    if safe_part_changeset bp chop
+    then true
+    else 
+      (
+        (*print_string "[Diff] <\n\t";*)
+        (*print_endline (string_of_diff bp);*)
+        false)
+  else 
+    (
+      (*print_string "[Diff] .\n\t";*)
+      (*print_endline (string_of_diff bp');*)
+      false
+    )
+    
 
 and get_ctf_diffs_all work gt1 gt2 =
   let all_pred lhs rhs w u =
@@ -1096,22 +1120,26 @@ let reject_term_pair (t, t'') bp bp' =
 
 (* apply a bp to all term pairs and return the new pairs *)
 let apply_changeset bp chgset =
-  List.map (function (t,t'') -> (safe_apply bp t, t'')) chgset
+  let app_f = 
+    if !relax 
+    then safe_apply
+    else apply_noenv in
+  List.map (function (t,t'') -> (app_f bp t, t'')) chgset
 
 (* return the list of all those bp' that bp does not reject;
    i.e. which are still applicable AFTER application of bp *)
 let get_applicable chgset bp bps =
   try 
     let chgset' = apply_changeset bp chgset in
-      (chgset', List.filter (function bp' -> 
-	not(chgset' = chgset) &&
-	not(subpatch_changeset chgset bp' bp) &&
-        safe_part_changeset bp' chgset') bps)
+    (chgset', List.filter (function bp' -> 
+      not(chgset' = chgset) &&
+      not(subpatch_changeset chgset' bp' bp) &&
+      safe_part_changeset bp' chgset') bps)
   with Nomatch -> (
     print_endline "[Diff] non-applying part-changeset?";
     print_endline (string_of_diff bp);
     raise Nomatch
-  )
+    )
 
 let gtree_of_ast_c parsed = Visitor_j.trans_prg2 parsed
 
@@ -1579,7 +1607,8 @@ let patch = UP(
 
 let non_dub_cons x xs= if List.mem x xs then xs else x :: xs 
 let ($$) a b = non_dub_cons a b
-let (%) ls1 ls2 = List.fold_left (fun acc l -> l $$ acc) ls1 ls2
+let non_dub_app ls1 ls2 = List.fold_left (fun acc l -> l $$ acc) ls1 ls2
+let (%) ls1 ls2 = non_dub_app ls1 ls2
 
 (* construct all the possible sub-terms of a given term in the gtree format; the
  * resulting list does not have any order that one should rely on
@@ -1727,10 +1756,7 @@ let make_subterms_patch ds =
  * the returned list appear in all the input e lists
  *)
 
-let inAll e ell =
-  if !relax
-  then List.exists (fun l -> List.mem e l) ell
-  else List.for_all (fun l -> List.mem e l) ell
+let inAll e ell = List.for_all (fun l -> List.mem e l) ell
 
 let filter_all ell =
   List.fold_left (fun acc l -> List.fold_left (fun acc e ->
