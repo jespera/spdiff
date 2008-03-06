@@ -187,6 +187,50 @@ let generate_sols_old chgset_orig simple_patches =
       lcnt := !lcnt + 1;
       loop chgset_orig bp) simple_patches)
 
+(* function to detect whether two solutions (a solution is a list of
+   bp's) are really equal, but with different orderings of the bp's
+*)
+let redundant_sol sol1 sol2 = 
+  List.for_all (function bp1 -> List.mem bp1 sol2) sol1 &&
+    List.for_all (function bp2 -> List.mem bp2 sol1) sol2
+
+let rec filter_redundant solutions =
+  match solutions with
+    | [] -> []
+    | s :: sols -> s :: List.filter (function s' ->
+	not(redundant_sol (list_of_bp s) (list_of_bp s'))) 
+	(filter_redundant sols)
+
+(* there may be solutions that are smaller than others as illustrated
+   by the following update:
+
+   (f(1)+a)+a) -> (f(2)+b)+b
+
+   here we would have both f(1)->f(2) and f(1)+a -> f(2)+b in the
+   generated results; we notice that neither can be applied together,
+   so we need to separate them in two solutions. Thus, we have
+   f(1)->f(2) <= f(1)+a -> f(2)+b.
+
+   Clearly, we should remove the smaller solutions from the list.
+*)
+
+let filter_smaller chgset solutions =
+  (* turn the lists into SEQ-bps *)
+  (*let bp_sols = List.map bp_of_list solutions in*)
+    (* predicate for when to keep a solution: if all other solutions are
+       smaller *)
+  let keep_sol bp = 
+    List.for_all
+      (function bp' -> Diff.subpatch_changeset chgset bp' bp 
+      )
+      solutions in
+    (*print_string "[Main] filter_small considering ";*)
+    (*print_string (string_of_int (List.length solutions));*)
+    (*print_endline " solutions";*)
+    (*List.map list_of_bp *)
+    (List.filter keep_sol solutions)
+
+
 let generate_sols chgset_orig simple_patches =
   let unwrap bp = match bp with 
     | None -> raise (Diff.Fail "unable to unwrap")
@@ -203,7 +247,7 @@ let generate_sols chgset_orig simple_patches =
     | Some bp_old -> Some (loop bp_old bp_new) in
   let app_pred cur_bp bp = 
     (
-      not(Diff.subpatch_changeset chgset_orig bp cur_bp) &&
+      (*not(Diff.subpatch_changeset chgset_orig bp cur_bp) &&*)
       let nbp = unwrap (extend_bp (Some cur_bp) bp) in
       (*print_endline "[Main] applying 1:";*)
       (*print_endline (Diff.string_of_diff nbp);*)
@@ -236,9 +280,10 @@ let generate_sols chgset_orig simple_patches =
     match cur_bp with 
     | None -> raise (Diff.Fail "something is completely wrong")
     | Some cur_bp -> (
-      (*print_string "[Main] added solution\n\t";*)
+      (*print_string "[Main] trying solution\n\t";*)
       (*print_endline (Diff.string_of_diff cur_bp);*)
-      cur_bp :: sol) in
+      filter_smaller chgset_orig (filter_redundant (cur_bp :: sol))
+      ) in
   let rec gen sol bps cur_bp =
     let bps' = next_bps cur_bp bps in
     if bps' = []
@@ -256,49 +301,6 @@ let generate_sols chgset_orig simple_patches =
   in
   List.map list_of_bp (gen [] simple_patches None)
 
-(* function to detect whether two solutions (a solution is a list of
-   bp's) are really equal, but with different orderings of the bp's
-*)
-let redundant_sol sol1 sol2 = 
-  List.for_all (function bp1 -> List.mem bp1 sol2) sol1 &&
-    List.for_all (function bp2 -> List.mem bp2 sol1) sol2
-
-let rec filter_redundant solutions =
-  match solutions with
-    | [] -> []
-    | s :: sols -> s :: List.filter (function s' ->
-	not(redundant_sol s s')) 
-	(filter_redundant sols)
-
-(* there may be solutions that are smaller than others as illustrated
-   by the following update:
-
-   (f(1)+a)+a) -> (f(2)+b)+b
-
-   here we would have both f(1)->f(2) and f(1)+a -> f(2)+b in the
-   generated results; we notice that neither can be applied together,
-   so we need to separate them in two solutions. Thus, we have
-   f(1)->f(2) <= f(1)+a -> f(2)+b.
-
-   Clearly, we should remove the smaller solutions from the list.
-*)
-
-let filter_smaller chgset solutions =
-  (* turn the lists into SEQ-bps *)
-  let bp_sols = List.map bp_of_list solutions in
-    (* predicate for when to keep a solution: if all other solutions are
-       smaller *)
-  let keep_sol bp = 
-    List.for_all
-      (function bp' -> 
-	Diff.subpatch_changeset chgset bp' bp 
-      )
-      bp_sols in
-    print_string "[Main] filter_small considering ";
-    print_string (string_of_int (List.length solutions));
-    print_endline " solutions";
-    List.map list_of_bp (List.filter keep_sol bp_sols)
-    
 
 
     let print_sol sol =
@@ -418,7 +420,10 @@ let spec_main () =
     ) filtered_patches;
     print_endline "}}}"
   );
+  print_endline "[Main] generating solutions...";
   let solutions = generate_sols term_pairs filtered_patches in
+  print_sols solutions
+  (*
   let uniq_sols = filter_redundant solutions in
     print_string "[Main] filtered ";
     print_string (string_of_int (List.length solutions - List.length uniq_sols));
@@ -435,7 +440,7 @@ let spec_main () =
       print_string (string_of_int (List.length uniq_sols - List.length subsumed_sols));
       print_endline " smaller patches";
       print_sols subsumed_sols
-
+*)
 
 let main () =
   (* decide which mode to operate in *)
