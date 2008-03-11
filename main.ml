@@ -221,7 +221,9 @@ let filter_smaller chgset solutions =
        smaller *)
   let keep_sol bp = 
     List.for_all
-      (function bp' -> Diff.subpatch_changeset chgset bp' bp 
+      (function bp' -> 
+        Diff.subpatch_changeset chgset bp' bp &&
+        Difftype.csize bp' <= Difftype.csize bp
       )
       solutions in
     (*print_string "[Main] filter_small considering ";*)
@@ -251,20 +253,24 @@ let generate_sols chgset_orig simple_patches =
       let nbp = unwrap (extend_bp (Some cur_bp) bp) in
       (*print_endline "[Main] applying 1:";*)
       (*print_endline (Diff.string_of_diff nbp);*)
-      let chgset' = Diff.apply_changeset nbp chgset_orig in
-      (*print_endline "[Main] applying 2:";*)
-      (*print_endline (Diff.string_of_diff cur_bp);*)
-      let chgset''= Diff.apply_changeset cur_bp chgset_orig in
-      not(chgset' = chgset'') &&
-      Diff.safe_part_changeset nbp chgset_orig 
+      if !Diff.relax 
+      then (
+          let chgset' = Diff.apply_changeset nbp chgset_orig in
+          (*print_endline "[Main] applying 2:";*)
+          (*print_endline (Diff.string_of_diff cur_bp);*)
+          let chgset''= Diff.apply_changeset cur_bp chgset_orig in
+          not(chgset' = chgset'')
+        ) && Diff.safe_part_changeset nbp chgset_orig 
+      else 
+          Diff.safe_part_changeset nbp chgset_orig 
     )
     in
   let restrict_bps cur_bp bps =
     List.filter (function bp ->
       not(Diff.subpatch_changeset chgset_orig bp cur_bp)
     ) bps in
-  let next_bps cur_bp bps = match cur_bp with
-    | None -> simple_patches
+  let next_bps bps cur_bp = match cur_bp with
+    | None -> bps (*simple_patches*)
     | Some cur_bp -> (
         (*print_string "[Main] considering next w.r.t.\n\t";*)
         (*print_endline (Diff.string_of_diff cur_bp);*)
@@ -280,12 +286,15 @@ let generate_sols chgset_orig simple_patches =
     match cur_bp with 
     | None -> raise (Diff.Fail "something is completely wrong")
     | Some cur_bp -> (
-      (*print_string "[Main] trying solution\n\t";*)
-      (*print_endline (Diff.string_of_diff cur_bp);*)
-      filter_smaller chgset_orig (filter_redundant (cur_bp :: sol))
+        if !print_raw
+        then (
+          print_string "[Main] trying solution\n\t";
+          print_endline (Diff.string_of_diff cur_bp)
+        );
+        filter_smaller chgset_orig (filter_redundant (cur_bp :: sol))
       ) in
   let rec gen sol bps cur_bp =
-    let bps' = next_bps cur_bp bps in
+    let bps' = next_bps bps cur_bp in
     if bps' = []
     then add_sol cur_bp sol
     else
@@ -294,8 +303,9 @@ let generate_sols chgset_orig simple_patches =
           (*string_of_int (List.length bps'));*)
         List.fold_left (fun sol bp ->
           let nbp = extend_bp cur_bp bp in
-          let nbps = restrict_bps (unwrap nbp) bps in
-          gen sol nbps nbp
+          (* let nbps = restrict_bps (unwrap nbp) bps in *)
+          (* gen sol nbps nbp *)
+	    gen sol bps nbp
         ) sol bps'
       )
   in
@@ -339,7 +349,6 @@ let get_all_safe changeset abs_patches =
     []
     abs_patches
 
-	  
     (* we are given a big list of TUs and now we wish to produce SEQ-patches
      * (basically lists of TUs) so that we have one which is largest. We note that
      * each TU is derived such that it should actually be applied in parallel with

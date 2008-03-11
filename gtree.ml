@@ -18,14 +18,15 @@ let embedded a b =
 
 let rec gsize t =
   match t with
+  | A ("meta", _) -> 0
   | A _ -> 1
   | C(ct, ts) -> 1 + List.fold_left 
-      (fun a b -> a + gsize b) 0 ts
+      (fun a b -> a + gsize b) 1 ts
 
 let rec gdepth t =
   match t with
   | A _ -> 0
   | C(ct, ts) -> List.fold_left
-      (fun a b -> max a (gdepth b)) 0 ts
+      (fun a b -> max a (gdepth b)) 1 ts
 
 
