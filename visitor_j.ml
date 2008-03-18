@@ -7,17 +7,21 @@ open Ast_c
 
 let (+>) o f = f o
 
+exception Fail of string
+
 let type_c_term ty te = C(ty, [te])
 let type_a_term ty a  = A(ty, a)
 let make_type_expl t  = A("grammar",t)
 let (<<) a b = make_type_expl a :: b
 let (@@) a b' = match b' with
-  | C(b,l) -> C(a^":"^b,l)
-  (* | C(b,l) -> C(a, b << l) *)
-  | A(b,l) -> A(a^":"^b,l)
+  (*| C(b,l) -> C(a^":"^b,l)*)
+  (*| C(b,l) -> C(a, b << l)*)
+  | C(b,l) -> C(a, [b'])
+  | A(b,l) -> C(a, [b'])
 let (@@@) a b = C(a, b)
 let (%%) a b = type_a_term a b
 let (!!) a = A(a, "N/H")
+
 
 let rec trans_expr exp = 
   let (unwrap_e, typ), ii = exp in
@@ -28,7 +32,11 @@ let rec trans_expr exp =
       "exp" @@ "const" @@ "string" %% s
   | Constant (Int s) -> 
       "exp" @@ "const" @@ "int" %% s
-  | Constant _ -> 
+  | Constant (Char (s, _)) ->
+      "exp" @@ "conts" @@ "char" %% s
+  | Constant (Float (s, flT)) ->
+      "exp" @@ "const" @@ "float" %% s
+  | Constant _ ->
       "exp" @@ "const" @@ !! "other"
   | FunCall (f, args) ->
       let gt_f = trans_expr f in
@@ -62,22 +70,20 @@ let rec trans_expr exp =
       let gt_e1 = trans_expr e1 in
       let gt_e2 = A ("ident", str) in
       "exp" @@ "record_ptr" @@@ [gt_e1;gt_e2]
-  | Binary (e1, Arith aop, e2) ->
+  | Postfix (e1, fOp) ->
+      let gt_fop = trans_fop fOp in
       let gt_e1 = trans_expr e1 in
-      let gt_e2 = trans_expr e2 in
-      let gt_op = trans_aop aop in
-      "exp" @@ "binary_arith" @@@ [gt_op;gt_e1;gt_e2]
-  | Binary (e1, Logical aop, e2) ->
+      "exp" @@ "postfix" @@ gt_fop @@ gt_e1
+  | Infix (e1, fOp) ->
+      let gt_fop = trans_fop fOp in
       let gt_e1 = trans_expr e1 in
-      let gt_e2 = trans_expr e2 in
-      let gt_op = trans_lop aop in
-      "exp" @@ "binary_logi" @@@ [gt_op;gt_e1;gt_e2]
-  | Unary (e1, GetRef) ->
+      "exp" @@ "infix" @@ gt_fop @@ gt_e1
+  | Unary (e1, unop) ->
       let gt_e1 = trans_expr e1 in
-      "exp" @@ "&ref" @@ gt_e1
-  | Unary (e1, DeRef) ->
-      let gt_e1 = trans_expr e1 in
-      "exp" @@ "*ref" @@ gt_e1
+      let gt_up = trans_unary unop in
+      "exp" @@ gt_up @@ gt_e1
+  | Binary (e1, bop, e2) ->
+      "exp" @@ (trans_binary e1 bop e2)
   | SizeOfType (ft) ->
       let gt_e1 = trans_type ft in
       "exp" @@ "sizeoftype" @@ gt_e1
@@ -85,26 +91,57 @@ let rec trans_expr exp =
       let gt_e1 = trans_expr e in
       "exp" @@ "sizeof" @@ gt_e1
   | ParenExpr e -> trans_expr e
-  | _ -> 
-      "exp" @@ !! "??"
+  | Sequence (e1, e2) ->
+      "exp" @@ ",seq" @@@ [
+        trans_expr e1;
+        trans_expr e2
+      ]
+  | Cast (ftype, e) -> "exp" @@ "cast" @@@ [trans_type ftype; trans_expr e] 
+  | StatementExpr (comp, _)  -> 
+      "exp" @@ "stmtexp" @@@ List.map trans_statement comp
+  | Constructor (ft, initw2) -> "exp" %% "constr"
+and trans_binary e1 bop e2 = 
+  let gt_e1 = trans_expr e1 in
+  let gt_e2 = trans_expr e2 in
+  match bop with
+  | Arith aop   -> "binary_arith" @@@ [trans_aop aop; gt_e1; gt_e2]
+  | Logical lop -> "binary_logi" @@@ [trans_lop lop; gt_e1; gt_e2]
+and trans_unary uop =
+  match uop with
+  | GetRef      -> "&ref"
+  | DeRef       -> "*ref"
+  | UnPlus      -> "+"
+  | UnMinus     -> "-"
+  | Tilde       -> "~"
+  | Not         -> "!"
+  | GetRefLabel -> "&&"
+and trans_fop fop =
+  match fop with 
+  | Dec -> "--"
+  | Inc -> "++"
 and trans_aop aop =
   match aop with
-  | Plus    -> A("aop", "+")
-  | Minus   -> A("aop", "-")
-  | Mul     -> A("aop", "*")
-  | Div     -> A("aop", "/")
-  | Mod     -> A("aop", "%")
-  | DecLeft -> A("aop", "<<")
-  | DecRight-> A("aop", ">>")
-  | And     -> A("aop", "&")
-  | Or      -> A("aop", "|")
-  | _       -> A("aop", "N/H")
+  | Plus    -> "aop" %% "+"
+  | Minus   -> "aop" %% "-"
+  | Mul     -> "aop" %% "*"
+  | Div     -> "aop" %% "/"
+  | Mod     -> "aop" %% "%"
+  | DecLeft -> "aop" %% "<<"
+  | DecRight-> "aop" %% ">>"
+  | And     -> "aop" %% "&"
+  | Or      -> "aop" %% "|"
+  | Xor     -> "aop" %% "^"
 and trans_lop lop =
+  "logiop" %%
   match lop with
-  | Eq     -> "logiop" %% "eq"
-  | AndLog -> "logiop" %% "and"
-  | OrLog  -> "logiop" %% "or"
-  | _      -> "logiop" %% "??"
+  | Inf    -> "<"
+  | Sup    -> ">"
+  | InfEq  -> "<="
+  | SupEq  -> ">="
+  | Eq     -> "=="
+  | NotEq  -> "!="
+  | AndLog -> "&&"
+  | OrLog  -> "||"
 and trans_assi op = (*{{{*)
   match op with
   | SimpleAssign -> A("simple_assi", "=")
@@ -124,35 +161,73 @@ and trans_arg arg = match arg with
 and trans_statement sta = 
   let unwrap_st, ii = sta in
   match unwrap_st with
-  | ExprStatement None -> A ("estmt", "NONE")
-  | ExprStatement (Some e) -> C ("estmt", [trans_expr e])
+  | ExprStatement None -> "stmt" @@ "exprstmt" %% "none"
+  | ExprStatement (Some e) -> "stmt" @@ "exprstmt" @@ trans_expr e
   | Compound sts ->
       let gt_sts = List.map trans_statement sts in(*{{{*)
       if sts = []
-      then C("{}stmt", [A("stmt","NOP")])
-      else C ("{}stmt", gt_sts)(*}}}*)
-  | Jump (ReturnExpr e) -> C ("st_return", [trans_expr e])
-  | Selection (If (e, st1, st2)) ->
-      let gt_st1 = trans_statement st1 in(*{{{*)
-      let gt_st2 = trans_statement st2 in
-      let gt_e   = trans_expr e in
-      C("sel_if", [gt_e;gt_st1;gt_st2])(*}}}*)
-  | Iteration (While (ex, st)) ->
-      let gt_ex = trans_expr ex in
-      let gt_st = trans_statement st in
-      C("while",[gt_ex;gt_st])
-  | Iteration (For (es1,es2,es3, st)) ->
-      let none_empty f e = 
-        match unwrap e with 
-        | None -> A("expr", "NONE")
-        | Some r -> f r
-      in
-      let gt_es1 = none_empty trans_expr es1 in
-      let gt_es2 = none_empty trans_expr es2 in
-      let gt_es3 = none_empty trans_expr es3 in
-      let gt_st  = trans_statement st in
-      C("for",[gt_es1;gt_es2;gt_es3;gt_st])
+      then "stmt" @@ "comp{}" %% "NOP"
+      else "stmt" @@ "comp{}" @@@ gt_sts
+  | Jump j -> "stmt" @@ trans_jump j 
+  | Selection s -> "stmt" @@ trans_select s
+  | Iteration i -> "stmt" @@ trans_iter i
+  (*| Iteration (For (es1,es2,es3, st)) ->*)
+      (*let none_empty f e = *)
+        (*match unwrap e with *)
+        (*| None -> A("expr", "NONE")*)
+        (*| Some r -> f r*)
+      (*in*)
+      (*let gt_es1 = none_empty trans_expr es1 in*)
+      (*let gt_es2 = none_empty trans_expr es2 in*)
+      (*let gt_es3 = none_empty trans_expr es3 in*)
+      (*let gt_st  = trans_statement st in*)
+      (*C("for",[gt_es1;gt_es2;gt_es3;gt_st])*)
+  | Decl de -> "stmt" @@ trans_decl de
   | _ -> A ("statem", "N/H")
+and trans_iter i = 
+  match i with
+  | While (e, s) -> "while" @@@ [
+      trans_expr e;
+      trans_statement s]
+  | DoWhile (s, e) -> "dowhile" @@@ [
+      trans_statement s;
+      trans_expr e]
+  | For (es1, es2, es3, st) -> 
+      let handle_empty x = match unwrap x with
+      | None -> "expr" %% "empty"
+      | Some e -> trans_expr e in
+      "for" @@@ [
+        handle_empty es1;
+        handle_empty es2;
+        handle_empty es3;
+        trans_statement st]
+  | MacroIteration (s, awrap, st) -> 
+      "macroit" @@ s @@@ [
+        (*"args" List.map (function (e, ii) -> trans_arg e) awrap;*)
+        trans_statement st
+      ]
+      (*raise (Fail "macroiterator not yet supported")*)
+and trans_select s = 
+  match s with
+  | If(e, st1, st2) -> "if" @@@ [
+      trans_expr e;
+      trans_statement st1;
+      trans_statement st2]
+  | Switch (e, s) ->
+      "switch" @@@ [
+        trans_expr e;
+        trans_statement s]
+  | Ifdef (ss1, ss2) -> "ifdef" @@@ [
+      "ifdef1" @@@ List.map trans_statement ss1;
+      "ifdef2" @@@ List.map trans_statement ss2]
+and trans_jump j =
+  match j with
+  | Goto s -> "goto" %% s
+  | Continue -> "jump" %% "continue" 
+  | Break -> "jump" %% "break"
+  | Return -> "jump" %% "return"
+  | ReturnExpr e -> "return" @@ trans_expr e
+  | GotoComputed e -> "goto" @@ trans_expr e
 and trans_type (tqual, typec) =
   let gt_qual = trans_qual tqual in
   let gt_typc = [trans_typec typec] in
@@ -194,14 +269,14 @@ and trans_floattype ft =
   | CDouble -> "double"
   | CLongDouble -> "long double" in
   A("ftype", gt_ft)
-and trans_decl decl = A("decl", "N/H")
+and trans_decl decl = "decl" %% "N/H"
 and trans_ini ini = A("ini", "N/H")
 and trans_struct_fields sfields = A("sfields", "N/H")
 and trans_def def = 
   let (name, ty, (sto, _), body) = unwrap def in(*{{{*)
   let gt_funty = trans_funtype ty in
   let gt_comp  = List.map trans_statement body in
-  let gt_body  = C ("{}stmt", gt_comp) in
+  let gt_body  = "stmt" @@ "comp{}" @@@ gt_comp in
   let gt_name  = A("fname", name) in
   C("def", [gt_name; gt_funty; gt_body])(*}}}*)
 and trans_funtype (rettype, (params, hasdots)) =

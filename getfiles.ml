@@ -5,11 +5,9 @@
 let read_commit_stdin () =
   let lines = ref [] in
   let rec loop () =
-    try
       lines := read_line () :: !lines;
-      loop()
-    with End_of_file -> !lines in
-  List.rev (loop ())
+      loop() in
+  try (loop ()) with End_of_file -> List.rev (!lines)
 
 let indexmatch = Str.regexp "^index"
 let indexsplit = Str.regexp "index\\| +\\|\\.\\."
@@ -57,13 +55,22 @@ let next_files ls =
 let main () =
   (* output file pairs to dir *)
   let dir = Sys.argv.(1) in
+  print_endline ("[main] outputing to " ^ dir);
   let ls = read_commit_stdin () in
+  print_endline "[ls]";
   let rec loop ls =
     try
       let (i1, i2, oname, nname),ls = next_files ls in
       let mkc  = function c -> (Sys.command c; ()) in
-      let cmd1 = "git show " ^ i1 ^ " > " ^ dir ^ oname in
-      let cmd2 = "git show " ^ i2 ^ " > " ^ dir ^ nname in
+      let cmd1 = 
+        if i1 = "0000000"
+        then "echo \" \""
+        else "git show " ^ i1 ^ " > " ^ dir ^ oname in
+      let cmd2 = 
+        if i2 = "0000000"
+        then "echo \" \""
+        else "git show " ^ i2 ^ " > " ^ dir ^ nname in
+      print_endline ("File: " ^ i1 ^ " -> " ^ i2);
       let cmd3 = "echo " ^ oname ^ "  " ^ nname ^ ">> " ^ dir ^ "specfile" in
       List.iter mkc [cmd1;cmd2;cmd3];
       loop ls

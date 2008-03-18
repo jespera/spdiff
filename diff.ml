@@ -960,7 +960,13 @@ and safe_part up (t, t'') =
   try 
     let t' = apply_noenv up t in
       merge3 t t' t''
-  with (Nomatch | Merge3) -> false
+  with (Nomatch | Merge3) -> (
+    if !print_abs
+    then (
+      print_string "[Diff] rejecting:\n\t";
+      print_endline (string_of_diff up)
+    );
+    false)
 
 and relaxed_safe_part up (t, t'') =
   try 
@@ -1301,6 +1307,8 @@ let rec gen_perms lists =
     | [] -> (debug_msg "."; [[]])
     | lis :: lists -> (debug_msg ","; prefix_all lis (gen_perms lists))(*}}}*)
 
+
+(*
 let rec abs_term_size terms_changed is_fixed should_abs up =
   let rec loop build_mode env t = match t with
     | A (ct, at) -> 
@@ -1438,118 +1446,162 @@ let rec abs_term_size terms_changed is_fixed should_abs up =
               lres, lhs_env (* = rhs_env *)(*}}}*)
       | _ -> raise (Fail "non supported update given to abs_term")
 
+*)
+
+let renumber_metas t metas =
+  match t with
+    | A ("meta", mvar) -> (try 
+	  let v = List.assoc mvar metas in
+	    A ("meta", v), metas
+      with _ -> let nm = "X" ^ string_of_int (ref_meta ()) in
+		  A ("meta", nm), (mvar, nm) :: metas)
+    | t -> t, metas
+
+let fold_botup term upfun initial_result =
+  let rec loop t acc_result =
+    match t with
+      | A _ -> upfun t acc_result
+      | C (ct, ts) -> 
+          let new_terms, new_acc_result = List.fold_left
+            (fun (ts, acc_res) t ->
+              let new_t, new_acc = loop t acc_res in
+		new_t :: ts, new_acc
+            ) ([], acc_result) ts
+          in
+            upfun (C(ct, List.rev new_terms)) new_acc_result
+  in
+    loop term initial_result
+
+let renumber_metas_up up =
+  (*print_endline "[Diff] renumbering metas";*)
+  reset_meta ();
+  match up with
+    | UP(lhs, rhs) -> 
+	let lhs_re, lhs_env = fold_botup lhs renumber_metas [] in
+	let rhs_re, rhs_env = fold_botup rhs renumber_metas lhs_env in
+	  assert(lhs_env = rhs_env);
+	  UP(lhs_re, rhs_re)
+    | ID s -> 
+	let nm, new_env = renumber_metas s [] in ID nm
+    | RM s -> 
+	let nm, new_env = renumber_metas s [] in RM nm
+    | ADD s -> 
+	let nm, new_env = renumber_metas s [] in ADD nm
+
 let rec abs_term_imp terms_changed is_fixed should_abs up =
   let cur_depth = ref !abs_depth in
   let should_abs t = 
     !cur_depth >= 0
-      (*if !cur_depth >= 0*)
-      (*then (print_endline ("[Diff] allowed at depth: " ^ string_of_int !cur_depth); true)*)
-      (*else (print_endline ("[Diff] not allowed at depth " ^ string_of_int !cur_depth); false)*)
-      (*then (print_endline ("[Diff] allowing " ^ string_of_gtree' t); true)*)
-      (*else (print_endline ("[Diff] current depth " ^ string_of_int !cur_depth); false)*)
+    (*if !cur_depth >= 0*)
+    (*then (print_endline ("[Diff] allowed at depth: " ^ string_of_int !cur_depth); true)*)
+    (*else (print_endline ("[Diff] not allowed at depth " ^ string_of_int !cur_depth); false)*)
+    (*then (print_endline ("[Diff] allowing " ^ string_of_gtree' t); true)*)
+    (*else (print_endline ("[Diff] current depth " ^ string_of_int !cur_depth); false)*)
   in
   let rec loop build_mode env t = match t with
-    | A (ct, at) -> 
-	if should_abs t
-	then
-          if terms_changed t
-          then
-            let metas, renv = get_metas build_mode env t in
-              t :: metas, renv
-		(*[t], env*)
-          else
-            if is_fixed t
-            then
-              let metas, renv = get_metas build_mode env t in
-		t :: metas, renv
-          else 
-            get_metas build_mode env t
-	  else (
-            debug_msg ("[Diff] not abstracting atom: " ^ string_of_gtree' t);
-            [t], env)
-    | C (ct, []) -> raise (Fail "whhaaattt")
-    | C (ct, ts) when !abs_subterms <= gsize t -> 
-	(debug_msg ("[Diff] abs_subterms " ^ string_of_gtree' t);
-	 [t], env)
-    | C (ct, ts) ->
-	let metas, env = 
-          if should_abs t && not(terms_changed t)
-          then get_metas build_mode env t 
-          else [], env
-	in
-	  cur_depth := !cur_depth - 1;
-	  let ts_lists, env_ts = List.fold_left
-            (fun (ts_lists_acc, acc_env) tn ->
-              let abs_tns, env_n = 
-		loop build_mode acc_env tn 
-              in
-              let abs_tns = if abs_tns = [] then [tn] else abs_tns in
-		abs_tns :: ts_lists_acc, env_n
-            ) ([], env) (List.rev ts) in
-	    cur_depth := !cur_depth + 1;
-	    let perms = gen_perms ts_lists in
-	    let rs = List.rev (List.fold_left (fun acc_t args -> 
-              C(ct, args) :: acc_t) [] perms) in
-	      metas @ rs, env_ts in(*}}}*)
-    match up with 
-      | UP(lhs, rhs) -> 
-	  (* first build up all possible lhs's along with the environment(*{{{*)
-	   * that gives bindings for all abstracted variables in lhs's
-	   *)
-          reset_meta ();
-          (*print_endline ("loop :: \n" ^ string_of_diff up);*)
-          let abs_lhss, lhs_env = loop true [] lhs in
-            (*List.iter (fun (m,t) -> print_string*)
-            (*("[" ^ m ^ "~>" ^ string_of_gtree' t ^ "] ")) lhs_env;*)
-            (*print_newline ();*)
-            (*print_endline ("lhss : " ^ string_of_int (List.length abs_lhss));*)
-            (*print_endline "lhss = ";*)
-            (*List.iter (fun d -> print_endline (string_of_gtree' d)) abs_lhss;*)
-            assert(not(abs_lhss = []));
-            (* now we check that the only solution is not "X0" so that we will end
+  | A (ct, at) -> 
+      if should_abs t
+      then
+        if terms_changed t
+        then
+          let metas, renv = get_metas build_mode env t in
+          t :: metas, renv
+          (*[t], env*)
+    else
+      if is_fixed t
+      then
+        let metas, renv = get_metas build_mode env t in
+        t :: metas, renv
+        else 
+          get_metas build_mode env t
+      else (
+        debug_msg ("[Diff] not abstracting atom: " ^ string_of_gtree' t);
+        [t], env)
+  | C (ct, []) -> raise (Fail "whhaaattt")
+  | C (ct, ts) when !abs_subterms <= gsize t -> 
+      (fdebug_endline !print_abs ("[Diff] abs_subterms " ^ string_of_gtree' t);
+      [t], env)
+  | C (ct, ts) ->
+      let metas, env = 
+        if should_abs t && not(terms_changed t)
+        then get_metas build_mode env t 
+        else [], env
+        in
+        cur_depth := !cur_depth - 1;
+        let ts_lists, env_ts = List.fold_left
+        (fun (ts_lists_acc, acc_env) tn ->
+          let abs_tns, env_n = 
+            loop build_mode acc_env tn 
+      in
+      let abs_tns = if abs_tns = [] then [tn] else abs_tns in
+      abs_tns :: ts_lists_acc, env_n
+        ) ([], env) (List.rev ts) in
+        cur_depth := !cur_depth + 1;
+        let perms = gen_perms ts_lists in
+        let rs = List.rev (List.fold_left (fun acc_t args -> 
+          C(ct, args) :: acc_t) [] perms) in
+        metas @ rs, env_ts in(*}}}*)
+  match up with 
+  | UP(lhs, rhs) -> 
+      (* first build up all possible lhs's along with the environment(*{{{*)
+      * that gives bindings for all abstracted variables in lhs's
+      *)
+      reset_meta ();
+      (*print_endline ("loop :: \n" ^ string_of_diff up);*)
+      let abs_lhss, lhs_env = loop true [] lhs in
+      (*List.iter (fun (m,t) -> print_string*)
+      (*("[" ^ m ^ "~>" ^ string_of_gtree' t ^ "] ")) lhs_env;*)
+      (*print_newline ();*)
+      (*print_endline ("lhss : " ^ string_of_int (List.length abs_lhss));*)
+      (*print_endline "lhss = ";*)
+      (*List.iter (fun d -> print_endline (string_of_gtree' d)) abs_lhss;*)
+      assert(not(abs_lhss = []));
+      (* now we check that the only solution is not "X0" so that we will end
              * up transforming everything into whatever rhs
              *)
-            let abs_lhss = (match abs_lhss with
-              | [A ("meta", _) ] -> (debug_msg 
-					("contextless lhs: " ^ string_of_diff up); [lhs])
-              | _ -> abs_lhss)
-              (* now use the environment to abstract the rhs term
-              *) in
-            let abs_rhss, rhs_env = loop false lhs_env rhs in
-              (*print_endline ("rhss : " ^ string_of_int (List.length abs_rhss));*)
-              (*print_endline "rhss = ";*)
-              (*List.iter (fun d -> print_endline (string_of_gtree' d)) abs_rhss;*)
-              (*List.iter (fun (m,t) -> print_string*)
-              (*("[" ^ m ^ "~>" ^ string_of_gtree' t ^ "] ")) rhs_env;*)
-              (*print_newline ();*)
-              (* if the below assertion fails, there is something wrong with the
-               * environments generated
-               *)
-              (*assert(lhs_env = rhs_env);*)
-              (* we now wish to combine each abs_lhs with a compatible abs_rhs
-              *)
-              (* if the rhs had no possible abstractions then we return simply the
-               * original rhs; this can not happen for lhs's as the "bind" mode is
-               * "on" unless the fixed_list dissallows all abstractions
-               *)
-            let abs_rhss = if abs_rhss = [] then [rhs] else abs_rhss in
-            let lres = List.fold_left (fun pairs lhs ->
-              make_compat_pairs lhs abs_rhss pairs
+let abs_lhss = (match abs_lhss with
+| [A ("meta", _) ] -> (debug_msg 
+("contextless lhs: " ^ string_of_diff up); [lhs])
+  | _ -> abs_lhss)
+(* now use the environment to abstract the rhs term
+ *) in
+let abs_rhss, rhs_env = loop false lhs_env rhs in
+(*print_endline ("rhss : " ^ string_of_int (List.length abs_rhss));*)
+(*print_endline "rhss = ";*)
+(*List.iter (fun d -> print_endline (string_of_gtree' d)) abs_rhss;*)
+(*List.iter (fun (m,t) -> print_string*)
+(*("[" ^ m ^ "~>" ^ string_of_gtree' t ^ "] ")) rhs_env;*)
+(*print_newline ();*)
+(* if the below assertion fails, there is something wrong with the
+ * environments generated
+ *)
+(*assert(lhs_env = rhs_env);*)
+(* we now wish to combine each abs_lhs with a compatible abs_rhs
+ *)
+(* if the rhs had no possible abstractions then we return simply the
+ * original rhs; this can not happen for lhs's as the "bind" mode is
+ * "on" unless the fixed_list dissallows all abstractions
+ *)
+let abs_rhss = if abs_rhss = [] then [rhs] else abs_rhss in
+let lres = List.fold_left (fun pairs lhs ->
+  make_compat_pairs lhs abs_rhss pairs
             ) [] abs_lhss
-            in
-              lres, lhs_env (* = rhs_env *)(*}}}*)
-      | _ -> raise (Fail "non supported update given to abs_term_size_imp")
+in
+lres, lhs_env (* = rhs_env *)(*}}}*)
+  | _ -> raise (Fail "non supported update given to abs_term_size_imp")
 
 let abs_term_noenv terms_changed is_fixed should_abs up = 
-  fdebug_endline !print_abs ("[Diff] abstracting concrete update:" ^
+  fdebug_endline !print_abs ("[Diff] abstracting concrete update with size:" ^
+        string_of_int (Difftype.csize up) ^ " " ^
 		    string_of_diff up);
   (*let res, _ = abs_term_size terms_changed is_fixed should_abs up in *)
   let res, _ = abs_term_imp terms_changed is_fixed should_abs up in 
+  let res_norm = List.map renumber_metas_up res in
     fdebug_endline !print_abs ("[Diff] resulting abstract updates: " ^ 
 		      string_of_int (List.length res));
     if !print_abs 
-    then List.iter (function d -> print_endline (string_of_diff d)) res;
-    res
+    then List.iter (function d -> print_endline (string_of_diff d)) res_norm;
+    res_norm
 
 (* according to this function a term is fixed if it occurs in a given list
  * the assumption is that this list have been constructed by a previous
@@ -1804,7 +1856,7 @@ let make_fixed_list term_pairs =
   let subterms = List.map 
     (function (gtn, _) -> 
       fdebug_string !print_abs ("[Diff] making all subterms for :\n\t");
-      print_endline (string_of_gtree' gtn);
+      fdebug_endline !print_abs (string_of_gtree' gtn);
       make_all_subterms gtn) term_pairs in
     filter_all subterms
 
@@ -1842,45 +1894,6 @@ let make_fixed_list_old updates =
 (*let jlist = [s;f;h;w]*)
 (*let jfix  = list_fixed jlist*)
 
-let renumber_metas t metas =
-  match t with
-    | A ("meta", mvar) -> (try 
-	  let v = List.assoc mvar metas in
-	    A ("meta", v), metas
-      with _ -> let nm = "X" ^ string_of_int (ref_meta ()) in
-		  A ("meta", nm), (mvar, nm) :: metas)
-    | t -> t, metas
-
-let fold_botup term upfun initial_result =
-  let rec loop t acc_result =
-    match t with
-      | A _ -> upfun t acc_result
-      | C (ct, ts) -> 
-          let new_terms, new_acc_result = List.fold_left
-            (fun (ts, acc_res) t ->
-              let new_t, new_acc = loop t acc_res in
-		new_t :: ts, new_acc
-            ) ([], acc_result) ts
-          in
-            upfun (C(ct, List.rev new_terms)) new_acc_result
-  in
-    loop term initial_result
-
-let renumber_metas_up up =
-  (*print_endline "[Diff] renumbering metas";*)
-  reset_meta ();
-  match up with
-    | UP(lhs, rhs) -> 
-	let lhs_re, lhs_env = fold_botup lhs renumber_metas [] in
-	let rhs_re, rhs_env = fold_botup rhs renumber_metas lhs_env in
-	  assert(lhs_env = rhs_env);
-	  UP(lhs_re, rhs_re)
-    | ID s -> 
-	let nm, new_env = renumber_metas s [] in ID nm
-    | RM s -> 
-	let nm, new_env = renumber_metas s [] in RM nm
-    | ADD s -> 
-	let nm, new_env = renumber_metas s [] in ADD nm
 
 let read_src_tgt src tgt =
   let gt1 = gtree_of_ast_c (read_ast src) in
@@ -1965,11 +1978,9 @@ let make_abs terms_changed fixf (gt1, gt2) =
     debug_msg "[Diff] finding abstract parts";
     let a_parts = List.flatten (
       List.map (function c_up ->
-	List.map
-	  renumber_metas_up
 	  (filter_safe (gt1, gt2) (abs_term_noenv terms_changed fixf
 				      should_abs_depth c_up)))
-	c_parts) in
+  	c_parts) in
       a_parts
 	  (*print_endline "[Diff] removing duplicates";*)
 	  (*let nodup_a_parts = rm_dub a_parts in*)

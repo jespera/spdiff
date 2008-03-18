@@ -18,6 +18,7 @@ let exceptions   = ref 0
 let close        = ref false
 let print_raw    = ref false
 let print_uniq   = ref false 
+let print_adding = ref false
 
 let speclist =
   Arg.align
@@ -39,7 +40,8 @@ let speclist =
      "-print_abs",     Arg.Set Diff.print_abs,  "bool  print abstract updates for each term pair";
      "-relax_safe",    Arg.Set Diff.relax,      "bool  consider non-application safe";
      "-print_raw",     Arg.Set print_raw,       "bool  print the raw list of generated simple updates";
-     "-print_uniq",    Arg.Set print_uniq,      "bool  print the unique solutions before removing smaller ones"
+     "-print_uniq",    Arg.Set print_uniq,      "bool  print the unique solutions before removing smaller ones";
+     "-print_add",     Arg.Set print_adding,    "bool  print statement when adding a new solution in generate_sol"
   ]
 
 let old_main () =
@@ -284,32 +286,49 @@ let generate_sols chgset_orig simple_patches =
     in
   let add_sol cur_bp sol = 
     match cur_bp with 
-    | None -> raise (Diff.Fail "something is completely wrong")
+    | None -> 
+        print_endline "[Main] no solutions?";
+        []
     | Some cur_bp -> (
-        if !print_raw
+        if !print_adding
         then (
-          print_string "[Main] trying solution\n\t";
-          print_endline (Diff.string_of_diff cur_bp)
+          print_string "[Main] trying solution... ";
+          flush stdout;
+          (*print_endline (Diff.string_of_diff cur_bp)*)
         );
-        filter_smaller chgset_orig (filter_redundant (cur_bp :: sol))
+        let res = filter_smaller chgset_orig (filter_redundant (cur_bp :: sol))
+        in
+        if !print_adding
+        then print_endline "done";
+        res
       ) in
+  let isComplete bp = Diff.complete_changeset 
+    chgset_orig (list_of_bp bp) in
   let rec gen sol bps cur_bp =
-    let bps' = next_bps bps cur_bp in
-    if bps' = []
+    if try isComplete (unwrap cur_bp) with _ -> false
     then add_sol cur_bp sol
     else
-      (
-        (*print_endline ("[Main] bps'.length " ^*)
-          (*string_of_int (List.length bps'));*)
-        List.fold_left (fun sol bp ->
-          let nbp = extend_bp cur_bp bp in
-          (* let nbps = restrict_bps (unwrap nbp) bps in *)
-          (* gen sol nbps nbp *)
-	    gen sol bps nbp
-        ) sol bps'
-      )
+      let bps' = next_bps bps cur_bp in
+      if bps' = []
+      then add_sol cur_bp sol
+      else
+        (
+          (*print_endline ("[Main] bps'.length " ^*)
+            (*string_of_int (List.length bps'));*)
+          List.fold_left (fun sol bp ->
+            let nbp = extend_bp cur_bp bp in
+            (* let nbps = restrict_bps (unwrap nbp) bps in *)
+            (* gen sol nbps nbp *)
+            gen sol bps nbp (* maybe s/bps/bps' for efficiency? *)
+          ) sol bps'
+        )
   in
-  List.map list_of_bp (gen [] simple_patches None)
+  if simple_patches = []
+  then (
+    print_endline "[Main] no input to work with";
+    [])
+  else
+    List.map list_of_bp (gen [] simple_patches None)
 
 
 
@@ -402,18 +421,20 @@ let spec_main () =
       terms_changed_list;
     print_newline ();
     Diff.make_abs terms_changed fixf (t, t'')) term_pairs in
-  (*(*{{{*)
-  print_endline "Those were the safe parts";
-  print_endline "{{{";
-  List.iter (fun ds ->
-    List.iter (fun d -> 
-      print_endline (Diff.string_of_diff d);
-      print_newline ()
-    ) ds;
-    print_endline " ¶ ";
-  ) abs_patches;
-  print_endline "}}}"; 
-  *)
+  (*{{{*)
+  if !print_raw
+  then (
+    print_endline "Those were the safe parts";
+    print_endline "{{{";
+    List.iter (fun ds ->
+      List.iter (fun d -> 
+        print_endline (Diff.string_of_diff d);
+        print_newline ()
+      ) ds;
+      print_endline " ¶ ";
+    ) abs_patches;
+    print_endline "}}}"
+  );
   (* we now have lists of safe updates as out itemset; create the database to
    * mine now; we use the db.ml functions for that
    *)
