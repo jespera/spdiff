@@ -64,11 +64,11 @@ let rec trans_expr exp =
       "exp" @@ "array_acc" @@@ [gt_e1;gt_e2]
   | RecordAccess (e1, str) -> 
       let gt_e1 = trans_expr e1 in
-      let gt_e2 = A ("ident", str) in
+      let gt_e2 = "ident" %% str in
       "exp" @@ "record_acc" @@@ [gt_e1;gt_e2]
   | RecordPtAccess (e1, str) -> 
       let gt_e1 = trans_expr e1 in
-      let gt_e2 = A ("ident", str) in
+      let gt_e2 = "ident" %% str in
       "exp" @@ "record_ptr" @@@ [gt_e1;gt_e2]
   | Postfix (e1, fOp) ->
       let gt_fop = trans_fop fOp in
@@ -183,7 +183,13 @@ and trans_statement sta =
       (*let gt_st  = trans_statement st in*)
       (*C("for",[gt_es1;gt_es2;gt_es3;gt_st])*)
   | Decl de -> "stmt" @@ trans_decl de
+  | Labeled lab -> "stmt" @@ trans_labeled lab
   | _ -> A ("statem", "N/H")
+and trans_labeled lab = match lab with
+| Label (s, stat) -> "labeled" @@@ ["lname" %% s; trans_statement stat]
+| Case (e, stat) -> "case" @@@ [trans_expr e; trans_statement stat]
+| Default stat -> "default" @@ trans_statement stat
+| _ -> raise (Fail "labeled")
 and trans_iter i = 
   match i with
   | While (e, s) -> "while" @@@ [
@@ -231,24 +237,86 @@ and trans_jump j =
 and trans_type (tqual, typec) =
   let gt_qual = trans_qual tqual in
   let gt_typc = [trans_typec typec] in
-  C("fulltype", gt_qual @ gt_typc)
+  "fulltype" @@@ (gt_qual @ gt_typc)
 and trans_qual tq =
-  let gt_const = if (unwrap tq).const then [A("tqual","const")] else [] in
-  let gt_vola  = if (unwrap tq).volatile then [A("tqual","vola")] else [] in
+  let gt_const = if (unwrap tq).const then ["tqual" %% "const"] else [] in
+  let gt_vola  = if (unwrap tq).volatile then ["tqual" %% "vola"] else [] in
   gt_const @ gt_vola
 and trans_typec tc =
   match unwrap tc with
-  | BaseType bt -> C("ctype", [trans_basetype bt])
-  | _ -> A("typec", "N/H")
+  | BaseType bt -> trans_basetype bt
+  | Pointer ft -> "pointer" @@ trans_type ft
+  | Array (cexpOpt, ft) -> 
+      let ft_gt = trans_type ft in
+      let cexp_gt = (match cexpOpt with
+        | None -> "constExp" %% "none"
+        | Some e -> "constExp" @@ trans_expr e) in
+      "array" @@@ [cexp_gt; ft_gt]
+  | FunctionType funt -> trans_funtype funt
+  | Enum (sOpt, enumT) -> 
+      let enum_name = (match sOpt with
+        | None -> "anon_enum"
+        | Some s -> s) in
+      let enumt_gt = trans_enumtype_list enumT in
+      "enum" @@@ ["ename" %% enum_name; enumt_gt]
+  | StructUnion (strun, sOpt, sType) -> 
+      let su_str = string_of_structunion strun in
+      let stype = trans_struct_type sType in
+      let sname = (match sOpt with
+        | None -> "anon_structunion"
+        | Some s -> s) in
+      su_str @@ sname @@ stype
+  | EnumName name -> "enumname" %% name
+  | StructUnionName (su, name) -> string_of_structunion su %% name
+  | TypeName (name, ftOpt) -> 
+      let ft_gt = (match ftOpt with
+        | None -> "fullType" %% "unknown"
+        | Some ft -> trans_type ft) in
+      "typeName" @@@ ["ident" %% name; ft_gt]
+  | ParenType ft -> trans_type ft
+  | TypeOfExpr ex -> "typeOfExp" @@ trans_expr ex
+  | TypeOfType ft -> "typeOfType" @@ trans_type ft
+and trans_struct_type st = "fields" @@@
+  List.map trans_field_type st
+and trans_field_type f = match unwrap f with
+| FieldDeclList fkinds -> "fdecls" @@@ List.map (function fkwrap -> 
+    (match unwrap (unwrap fkwrap) with
+    | Simple (varOpt, ftype) -> 
+        (match varOpt with 
+        | None -> "field" @@@ 
+          ["fieldname" %% "anon"; "fieldtype" @@ trans_type ftype]
+        | Some v -> "field" @@@
+          ["fieldname" %% v; "fieldtype" @@ trans_type ftype])
+    | BitField (varOpt, ftype, cExp) -> 
+        let fn = (match varOpt with 
+        | None -> "fieldname" %% "anon"
+        | Some v -> "fieldname" %% v) in
+        let ft_gt = trans_type ftype in
+        let bits  = trans_expr cExp in
+        "bitfield" @@@ [fn; ft_gt; bits])
+    ) fkinds
+| EmptyField -> "field" %% "empty"
+and string_of_structunion su = match su with
+| Struct -> "struct"
+| Union  -> "union"
+and trans_enumtype_list enT = 
+  let en_gts = List.map trans_enum_type enT in
+  "enumTypes" @@@ en_gts
+and trans_enum_type (((enum_val, cExpOpt), _), _) =
+  let enum_val_name = "enum_val" %% enum_val in
+  let enum_val_val  = (match cExpOpt with
+    | None -> "enum_const" %% "unset"
+    | Some e -> "enum_exp" @@ trans_expr e) in
+  "enum_entry" @@@ [enum_val_name; enum_val_val]
 and trans_basetype bt =
   match bt with
   | Void -> A("btype","void")
-  | IntType it -> C("btype",[trans_inttype it])
-  | FloatType ft -> C("btype",[trans_floattype ft])
+  | IntType it -> "btype" @@ trans_inttype it
+  | FloatType ft -> "btype" @@ trans_floattype ft
 and trans_inttype it = 
   match it with
-  | CChar -> A("itype", "char")
-  | Si si -> C("itype", trans_signed si)
+  | CChar -> "itype" %% "char"
+  | Si si -> "itype" @@@ trans_signed si
 and trans_signed (s, b) =
   let gt_sign = match s with 
   | Signed -> "signed"
@@ -269,20 +337,61 @@ and trans_floattype ft =
   | CDouble -> "double"
   | CLongDouble -> "long double" in
   A("ftype", gt_ft)
-and trans_decl decl = "decl" %% "N/H"
-and trans_ini ini = A("ini", "N/H")
-and trans_struct_fields sfields = A("sfields", "N/H")
+and trans_decl decl = match decl with
+| DeclList (odecls,_) -> "dlist" @@@ 
+  List.map trans_odecl odecls
+| MacroDecl ((s, args), _) -> 
+    "mdecl" @@ s @@@ List.map (function a -> trans_arg (unwrap a)) args
+and trans_odecl ((fopt, ftype, stor), _) = match fopt with
+  | None -> raise (Fail "decl_spec with no init_decl")
+  | Some ((var, initOpt), _) -> 
+      let gt_var = "ident" %% var in
+      let gt_ft  = trans_type ftype in
+      let gt_sto = trans_storage stor in
+      match initOpt with
+      | None -> "onedecl" @@@ [gt_var;gt_ft;gt_sto]
+      | Some ini -> "onedecl" @@@ 
+        [gt_var; trans_ini ini; gt_ft; gt_sto]
+and trans_storage (sto, inl) =
+  let inl_gt = "inline" %% if inl then "yes" else "no" in
+  let sto_gt = "stobis" %% match sto with
+  | NoSto -> "nosto"
+  | StoTypedef -> "stotypedef"
+  | Sto sclass -> (match sclass with
+      | Auto -> "auto"
+      | Static -> "static"
+      | Register -> "register"
+      | Extern -> "extern") in
+  "storage" @@@ [sto_gt;inl_gt]
+and trans_ini (ini, _) = match ini with
+| InitExpr e -> "ini" @@ trans_expr e
+| InitList ilist -> "iniList" @@@ List.map 
+  (function (ini, _) -> trans_ini ini)
+  ilist
+| InitFieldOld (v, ini) -> (* y: value initialiser *)
+    raise (Fail "InitFieldOld")
+| InitIndexOld (e, ini) -> (* [102]10 initialiser *)
+    raise (Fail "InitIndexOld")
+| InitDesignators (deslist, ini) -> (* [0 ... 10] = 1 , .y = 10 *)
+    let ini_gt = trans_ini ini in
+    "inidesignators" @@@ (ini_gt :: (List.map (function design -> 
+      (match unwrap design with
+      | DesignatorField s -> "dfield" %% s
+      | DesignatorIndex e -> "dindex" @@ trans_expr e
+      | DesignatorRange (from, tgt) -> 
+          "drange" @@@ [trans_expr from; trans_expr tgt])
+    ) deslist))
 and trans_def def = 
   let (name, ty, (sto, _), body) = unwrap def in(*{{{*)
   let gt_funty = trans_funtype ty in
   let gt_comp  = List.map trans_statement body in
   let gt_body  = "stmt" @@ "comp{}" @@@ gt_comp in
-  let gt_name  = A("fname", name) in
+  let gt_name  = "fname" %% name in
   C("def", [gt_name; gt_funty; gt_body])(*}}}*)
 and trans_funtype (rettype, (params, hasdots)) =
   let gt_ret = trans_type rettype in
   let par_types = List.map trans_param params in
-  C("funtype", gt_ret :: par_types)
+  "funtype" @@@ (gt_ret :: par_types)
 and trans_param p = 
   match unwrap (unwrap p) with
   | (reg, name, ft) ->

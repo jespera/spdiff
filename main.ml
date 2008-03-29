@@ -137,17 +137,21 @@ let print_patch_lists pl =
 
 let do_datamining abs_patches =
   let edb = Diff.DBD.makeEmpty () in
-  print_endline "Constructing database...";
+  print_endline "[Main] Constructing database...";
   let fdb = List.fold_left Diff.DBD.add_itemset edb abs_patches in
   let threshold = List.length abs_patches in
-  print_endline ("Mining using minimum support: " ^
+  print_endline ("[Main] Mining using minimum support: " ^
   string_of_int (threshold - !exceptions));
   let rdb = Diff.DBD.dmine fdb (threshold - !exceptions) in
   (* close the database occording to command line prefs *)
   let cdb = if !close then Diff.DBD.close_db fdb rdb else rdb in
-  Diff.DBD.print_db
-    Diff.string_of_diff
-    cdb
+  (*print_endline "[Main] resulting database";*)
+  (*Diff.DBD.print_db*)
+    (*Diff.string_of_diff*)
+    (*cdb;*)
+  let f = fun acc itemset -> Diff.non_dub_app itemset  acc in
+  Diff.DBD.fold_itemset cdb f []
+  
 
 let bp_of_list ls = 
   let rec loop ls = match ls with
@@ -319,7 +323,7 @@ let generate_sols chgset_orig simple_patches =
             let nbp = extend_bp cur_bp bp in
             (* let nbps = restrict_bps (unwrap nbp) bps in *)
             (* gen sol nbps nbp *)
-            gen sol bps nbp (* maybe s/bps/bps' for efficiency? *)
+            gen sol bps' nbp (* maybe s/bps/bps' for efficiency? *)
           ) sol bps'
         )
   in
@@ -439,7 +443,10 @@ let spec_main () =
    * mine now; we use the db.ml functions for that
    *)
   (*do_datamining abs_patches*)(*}}}*)
-  let filtered_patches = get_all_safe term_pairs abs_patches in
+  print_endline "[Main] filtering all safe patches."; 
+  let filtered_patches = do_datamining abs_patches
+    (* get_all_safe term_pairs abs_patches *)
+    in
   if !print_raw
   then (
     print_endline "Raw list of simple updates";
