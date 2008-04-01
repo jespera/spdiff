@@ -20,6 +20,7 @@ let rec gsize t =
   match t with
   | A ("meta", _) -> 0
   | A _ -> 1
+  | C ("TYPEDEXP", _) -> 0
   | C(ct, ts) -> 1 + List.fold_left 
       (fun a b -> a + gsize b) 1 ts
 

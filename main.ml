@@ -144,7 +144,10 @@ let do_datamining abs_patches =
   string_of_int (threshold - !exceptions));
   let rdb = Diff.DBD.dmine fdb (threshold - !exceptions) in
   (* close the database occording to command line prefs *)
-  let cdb = if !close then Diff.DBD.close_db fdb rdb else rdb in
+  let cdb = if !close then (
+    print_endline "[Mine] closing";
+    Diff.DBD.close_db fdb rdb)
+    else rdb in
   (*print_endline "[Main] resulting database";*)
   (*Diff.DBD.print_db*)
     (*Diff.string_of_diff*)
@@ -435,7 +438,7 @@ let spec_main () =
         print_endline (Diff.string_of_diff d);
         print_newline ()
       ) ds;
-      print_endline " ¶ ";
+      print_endline " ++ ";
     ) abs_patches;
     print_endline "}}}"
   );
@@ -453,7 +456,7 @@ let spec_main () =
     print_endline "{{{";
     List.iter (fun d ->
       print_endline (Diff.string_of_diff d);
-      print_endline " ¶ ";
+      print_endline " ++ ";
     ) filtered_patches;
     print_endline "}}}"
   );

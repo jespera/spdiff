@@ -4,6 +4,7 @@
 
 open Gtree
 open Ast_c
+open Type_annoter_c
 
 let (+>) o f = f o
 
@@ -26,8 +27,10 @@ let (!!) a = A(a, "N/H")
 let rec trans_expr exp = 
   let (unwrap_e, typ), ii = exp in
   match unwrap_e with
-  | Ident s -> 
-      "exp" @@ "ident" %% s
+  | Ident s ->
+      (match !typ with
+        | None -> "exp" @@ "ident:notype" %% s
+        | Some ft -> "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% s])
   | Constant (String (s, _)) -> 
       "exp" @@ "const" @@ "string" %% s
   | Constant (Int s) -> 
@@ -422,8 +425,16 @@ let trans_prg prg =
   C ("prg", tops)
 let trans_prg2 prg = 
   let tops = 
-    List.map (fun (a, _) -> trans_top a)
-    (List.filter (fun a -> match a with (FinalDef _, _) -> false | _ -> true) prg)
+    (List.map (fun (a, _) -> a)
+    (List.filter (fun a -> match a with (FinalDef _, _) -> false | _ -> true)
+    prg))
     (*List.map (fun (tl,_) -> trans_top tl) prg *)
   in
-  C ("prg2", tops)
+  let tops_envs = 
+    Type_annoter_c.annotate_program 
+      Type_annoter_c.initial_env
+      tops in
+  "prg2" @@@
+  List.map (function (top, (tenvb, tenv)) -> 
+    trans_top top
+  ) tops_envs

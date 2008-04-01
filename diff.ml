@@ -107,7 +107,7 @@ let print_sol sol =
   print_endline "[[";
   List.iter (function dg ->
     print_endline (string_of_diff dg);
-    print_endline "\t¶"
+    print_endline "\t++"
   ) sol;
   print_endline "]]"
 
@@ -1968,6 +1968,7 @@ let commutes chgset bp bp' =
     eq_changeset chgset bp1 bp2
 
 let make_abs terms_changed fixf (gt1, gt2) =
+  (* inital type annotation *)
   (* first make the list of concrete safe parts *)
   debug_msg "[Diff] getting safe concrete parts";
   let c_parts = get_ctf_diffs_safe [] gt1 gt2 in
@@ -2085,7 +2086,7 @@ let make_abs terms_changed fixf (gt1, gt2) =
   *  (fun ec -> 
   *    debug_msg "{{";
   *    List.iter (fun df ->
-  *     debug_msg ((string_of_diff df) ^ " ¶ ")) ec;
+  *     debug_msg ((string_of_diff df) ^ " ++ ")) ec;
   *   debug_msg "\n}}")
   *  parted;
 *)

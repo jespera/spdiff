@@ -1,6 +1,6 @@
 int foo(void) {
 	  int x;
-	  f(117,GFP);
+	  f(x,GFP);
 	  x = h(g(117));
 		return x+x;
 	}

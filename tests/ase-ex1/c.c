@@ -1,6 +1,6 @@
 void bar(int y) {
 	  int a;
-	  a = f(11)+g(y);
+	  a = f(a)+g(y);
 	  return a;
 	}
 

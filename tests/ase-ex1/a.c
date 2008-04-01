@@ -1,6 +1,6 @@
 void foo(void) {
 	  int x;
-	  f(117);
+	  f(x);
 	  x = g(117);
 		return x;
 	}
