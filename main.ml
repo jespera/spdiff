@@ -135,6 +135,15 @@ let print_patch_lists pl =
   )
   pl
 
+let get_best_itemset ndb =
+	let supp b = Diff.DBD.get_support_itemset ndb b in
+	let f acc_itemset itemset =
+	if supp itemset >= supp acc_itemset &&
+	   List.length itemset >= List.length acc_itemset
+		 then itemset
+		 else acc_itemset in
+  Diff.DBD.fold_itemset ndb f [] 
+
 let do_datamining abs_patches =
   let edb = Diff.DBD.makeEmpty () in
   print_endline "[Main] Constructing database...";
@@ -159,8 +168,18 @@ let do_datamining abs_patches =
     (*Diff.string_of_diff*)
     (*cdb;*)
   *)
+(*
+  print_endline "[Main] resulting database";
+  Diff.DBD.print_db
+   Diff.string_of_diff
+    cdb;
+*)
+	get_best_itemset cdb
+(*
+  print_endline "[Main] done mining; merging...";
   let f = fun acc itemset -> Diff.non_dub_app itemset  acc in
   Diff.DBD.fold_itemset cdb f []
+*)
   
 
 let bp_of_list ls = 
@@ -435,7 +454,10 @@ let spec_main () =
       (function a -> print_string (Diff.string_of_gtree' a); print_string " ")
       terms_changed_list;
     print_newline ();
-    Diff.make_abs terms_changed fixf (t, t'')) term_pairs in
+    let r = Diff.make_abs terms_changed fixf (t, t'') in
+		print_endline "[Main] abstracted one pair";
+		r
+		) term_pairs in
   (*{{{*)
   if !print_raw
   then (
