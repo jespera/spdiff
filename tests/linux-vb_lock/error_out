@@ -1,0 +1,1292 @@
+parse error 
+ = File "videobuf-vmalloc.c.orig", line 45, column 0,  charpos = 1400
+    around = '', whole content = 
+ERROR-RECOV: found sync end of #define 44
+badcount: 3
+bad: MODULE_LICENSE("GPL");
+bad: 
+bad: #define dprintk(level, fmt, arg...)	if (debug >= level) \
+BAD:!!!!! 	printk(KERN_DEBUG "vbuf-vmalloc: " fmt , ## arg)
+semantic error two or more data types
+ =File "videobuf-vmalloc.c.orig", line 267, column 16,  charpos = 6463
+    around = '*', whole content = 				char __user *data, size_t count,
+ERROR-RECOV: found sync '}' at line 284
+badcount: 20
+bad: }
+bad: 
+bad: static int __videobuf_copy_to_user ( struct videobuf_queue *q,
+BAD:!!!!! 				char __user *data, size_t count,
+bad: 				int nonblocking )
+bad: {
+bad: 	struct videbuf_vmalloc_memory *mem=q->read_buf->priv;
+bad: 	BUG_ON (!mem);
+bad: 	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
+bad: 
+bad: 	BUG_ON (!mem->vmalloc);
+bad: 
+bad: 	/* copy to userspace */
+bad: 	if (count > q->read_buf->size - q->read_off)
+bad: 		count = q->read_buf->size - q->read_off;
+bad: 
+bad: 	if (copy_to_user(data, mem->vmalloc+q->read_off, count))
+bad: 		return -EFAULT;
+bad: 
+bad: 	return count;
+bad: }
+semantic error two or more data types
+ =File "videobuf-vmalloc.c.orig", line 287, column 16,  charpos = 6935
+    around = '*', whole content = 				char __user *data, size_t count, size_t pos,
+ERROR-RECOV: found sync '}' at line 313
+badcount: 29
+bad: }
+bad: 
+bad: static int __videobuf_copy_stream ( struct videobuf_queue *q,
+BAD:!!!!! 				char __user *data, size_t count, size_t pos,
+bad: 				int vbihack, int nonblocking )
+bad: {
+bad: 	unsigned int  *fc;
+bad: 	struct videbuf_vmalloc_memory *mem=q->read_buf->priv;
+bad: 	BUG_ON (!mem);
+bad: 	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
+bad: 
+bad: 	if (vbihack) {
+bad: 		/* dirty, undocumented hack -- pass the frame counter
+bad: 			* within the last four bytes of each vbi data block.
+bad: 			* We need that one to maintain backward compatibility
+bad: 			* to all vbi decoding software out there ... */
+bad: 		fc  = (unsigned int*)mem->vmalloc;
+bad: 		fc += (q->read_buf->size>>2) -1;
+bad: 		*fc = q->read_buf->field_count >> 1;
+bad: 		dprintk(1,"vbihack: %d\n",*fc);
+bad: 	}
+bad: 
+bad: 	/* copy stuff using the common method */
+bad: 	count = __videobuf_copy_to_user (q,data,count,nonblocking);
+bad: 
+bad: 	if ( (count==-EFAULT) && (0 == pos) )
+bad: 		return -EFAULT;
+bad: 
+bad: 	return count;
+bad: }
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for is
+Type_annoter: not finding type for should
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for kzalloc
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for vmalloc_user
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for remap_vmalloc_range
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for kzalloc
+Type_annoter: not finding type for remap_vmalloc_range
+Type_annoter: not finding type for kmalloc
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for videobuf_queue_core_init
+Type_annoter: not finding type for vfree
+parse error 
+ = File "videobuf-vmalloc.c.new", line 45, column 0,  charpos = 1400
+    around = '', whole content = 
+ERROR-RECOV: found sync end of #define 44
+badcount: 3
+bad: MODULE_LICENSE("GPL");
+bad: 
+bad: #define dprintk(level, fmt, arg...)	if (debug >= level) \
+BAD:!!!!! 	printk(KERN_DEBUG "vbuf-vmalloc: " fmt , ## arg)
+semantic error two or more data types
+ =File "videobuf-vmalloc.c.new", line 267, column 16,  charpos = 6469
+    around = '*', whole content = 				char __user *data, size_t count,
+ERROR-RECOV: found sync '}' at line 284
+badcount: 20
+bad: }
+bad: 
+bad: static int __videobuf_copy_to_user ( struct videobuf_queue *q,
+BAD:!!!!! 				char __user *data, size_t count,
+bad: 				int nonblocking )
+bad: {
+bad: 	struct videbuf_vmalloc_memory *mem=q->read_buf->priv;
+bad: 	BUG_ON (!mem);
+bad: 	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
+bad: 
+bad: 	BUG_ON (!mem->vmalloc);
+bad: 
+bad: 	/* copy to userspace */
+bad: 	if (count > q->read_buf->size - q->read_off)
+bad: 		count = q->read_buf->size - q->read_off;
+bad: 
+bad: 	if (copy_to_user(data, mem->vmalloc+q->read_off, count))
+bad: 		return -EFAULT;
+bad: 
+bad: 	return count;
+bad: }
+semantic error two or more data types
+ =File "videobuf-vmalloc.c.new", line 287, column 16,  charpos = 6941
+    around = '*', whole content = 				char __user *data, size_t count, size_t pos,
+ERROR-RECOV: found sync '}' at line 313
+badcount: 29
+bad: }
+bad: 
+bad: static int __videobuf_copy_stream ( struct videobuf_queue *q,
+BAD:!!!!! 				char __user *data, size_t count, size_t pos,
+bad: 				int vbihack, int nonblocking )
+bad: {
+bad: 	unsigned int  *fc;
+bad: 	struct videbuf_vmalloc_memory *mem=q->read_buf->priv;
+bad: 	BUG_ON (!mem);
+bad: 	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
+bad: 
+bad: 	if (vbihack) {
+bad: 		/* dirty, undocumented hack -- pass the frame counter
+bad: 			* within the last four bytes of each vbi data block.
+bad: 			* We need that one to maintain backward compatibility
+bad: 			* to all vbi decoding software out there ... */
+bad: 		fc  = (unsigned int*)mem->vmalloc;
+bad: 		fc += (q->read_buf->size>>2) -1;
+bad: 		*fc = q->read_buf->field_count >> 1;
+bad: 		dprintk(1,"vbihack: %d\n",*fc);
+bad: 	}
+bad: 
+bad: 	/* copy stuff using the common method */
+bad: 	count = __videobuf_copy_to_user (q,data,count,nonblocking);
+bad: 
+bad: 	if ( (count==-EFAULT) && (0 == pos) )
+bad: 		return -EFAULT;
+bad: 
+bad: 	return count;
+bad: }
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for is
+Type_annoter: not finding type for should
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for kzalloc
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for vmalloc_user
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for remap_vmalloc_range
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for kzalloc
+Type_annoter: not finding type for remap_vmalloc_range
+Type_annoter: not finding type for kmalloc
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for videobuf_queue_core_init
+Type_annoter: not finding type for vfree
+parse error 
+ = File "videobuf-dma-sg.c.orig", line 51, column 0,  charpos = 1624
+    around = '', whole content = 
+ERROR-RECOV: found sync end of #define 50
+badcount: 3
+bad: MODULE_LICENSE("GPL");
+bad: 
+bad: #define dprintk(level, fmt, arg...)	if (debug >= level) \
+BAD:!!!!! 	printk(KERN_DEBUG "vbuf-sg: " fmt , ## arg)
+semantic error two or more data types
+ =File "videobuf-dma-sg.c.orig", line 615, column 16,  charpos = 15277
+    around = '*', whole content = 				char __user *data, size_t count,
+ERROR-RECOV: found sync '}' at line 630
+badcount: 18
+bad: }
+bad: 
+bad: static int __videobuf_copy_to_user ( struct videobuf_queue *q,
+BAD:!!!!! 				char __user *data, size_t count,
+bad: 				int nonblocking )
+bad: {
+bad: 	struct videbuf_pci_sg_memory *mem=q->read_buf->priv;
+bad: 	BUG_ON (!mem);
+bad: 	MAGIC_CHECK(mem->magic,MAGIC_SG_MEM);
+bad: 
+bad: 	/* copy to userspace */
+bad: 	if (count > q->read_buf->size - q->read_off)
+bad: 		count = q->read_buf->size - q->read_off;
+bad: 
+bad: 	if (copy_to_user(data, mem->dma.vmalloc+q->read_off, count))
+bad: 		return -EFAULT;
+bad: 
+bad: 	return count;
+bad: }
+semantic error two or more data types
+ =File "videobuf-dma-sg.c.orig", line 633, column 16,  charpos = 15724
+    around = '*', whole content = 				char __user *data, size_t count, size_t pos,
+ERROR-RECOV: found sync '}' at line 659
+badcount: 29
+bad: }
+bad: 
+bad: static int __videobuf_copy_stream ( struct videobuf_queue *q,
+BAD:!!!!! 				char __user *data, size_t count, size_t pos,
+bad: 				int vbihack, int nonblocking )
+bad: {
+bad: 	unsigned int  *fc;
+bad: 	struct videbuf_pci_sg_memory *mem=q->read_buf->priv;
+bad: 	BUG_ON (!mem);
+bad: 	MAGIC_CHECK(mem->magic,MAGIC_SG_MEM);
+bad: 
+bad: 	if (vbihack) {
+bad: 		/* dirty, undocumented hack -- pass the frame counter
+bad: 			* within the last four bytes of each vbi data block.
+bad: 			* We need that one to maintain backward compatibility
+bad: 			* to all vbi decoding software out there ... */
+bad: 		fc  = (unsigned int*)mem->dma.vmalloc;
+bad: 		fc += (q->read_buf->size>>2) -1;
+bad: 		*fc = q->read_buf->field_count >> 1;
+bad: 		dprintk(1,"vbihack: %d\n",*fc);
+bad: 	}
+bad: 
+bad: 	/* copy stuff using the common method */
+bad: 	count = __videobuf_copy_to_user (q,data,count,nonblocking);
+bad: 
+bad: 	if ( (count==-EFAULT) && (0 == pos) )
+bad: 		return -EFAULT;
+bad: 
+bad: 	return count;
+bad: }
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for is
+Type_annoter: not finding type for should
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for kcalloc
+Type_annoter: not finding type for sg_init_table
+Type_annoter: not finding type for vmalloc_to_page
+Type_annoter: not finding type for sg_set_page
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for kcalloc
+Type_annoter: not finding type for sg_init_table
+Type_annoter: not finding type for sg_set_page
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for kmalloc
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for get_user_pages
+Type_annoter: not finding type for current
+Type_annoter: not finding type for down_read
+Type_annoter: not finding type for current
+Type_annoter: not finding type for up_read
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for vmalloc_32
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for kmalloc
+Type_annoter: not finding type for sg_dma_address
+Type_annoter: not finding type for sg_dma_len
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for pci_map_sg
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for pci_dma_sync_sg_for_cpu
+Type_annoter: not finding type for pci_unmap_sg
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for page_cache_release
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for vfree
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for alloc_page
+Type_annoter: not finding type for clear_user_page
+Type_annoter: not finding type for page_address
+Type_annoter: not finding type for kzalloc
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for kmalloc
+Type_annoter: not finding type for videobuf_alloc
+Type_annoter: not finding type for videobuf_queue_core_init
+parse error 
+ = File "videobuf-dma-sg.c.new", line 51, column 0,  charpos = 1624
+    around = '', whole content = 
+ERROR-RECOV: found sync end of #define 50
+badcount: 3
+bad: MODULE_LICENSE("GPL");
+bad: 
+bad: #define dprintk(level, fmt, arg...)	if (debug >= level) \
+BAD:!!!!! 	printk(KERN_DEBUG "vbuf-sg: " fmt , ## arg)
+semantic error two or more data types
+ =File "videobuf-dma-sg.c.new", line 615, column 16,  charpos = 15283
+    around = '*', whole content = 				char __user *data, size_t count,
+ERROR-RECOV: found sync '}' at line 630
+badcount: 18
+bad: }
+bad: 
+bad: static int __videobuf_copy_to_user ( struct videobuf_queue *q,
+BAD:!!!!! 				char __user *data, size_t count,
+bad: 				int nonblocking )
+bad: {
+bad: 	struct videbuf_pci_sg_memory *mem=q->read_buf->priv;
+bad: 	BUG_ON (!mem);
+bad: 	MAGIC_CHECK(mem->magic,MAGIC_SG_MEM);
+bad: 
+bad: 	/* copy to userspace */
+bad: 	if (count > q->read_buf->size - q->read_off)
+bad: 		count = q->read_buf->size - q->read_off;
+bad: 
+bad: 	if (copy_to_user(data, mem->dma.vmalloc+q->read_off, count))
+bad: 		return -EFAULT;
+bad: 
+bad: 	return count;
+bad: }
+semantic error two or more data types
+ =File "videobuf-dma-sg.c.new", line 633, column 16,  charpos = 15730
+    around = '*', whole content = 				char __user *data, size_t count, size_t pos,
+ERROR-RECOV: found sync '}' at line 659
+badcount: 29
+bad: }
+bad: 
+bad: static int __videobuf_copy_stream ( struct videobuf_queue *q,
+BAD:!!!!! 				char __user *data, size_t count, size_t pos,
+bad: 				int vbihack, int nonblocking )
+bad: {
+bad: 	unsigned int  *fc;
+bad: 	struct videbuf_pci_sg_memory *mem=q->read_buf->priv;
+bad: 	BUG_ON (!mem);
+bad: 	MAGIC_CHECK(mem->magic,MAGIC_SG_MEM);
+bad: 
+bad: 	if (vbihack) {
+bad: 		/* dirty, undocumented hack -- pass the frame counter
+bad: 			* within the last four bytes of each vbi data block.
+bad: 			* We need that one to maintain backward compatibility
+bad: 			* to all vbi decoding software out there ... */
+bad: 		fc  = (unsigned int*)mem->dma.vmalloc;
+bad: 		fc += (q->read_buf->size>>2) -1;
+bad: 		*fc = q->read_buf->field_count >> 1;
+bad: 		dprintk(1,"vbihack: %d\n",*fc);
+bad: 	}
+bad: 
+bad: 	/* copy stuff using the common method */
+bad: 	count = __videobuf_copy_to_user (q,data,count,nonblocking);
+bad: 
+bad: 	if ( (count==-EFAULT) && (0 == pos) )
+bad: 		return -EFAULT;
+bad: 
+bad: 	return count;
+bad: }
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for is
+Type_annoter: not finding type for should
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for kcalloc
+Type_annoter: not finding type for sg_init_table
+Type_annoter: not finding type for vmalloc_to_page
+Type_annoter: not finding type for sg_set_page
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for kcalloc
+Type_annoter: not finding type for sg_init_table
+Type_annoter: not finding type for sg_set_page
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for kmalloc
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for get_user_pages
+Type_annoter: not finding type for current
+Type_annoter: not finding type for down_read
+Type_annoter: not finding type for current
+Type_annoter: not finding type for up_read
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for vmalloc_32
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for kmalloc
+Type_annoter: not finding type for sg_dma_address
+Type_annoter: not finding type for sg_dma_len
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for pci_map_sg
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for pci_dma_sync_sg_for_cpu
+Type_annoter: not finding type for pci_unmap_sg
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for page_cache_release
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for vfree
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for alloc_page
+Type_annoter: not finding type for clear_user_page
+Type_annoter: not finding type for page_address
+Type_annoter: not finding type for kzalloc
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for kmalloc
+Type_annoter: not finding type for videobuf_alloc
+Type_annoter: not finding type for videobuf_queue_core_init
+semantic error two or more data types
+ =File "videobuf-core.c.orig", line 691, column 22,  charpos = 15366
+    around = '*', whole content = 				      char __user *data,
+ERROR-RECOV: found sync '}' at line 735
+badcount: 48
+bad: }
+bad: 
+bad: /* Locking: Caller holds q->lock */
+bad: static ssize_t videobuf_read_zerocopy(struct videobuf_queue *q,
+BAD:!!!!! 				      char __user *data,
+bad: 				      size_t count, loff_t *ppos)
+bad: {
+bad: 	enum v4l2_field field;
+bad: 	unsigned long flags = 0;
+bad: 	int retval;
+bad: 
+bad: 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
+bad: 
+bad: 	/* setup stuff */
+bad: 	q->read_buf = videobuf_alloc(q);
+bad: 	if (NULL == q->read_buf)
+bad: 		return -ENOMEM;
+bad: 
+bad: 	q->read_buf->memory = V4L2_MEMORY_USERPTR;
+bad: 	q->read_buf->baddr  = (unsigned long)data;
+bad: 	q->read_buf->bsize  = count;
+bad: 
+bad: 	field = videobuf_next_field(q);
+bad: 	retval = q->ops->buf_prepare(q, q->read_buf, field);
+bad: 	if (0 != retval)
+bad: 		goto done;
+bad: 
+bad: 	/* start capture & wait */
+bad: 	if (q->irqlock)
+bad: 		spin_lock_irqsave(q->irqlock, flags);
+bad: 	q->ops->buf_queue(q, q->read_buf);
+bad: 	if (q->irqlock)
+bad: 		spin_unlock_irqrestore(q->irqlock, flags);
+bad: 	retval = videobuf_waiton(q->read_buf, 0, 0);
+bad: 	if (0 == retval) {
+bad: 		CALL(q, sync, q, q->read_buf);
+bad: 		if (VIDEOBUF_ERROR == q->read_buf->state)
+bad: 			retval = -EIO;
+bad: 		else
+bad: 			retval = q->read_buf->size;
+bad: 	}
+bad: 
+bad:  done:
+bad: 	/* cleanup */
+bad: 	q->ops->buf_release(q, q->read_buf);
+bad: 	kfree(q->read_buf);
+bad: 	q->read_buf = NULL;
+bad: 	return retval;
+bad: }
+semantic error two or more data types
+ =File "videobuf-core.c.orig", line 738, column 17,  charpos = 16440
+    around = '*', whole content = 			  char __user *data, size_t count, loff_t *ppos,
+ERROR-RECOV: found sync '}' at line 822
+badcount: 87
+bad: }
+bad: 
+bad: ssize_t videobuf_read_one(struct videobuf_queue *q,
+BAD:!!!!! 			  char __user *data, size_t count, loff_t *ppos,
+bad: 			  int nonblocking)
+bad: {
+bad: 	enum v4l2_field field;
+bad: 	unsigned long flags = 0;
+bad: 	unsigned size, nbufs;
+bad: 	int retval;
+bad: 
+bad: 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
+bad: 
+bad: 	mutex_lock(&q->lock);
+bad: 
+bad: 	nbufs = 1; size = 0;
+bad: 	q->ops->buf_setup(q, &nbufs, &size);
+bad: 
+bad: 	if (NULL == q->read_buf  &&
+bad: 	    count >= size        &&
+bad: 	    !nonblocking) {
+bad: 		retval = videobuf_read_zerocopy(q, data, count, ppos);
+bad: 		if (retval >= 0  ||  retval == -EIO)
+bad: 			/* ok, all done */
+bad: 			goto done;
+bad: 		/* fallback to kernel bounce buffer on failures */
+bad: 	}
+bad: 
+bad: 	if (NULL == q->read_buf) {
+bad: 		/* need to capture a new frame */
+bad: 		retval = -ENOMEM;
+bad: 		q->read_buf = videobuf_alloc(q);
+bad: 
+bad: 		dprintk(1, "video alloc=0x%p\n", q->read_buf);
+bad: 		if (NULL == q->read_buf)
+bad: 			goto done;
+bad: 		q->read_buf->memory = V4L2_MEMORY_USERPTR;
+bad: 		q->read_buf->bsize = count; /* preferred size */
+bad: 		field = videobuf_next_field(q);
+bad: 		retval = q->ops->buf_prepare(q, q->read_buf, field);
+bad: 
+bad: 		if (0 != retval) {
+bad: 			kfree(q->read_buf);
+bad: 			q->read_buf = NULL;
+bad: 			goto done;
+bad: 		}
+bad: 		if (q->irqlock)
+bad: 			spin_lock_irqsave(q->irqlock, flags);
+bad: 
+bad: 		q->ops->buf_queue(q, q->read_buf);
+bad: 		if (q->irqlock)
+bad: 			spin_unlock_irqrestore(q->irqlock, flags);
+bad: 		q->read_off = 0;
+bad: 	}
+bad: 
+bad: 	/* wait until capture is done */
+bad: 	retval = videobuf_waiton(q->read_buf, nonblocking, 1);
+bad: 	if (0 != retval)
+bad: 		goto done;
+bad: 
+bad: 	CALL(q, sync, q, q->read_buf);
+bad: 
+bad: 	if (VIDEOBUF_ERROR == q->read_buf->state) {
+bad: 		/* catch I/O errors */
+bad: 		q->ops->buf_release(q, q->read_buf);
+bad: 		kfree(q->read_buf);
+bad: 		q->read_buf = NULL;
+bad: 		retval = -EIO;
+bad: 		goto done;
+bad: 	}
+bad: 
+bad: 	/* Copy to userspace */
+bad: 	retval = CALL(q, video_copy_to_user, q, data, count, nonblocking);
+bad: 	if (retval < 0)
+bad: 		goto done;
+bad: 
+bad: 	q->read_off += retval;
+bad: 	if (q->read_off == q->read_buf->size) {
+bad: 		/* all data copied, cleanup */
+bad: 		q->ops->buf_release(q, q->read_buf);
+bad: 		kfree(q->read_buf);
+bad: 		q->read_buf = NULL;
+bad: 	}
+bad: 
+bad:  done:
+bad: 	mutex_unlock(&q->lock);
+bad: 	return retval;
+bad: }
+semantic error two or more data types
+ =File "videobuf-core.c.orig", line 914, column 20,  charpos = 20100
+    around = '*', whole content = 			     char __user *data, size_t count, loff_t *ppos,
+ERROR-RECOV: found sync '}' at line 985
+badcount: 75
+bad: }
+bad: 
+bad: 
+bad: ssize_t videobuf_read_stream(struct videobuf_queue *q,
+BAD:!!!!! 			     char __user *data, size_t count, loff_t *ppos,
+bad: 			     int vbihack, int nonblocking)
+bad: {
+bad: 	int rc, retval;
+bad: 	unsigned long flags = 0;
+bad: 
+bad: 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
+bad: 
+bad: 	dprintk(2, "%s\n", __FUNCTION__);
+bad: 	mutex_lock(&q->lock);
+bad: 	retval = -EBUSY;
+bad: 	if (q->streaming)
+bad: 		goto done;
+bad: 	if (!q->reading) {
+bad: 		retval = __videobuf_read_start(q);
+bad: 		if (retval < 0)
+bad: 			goto done;
+bad: 	}
+bad: 
+bad: 	retval = 0;
+bad: 	while (count > 0) {
+bad: 		/* get / wait for data */
+bad: 		if (NULL == q->read_buf) {
+bad: 			q->read_buf = list_entry(q->stream.next,
+bad: 						 struct videobuf_buffer,
+bad: 						 stream);
+bad: 			list_del(&q->read_buf->stream);
+bad: 			q->read_off = 0;
+bad: 		}
+bad: 		rc = videobuf_waiton(q->read_buf, nonblocking, 1);
+bad: 		if (rc < 0) {
+bad: 			if (0 == retval)
+bad: 				retval = rc;
+bad: 			break;
+bad: 		}
+bad: 
+bad: 		if (q->read_buf->state == VIDEOBUF_DONE) {
+bad: 			rc = CALL(q, copy_stream, q, data + retval, count,
+bad: 					retval, vbihack, nonblocking);
+bad: 			if (rc < 0) {
+bad: 				retval = rc;
+bad: 				break;
+bad: 			}
+bad: 			retval      += rc;
+bad: 			count       -= rc;
+bad: 			q->read_off += rc;
+bad: 		} else {
+bad: 			/* some error */
+bad: 			q->read_off = q->read_buf->size;
+bad: 			if (0 == retval)
+bad: 				retval = -EIO;
+bad: 		}
+bad: 
+bad: 		/* requeue buffer when done with copying */
+bad: 		if (q->read_off == q->read_buf->size) {
+bad: 			list_add_tail(&q->read_buf->stream,
+bad: 				      &q->stream);
+bad: 			if (q->irqlock)
+bad: 				spin_lock_irqsave(q->irqlock, flags);
+bad: 			q->ops->buf_queue(q, q->read_buf);
+bad: 			if (q->irqlock)
+bad: 				spin_unlock_irqrestore(q->irqlock, flags);
+bad: 			q->read_buf = NULL;
+bad: 		}
+bad: 		if (retval < 0)
+bad: 			break;
+bad: 	}
+bad: 
+bad:  done:
+bad: 	mutex_unlock(&q->lock);
+bad: 	return retval;
+bad: }
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for is
+Type_annoter: not finding type for should
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for level
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for ## arg
+Type_annoter: not finding type for q
+Type_annoter: not finding type for arg
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for init_waitqueue_head
+Type_annoter: not finding type for wait
+Type_annoter: not finding type for current
+Type_annoter: not finding type for add_wait_queue
+Type_annoter: not finding type for set_current_state
+Type_annoter: not finding type for schedule
+Type_annoter: not finding type for signal_pending
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for remove_wait_queue
+Type_annoter: not finding type for wait_event_timeout
+Type_annoter: not finding type for msecs_to_jiffies
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for iolock
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for mutex_init
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for list_del
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for mmap_free
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for list_empty
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for down_read
+Type_annoter: not finding type for current
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for list_add_tail
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for up_read
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for list_empty
+Type_annoter: not finding type for list_entry
+Type_annoter: not finding type for stream
+Type_annoter: not finding type for sync
+Type_annoter: not finding type for list_del
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for stream
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for list_add_tail
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for list_empty
+Type_annoter: not finding type for list_entry
+Type_annoter: not finding type for stream
+Type_annoter: not finding type for list_del
+Type_annoter: not finding type for poll_wait
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mmap_mapper
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for videobuf_read_stream
+Type_annoter: not finding type for videobuf_read_one
+semantic error two or more data types
+ =File "videobuf-core.c.new", line 691, column 22,  charpos = 15438
+    around = '*', whole content = 				      char __user *data,
+ERROR-RECOV: found sync '}' at line 735
+badcount: 48
+bad: }
+bad: 
+bad: /* Locking: Caller holds q->vb_lock */
+bad: static ssize_t videobuf_read_zerocopy(struct videobuf_queue *q,
+BAD:!!!!! 				      char __user *data,
+bad: 				      size_t count, loff_t *ppos)
+bad: {
+bad: 	enum v4l2_field field;
+bad: 	unsigned long flags = 0;
+bad: 	int retval;
+bad: 
+bad: 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
+bad: 
+bad: 	/* setup stuff */
+bad: 	q->read_buf = videobuf_alloc(q);
+bad: 	if (NULL == q->read_buf)
+bad: 		return -ENOMEM;
+bad: 
+bad: 	q->read_buf->memory = V4L2_MEMORY_USERPTR;
+bad: 	q->read_buf->baddr  = (unsigned long)data;
+bad: 	q->read_buf->bsize  = count;
+bad: 
+bad: 	field = videobuf_next_field(q);
+bad: 	retval = q->ops->buf_prepare(q, q->read_buf, field);
+bad: 	if (0 != retval)
+bad: 		goto done;
+bad: 
+bad: 	/* start capture & wait */
+bad: 	if (q->irqlock)
+bad: 		spin_lock_irqsave(q->irqlock, flags);
+bad: 	q->ops->buf_queue(q, q->read_buf);
+bad: 	if (q->irqlock)
+bad: 		spin_unlock_irqrestore(q->irqlock, flags);
+bad: 	retval = videobuf_waiton(q->read_buf, 0, 0);
+bad: 	if (0 == retval) {
+bad: 		CALL(q, sync, q, q->read_buf);
+bad: 		if (VIDEOBUF_ERROR == q->read_buf->state)
+bad: 			retval = -EIO;
+bad: 		else
+bad: 			retval = q->read_buf->size;
+bad: 	}
+bad: 
+bad:  done:
+bad: 	/* cleanup */
+bad: 	q->ops->buf_release(q, q->read_buf);
+bad: 	kfree(q->read_buf);
+bad: 	q->read_buf = NULL;
+bad: 	return retval;
+bad: }
+semantic error two or more data types
+ =File "videobuf-core.c.new", line 738, column 17,  charpos = 16512
+    around = '*', whole content = 			  char __user *data, size_t count, loff_t *ppos,
+ERROR-RECOV: found sync '}' at line 822
+badcount: 87
+bad: }
+bad: 
+bad: ssize_t videobuf_read_one(struct videobuf_queue *q,
+BAD:!!!!! 			  char __user *data, size_t count, loff_t *ppos,
+bad: 			  int nonblocking)
+bad: {
+bad: 	enum v4l2_field field;
+bad: 	unsigned long flags = 0;
+bad: 	unsigned size, nbufs;
+bad: 	int retval;
+bad: 
+bad: 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
+bad: 
+bad: 	mutex_lock(&q->vb_lock);
+bad: 
+bad: 	nbufs = 1; size = 0;
+bad: 	q->ops->buf_setup(q, &nbufs, &size);
+bad: 
+bad: 	if (NULL == q->read_buf  &&
+bad: 	    count >= size        &&
+bad: 	    !nonblocking) {
+bad: 		retval = videobuf_read_zerocopy(q, data, count, ppos);
+bad: 		if (retval >= 0  ||  retval == -EIO)
+bad: 			/* ok, all done */
+bad: 			goto done;
+bad: 		/* fallback to kernel bounce buffer on failures */
+bad: 	}
+bad: 
+bad: 	if (NULL == q->read_buf) {
+bad: 		/* need to capture a new frame */
+bad: 		retval = -ENOMEM;
+bad: 		q->read_buf = videobuf_alloc(q);
+bad: 
+bad: 		dprintk(1, "video alloc=0x%p\n", q->read_buf);
+bad: 		if (NULL == q->read_buf)
+bad: 			goto done;
+bad: 		q->read_buf->memory = V4L2_MEMORY_USERPTR;
+bad: 		q->read_buf->bsize = count; /* preferred size */
+bad: 		field = videobuf_next_field(q);
+bad: 		retval = q->ops->buf_prepare(q, q->read_buf, field);
+bad: 
+bad: 		if (0 != retval) {
+bad: 			kfree(q->read_buf);
+bad: 			q->read_buf = NULL;
+bad: 			goto done;
+bad: 		}
+bad: 		if (q->irqlock)
+bad: 			spin_lock_irqsave(q->irqlock, flags);
+bad: 
+bad: 		q->ops->buf_queue(q, q->read_buf);
+bad: 		if (q->irqlock)
+bad: 			spin_unlock_irqrestore(q->irqlock, flags);
+bad: 		q->read_off = 0;
+bad: 	}
+bad: 
+bad: 	/* wait until capture is done */
+bad: 	retval = videobuf_waiton(q->read_buf, nonblocking, 1);
+bad: 	if (0 != retval)
+bad: 		goto done;
+bad: 
+bad: 	CALL(q, sync, q, q->read_buf);
+bad: 
+bad: 	if (VIDEOBUF_ERROR == q->read_buf->state) {
+bad: 		/* catch I/O errors */
+bad: 		q->ops->buf_release(q, q->read_buf);
+bad: 		kfree(q->read_buf);
+bad: 		q->read_buf = NULL;
+bad: 		retval = -EIO;
+bad: 		goto done;
+bad: 	}
+bad: 
+bad: 	/* Copy to userspace */
+bad: 	retval = CALL(q, video_copy_to_user, q, data, count, nonblocking);
+bad: 	if (retval < 0)
+bad: 		goto done;
+bad: 
+bad: 	q->read_off += retval;
+bad: 	if (q->read_off == q->read_buf->size) {
+bad: 		/* all data copied, cleanup */
+bad: 		q->ops->buf_release(q, q->read_buf);
+bad: 		kfree(q->read_buf);
+bad: 		q->read_buf = NULL;
+bad: 	}
+bad: 
+bad:  done:
+bad: 	mutex_unlock(&q->vb_lock);
+bad: 	return retval;
+bad: }
+semantic error two or more data types
+ =File "videobuf-core.c.new", line 914, column 20,  charpos = 20199
+    around = '*', whole content = 			     char __user *data, size_t count, loff_t *ppos,
+ERROR-RECOV: found sync '}' at line 985
+badcount: 75
+bad: }
+bad: 
+bad: 
+bad: ssize_t videobuf_read_stream(struct videobuf_queue *q,
+BAD:!!!!! 			     char __user *data, size_t count, loff_t *ppos,
+bad: 			     int vbihack, int nonblocking)
+bad: {
+bad: 	int rc, retval;
+bad: 	unsigned long flags = 0;
+bad: 
+bad: 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
+bad: 
+bad: 	dprintk(2, "%s\n", __FUNCTION__);
+bad: 	mutex_lock(&q->vb_lock);
+bad: 	retval = -EBUSY;
+bad: 	if (q->streaming)
+bad: 		goto done;
+bad: 	if (!q->reading) {
+bad: 		retval = __videobuf_read_start(q);
+bad: 		if (retval < 0)
+bad: 			goto done;
+bad: 	}
+bad: 
+bad: 	retval = 0;
+bad: 	while (count > 0) {
+bad: 		/* get / wait for data */
+bad: 		if (NULL == q->read_buf) {
+bad: 			q->read_buf = list_entry(q->stream.next,
+bad: 						 struct videobuf_buffer,
+bad: 						 stream);
+bad: 			list_del(&q->read_buf->stream);
+bad: 			q->read_off = 0;
+bad: 		}
+bad: 		rc = videobuf_waiton(q->read_buf, nonblocking, 1);
+bad: 		if (rc < 0) {
+bad: 			if (0 == retval)
+bad: 				retval = rc;
+bad: 			break;
+bad: 		}
+bad: 
+bad: 		if (q->read_buf->state == VIDEOBUF_DONE) {
+bad: 			rc = CALL(q, copy_stream, q, data + retval, count,
+bad: 					retval, vbihack, nonblocking);
+bad: 			if (rc < 0) {
+bad: 				retval = rc;
+bad: 				break;
+bad: 			}
+bad: 			retval      += rc;
+bad: 			count       -= rc;
+bad: 			q->read_off += rc;
+bad: 		} else {
+bad: 			/* some error */
+bad: 			q->read_off = q->read_buf->size;
+bad: 			if (0 == retval)
+bad: 				retval = -EIO;
+bad: 		}
+bad: 
+bad: 		/* requeue buffer when done with copying */
+bad: 		if (q->read_off == q->read_buf->size) {
+bad: 			list_add_tail(&q->read_buf->stream,
+bad: 				      &q->stream);
+bad: 			if (q->irqlock)
+bad: 				spin_lock_irqsave(q->irqlock, flags);
+bad: 			q->ops->buf_queue(q, q->read_buf);
+bad: 			if (q->irqlock)
+bad: 				spin_unlock_irqrestore(q->irqlock, flags);
+bad: 			q->read_buf = NULL;
+bad: 		}
+bad: 		if (retval < 0)
+bad: 			break;
+bad: 	}
+bad: 
+bad:  done:
+bad: 	mutex_unlock(&q->vb_lock);
+bad: 	return retval;
+bad: }
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for is
+Type_annoter: not finding type for should
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for level
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for ## arg
+Type_annoter: not finding type for q
+Type_annoter: not finding type for arg
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for init_waitqueue_head
+Type_annoter: not finding type for wait
+Type_annoter: not finding type for current
+Type_annoter: not finding type for add_wait_queue
+Type_annoter: not finding type for set_current_state
+Type_annoter: not finding type for schedule
+Type_annoter: not finding type for signal_pending
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for remove_wait_queue
+Type_annoter: not finding type for wait_event_timeout
+Type_annoter: not finding type for msecs_to_jiffies
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for iolock
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for mutex_init
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for list_del
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for mmap_free
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for list_empty
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for down_read
+Type_annoter: not finding type for current
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for list_add_tail
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for up_read
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for list_empty
+Type_annoter: not finding type for list_entry
+Type_annoter: not finding type for stream
+Type_annoter: not finding type for sync
+Type_annoter: not finding type for list_del
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for stream
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for list_add_tail
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for list_empty
+Type_annoter: not finding type for list_entry
+Type_annoter: not finding type for stream
+Type_annoter: not finding type for list_del
+Type_annoter: not finding type for poll_wait
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mmap_mapper
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for videobuf_read_stream
+Type_annoter: not finding type for videobuf_read_one
+parse error 
+ = File "saa7134-empress.c.orig", line 49, column 0,  charpos = 1591
+    around = '', whole content = 
+ERROR-RECOV: found sync end of #define 48
+badcount: 3
+bad: MODULE_PARM_DESC(debug,"enable debug messages");
+bad: 
+bad: #define dprintk(fmt, arg...)	if (debug)			\
+BAD:!!!!! 	printk(KERN_DEBUG "%s/empress: " fmt, dev->name , ## arg)
+semantic error two or more data types
+ =File "saa7134-empress.c.orig", line 130, column 39,  charpos = 3397
+    around = '*', whole content = ts_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
+ERROR-RECOV: found sync '}' at line 140
+badcount: 13
+bad: }
+bad: 
+bad: static ssize_t
+BAD:!!!!! ts_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
+bad: {
+bad: 	struct saa7134_dev *dev = file->private_data;
+bad: 
+bad: 	if (!dev->empress_started)
+bad: 		ts_init_encoder(dev);
+bad: 
+bad: 	return videobuf_read_stream(&dev->empress_tsq,
+bad: 				    data, count, ppos, 0,
+bad: 				    file->f_flags & O_NONBLOCK);
+bad: }
+semantic error two or more data types
+ =File "saa7134-empress.c.orig", line 462, column 18,  charpos = 11444
+    around = 'empress_register', whole content = static int __init empress_register(void)
+ERROR-RECOV: found sync '}' at line 465
+badcount: 5
+bad: };
+bad: 
+BAD:!!!!! static int __init empress_register(void)
+bad: {
+bad: 	return saa7134_ts_register(&empress_ops);
+bad: }
+semantic error two or more data types
+ =File "saa7134-empress.c.orig", line 467, column 19,  charpos = 11534
+    around = 'empress_unregister', whole content = static void __exit empress_unregister(void)
+ERROR-RECOV: found sync '}' at line 470
+badcount: 5
+bad: }
+bad: 
+BAD:!!!!! static void __exit empress_unregister(void)
+bad: {
+bad: 	saa7134_ts_unregister(&empress_ops);
+bad: }
+Type_annoter: not finding type for saa_writeb
+Type_annoter: not finding type for msleep
+Type_annoter: not finding type for saa7134_i2c_call_clients
+Type_annoter: not finding type for iminor
+Type_annoter: not finding type for saa7134_devlist
+Type_annoter: not finding type for devlist
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for mutex_trylock
+Type_annoter: not finding type for saa_writeb
+Type_annoter: not finding type for saa_readb
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for videobuf_stop
+Type_annoter: not finding type for videobuf_mmap_free
+Type_annoter: not finding type for saa_writeb
+Type_annoter: not finding type for saa_readb
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for videobuf_poll_stream
+Type_annoter: not finding type for videobuf_mmap_mapper
+Type_annoter: not finding type for strcpy
+Type_annoter: not finding type for strlcpy
+Type_annoter: not finding type for saa7134_boards
+Type_annoter: not finding type for sprintf
+Type_annoter: not finding type for pci_name
+Type_annoter: not finding type for strcpy
+Type_annoter: not finding type for strlcpy
+Type_annoter: not finding type for saa7134_i2c_call_clients
+Type_annoter: not finding type for saa7134_i2c_call_clients
+Type_annoter: not finding type for videobuf_reqbufs
+Type_annoter: not finding type for videobuf_querybuf
+Type_annoter: not finding type for videobuf_qbuf
+Type_annoter: not finding type for videobuf_dqbuf
+Type_annoter: not finding type for videobuf_streamon
+Type_annoter: not finding type for videobuf_streamoff
+Type_annoter: not finding type for saa7134_i2c_call_clients
+Type_annoter: not finding type for saa7134_i2c_call_clients
+Type_annoter: not finding type for ts_read
+Type_annoter: not finding type for video_ioctl2
+Type_annoter: not finding type for no_llseek
+Type_annoter: not finding type for saa7134_queryctrl
+Type_annoter: not finding type for saa7134_g_ctrl
+Type_annoter: not finding type for saa7134_s_ctrl
+Type_annoter: not finding type for container_of
+Type_annoter: not finding type for empress_workqueue
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for schedule_work
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for video_device_alloc
+Type_annoter: not finding type for video_device_release
+Type_annoter: not finding type for snprintf
+Type_annoter: not finding type for saa7134_boards
+Type_annoter: not finding type for video_register_device
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for videobuf_queue_pci_init
+Type_annoter: not finding type for saa7134_ts_qops
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for flush_scheduled_work
+Type_annoter: not finding type for video_unregister_device
+Type_annoter: not finding type for empress_register
+Type_annoter: not finding type for empress_unregister
+parse error 
+ = File "saa7134-empress.c.new", line 49, column 0,  charpos = 1591
+    around = '', whole content = 
+ERROR-RECOV: found sync end of #define 48
+badcount: 3
+bad: MODULE_PARM_DESC(debug,"enable debug messages");
+bad: 
+bad: #define dprintk(fmt, arg...)	if (debug)			\
+BAD:!!!!! 	printk(KERN_DEBUG "%s/empress: " fmt, dev->name , ## arg)
+semantic error two or more data types
+ =File "saa7134-empress.c.new", line 130, column 39,  charpos = 3409
+    around = '*', whole content = ts_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
+ERROR-RECOV: found sync '}' at line 140
+badcount: 13
+bad: }
+bad: 
+bad: static ssize_t
+BAD:!!!!! ts_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
+bad: {
+bad: 	struct saa7134_dev *dev = file->private_data;
+bad: 
+bad: 	if (!dev->empress_started)
+bad: 		ts_init_encoder(dev);
+bad: 
+bad: 	return videobuf_read_stream(&dev->empress_tsq,
+bad: 				    data, count, ppos, 0,
+bad: 				    file->f_flags & O_NONBLOCK);
+bad: }
+semantic error two or more data types
+ =File "saa7134-empress.c.new", line 462, column 18,  charpos = 11456
+    around = 'empress_register', whole content = static int __init empress_register(void)
+ERROR-RECOV: found sync '}' at line 465
+badcount: 5
+bad: };
+bad: 
+BAD:!!!!! static int __init empress_register(void)
+bad: {
+bad: 	return saa7134_ts_register(&empress_ops);
+bad: }
+semantic error two or more data types
+ =File "saa7134-empress.c.new", line 467, column 19,  charpos = 11546
+    around = 'empress_unregister', whole content = static void __exit empress_unregister(void)
+ERROR-RECOV: found sync '}' at line 470
+badcount: 5
+bad: }
+bad: 
+BAD:!!!!! static void __exit empress_unregister(void)
+bad: {
+bad: 	saa7134_ts_unregister(&empress_ops);
+bad: }
+Type_annoter: not finding type for saa_writeb
+Type_annoter: not finding type for msleep
+Type_annoter: not finding type for saa7134_i2c_call_clients
+Type_annoter: not finding type for iminor
+Type_annoter: not finding type for saa7134_devlist
+Type_annoter: not finding type for devlist
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for mutex_trylock
+Type_annoter: not finding type for saa_writeb
+Type_annoter: not finding type for saa_readb
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for videobuf_stop
+Type_annoter: not finding type for videobuf_mmap_free
+Type_annoter: not finding type for saa_writeb
+Type_annoter: not finding type for saa_readb
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for videobuf_poll_stream
+Type_annoter: not finding type for videobuf_mmap_mapper
+Type_annoter: not finding type for strcpy
+Type_annoter: not finding type for strlcpy
+Type_annoter: not finding type for saa7134_boards
+Type_annoter: not finding type for sprintf
+Type_annoter: not finding type for pci_name
+Type_annoter: not finding type for strcpy
+Type_annoter: not finding type for strlcpy
+Type_annoter: not finding type for saa7134_i2c_call_clients
+Type_annoter: not finding type for saa7134_i2c_call_clients
+Type_annoter: not finding type for videobuf_reqbufs
+Type_annoter: not finding type for videobuf_querybuf
+Type_annoter: not finding type for videobuf_qbuf
+Type_annoter: not finding type for videobuf_dqbuf
+Type_annoter: not finding type for videobuf_streamon
+Type_annoter: not finding type for videobuf_streamoff
+Type_annoter: not finding type for saa7134_i2c_call_clients
+Type_annoter: not finding type for saa7134_i2c_call_clients
+Type_annoter: not finding type for ts_read
+Type_annoter: not finding type for video_ioctl2
+Type_annoter: not finding type for no_llseek
+Type_annoter: not finding type for saa7134_queryctrl
+Type_annoter: not finding type for saa7134_g_ctrl
+Type_annoter: not finding type for saa7134_s_ctrl
+Type_annoter: not finding type for container_of
+Type_annoter: not finding type for empress_workqueue
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for schedule_work
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for video_device_alloc
+Type_annoter: not finding type for video_device_release
+Type_annoter: not finding type for snprintf
+Type_annoter: not finding type for saa7134_boards
+Type_annoter: not finding type for video_register_device
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for videobuf_queue_pci_init
+Type_annoter: not finding type for saa7134_ts_qops
+Type_annoter: not finding type for dprintk
+Type_annoter: not finding type for flush_scheduled_work
+Type_annoter: not finding type for video_unregister_device
+Type_annoter: not finding type for empress_register
+Type_annoter: not finding type for empress_unregister

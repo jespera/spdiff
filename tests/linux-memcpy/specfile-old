@@ -1,0 +1,5 @@
+dn_rtmsg.c.orig dn_rtmsg.c.new
+ax25_in.c.orig ax25_in.c.new
+#tcp_output.c.orig tcp_output.c.new
+#nr_in.c.orig nr_in.c.new
+#x25_in.c.orig x25_in.c.new

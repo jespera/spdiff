@@ -1,0 +1,85 @@
+---------------------------------------
+---------------------------------------
+
+a2091.c
+ * [status] ok
+
+a3000.c
+ * [status] ok
+
+acornscsi.c
+ * [status] ok
+
+aic7xxx_old.c
+ * [status] failed
+  * [old-status] spatch_ok
+ programmer put in one case scsi_Cmnd rather than scsi_cmnd
+ seems to have a problem with comparing result to res file
+
+aic7xxx_osm.c
+ * [status] spatch_ok
+ programmer dropped some prototypes that mention the types mentioned in the
+ collateral evolution, but there does not seem to be any other direct
+ connection to the collateral evolution
+
+aiclib.c
+ * [status] spatch_ok
+ programmer also dropped an include of scsi.h
+
+fas216.c
+ * [status] ok
+
+fc.c
+ * [status] failed
+ parsing problem
+
+gvp11.c
+ * [status] ok
+
+ips.c
+ * [status] ok
+
+microtek.c
+ * [status] ok
+
+mvme147.c
+ * [status] ok
+
+nsp_cs.c
+ * [status] ok
+
+nsp_debug.c
+ * [status] ok
+
+nsp_message.c
+ * [status] ok
+
+psi240i.c
+ * [status] ok
+
+qlogicfas408.c
+ * [status] ok
+
+queue.c
+ * [status] ok
+
+seagate.c
+ * [status] spatch_ok
+ programmer dropped a local include and added a prototype. both are unrelated
+ to the collateral evolution
+
+sgiwd93.c
+ * [status] ok
+
+sun3_NCR5380.c
+ * [status] failed
+ parsing_problem: ifdef around two possible if test expressions
+
+sun3_scsi.c
+ * [status] ok
+
+sun3_scsi_vme.c
+ * [status] ok
+
+ultrastor.c
+ * [status] ok

@@ -1,0 +1,5 @@
+mptctl.c.orig mptctl.c.new
+#mptfc.c.orig mptfc.c.new
+mptsas.c.orig mptsas.c.new
+mptscsih.c.orig mptscsih.c.new
+mptspi.c.orig mptspi.c.new

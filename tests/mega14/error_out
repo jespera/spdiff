@@ -1,0 +1,2542 @@
+semantic error two or more data types
+ =File "ultrastor.c", line 186, column 29,  charpos = 5961
+    around = 'PACKED', whole content =   unsigned int transfer_data PACKED;	/* transfer data pointer */
+ERROR-RECOV: found sync '}' at line 202
+ERROR-RECOV: found sync bis, eating } and ;
+badcount: 30
+bad: } ultrastor_sg_list;
+bad: 
+bad: 
+bad: /* MailBox SCSI Command Packet.  Basic command structure for communicating
+bad:    with controller. */
+bad: struct mscp {
+bad:   unsigned char opcode: 3;		/* type of command */
+bad:   unsigned char xdir: 2;		/* data transfer direction */
+bad:   unsigned char dcn: 1;		/* disable disconnect */
+bad:   unsigned char ca: 1;		/* use cache (if available) */
+bad:   unsigned char sg: 1;		/* scatter/gather operation */
+bad:   unsigned char target_id: 3;		/* target SCSI id */
+bad:   unsigned char ch_no: 2;		/* SCSI channel (always 0 for 14f) */
+bad:   unsigned char lun: 3;		/* logical unit number */
+BAD:!!!!!   unsigned int transfer_data PACKED;	/* transfer data pointer */
+bad:   unsigned int transfer_data_length PACKED;	/* length in bytes */
+bad:   unsigned int command_link PACKED;	/* for linking command chains */
+bad:   unsigned char scsi_command_link_id;	/* identifies command in chain */
+bad:   unsigned char number_of_sg_list;	/* (if sg is set) 8 bytes per list */
+bad:   unsigned char length_of_sense_byte;
+bad:   unsigned char length_of_scsi_cdbs;	/* 6, 10, or 12 */
+bad:   unsigned char scsi_cdbs[12];	/* SCSI commands */
+bad:   unsigned char adapter_status;	/* non-zero indicates HA error */
+bad:   unsigned char target_status;	/* non-zero indicates target error */
+bad:   u32 sense_data PACKED;
+bad:   /* The following fields are for software only.  They are included in
+bad:      the MSCP structure because they are associated with SCSI requests.  */
+bad:   void (*done)(Scsi_Cmnd *);
+bad:   Scsi_Cmnd *SCint;
+bad:   ultrastor_sg_list sglist[ULTRASTOR_24F_MAX_SG]; /* use larger size for 24F */
+bad: };
+Type_annoter: not finding type for port
+Type_annoter: not finding type for port
+Type_annoter: not finding type for port
+Type_annoter: not finding type for port
+Type_annoter: not finding type for port
+Type_annoter: not finding type for port
+Type_annoter: not finding type for panic
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for request_region
+Type_annoter: not finding type for inb
+Type_annoter: not finding type for release_region
+Type_annoter: not finding type for outb
+Type_annoter: not finding type for request_irq
+Type_annoter: not finding type for request_dma
+Type_annoter: not finding type for free_irq
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for inb
+Type_annoter: not finding type for scsi_register
+Type_annoter: not finding type for free_irq
+Type_annoter: not finding type for request_irq
+Type_annoter: not finding type for outb
+Type_annoter: not finding type for free_irq
+Type_annoter: not finding type for free_dma
+Type_annoter: not finding type for release_region
+Type_annoter: not finding type for scsi_unregister
+Type_annoter: not finding type for sprintf
+Type_annoter: not finding type for isa_page_to_bus
+Type_annoter: not finding type for isa_virt_to_bus
+Type_annoter: not finding type for panic
+Type_annoter: not finding type for isa_virt_to_bus
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for inb
+Type_annoter: not finding type for barrier
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for set_bit
+Type_annoter: not finding type for outl
+Type_annoter: not finding type for outb
+Type_annoter: not finding type for panic
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for strcpy
+Type_annoter: not finding type for inb
+Type_annoter: not finding type for isa_bus_to_virt
+Type_annoter: not finding type for inl
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for outl
+Type_annoter: not finding type for isa_virt_to_bus
+Type_annoter: not finding type for udelay
+Type_annoter: not finding type for outb
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for outb
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for isa_bus_to_virt
+Type_annoter: not finding type for inl
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for inb
+Type_annoter: not finding type for outb
+Type_annoter: not finding type for set_bit
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for spin_unlock_irqrestore
+semantic error two or more data types
+ =File "ultrastor.res", line 186, column 29,  charpos = 5961
+    around = 'PACKED', whole content =   unsigned int transfer_data PACKED;	/* transfer data pointer */
+ERROR-RECOV: found sync '}' at line 202
+ERROR-RECOV: found sync bis, eating } and ;
+badcount: 30
+bad: } ultrastor_sg_list;
+bad: 
+bad: 
+bad: /* MailBox SCSI Command Packet.  Basic command structure for communicating
+bad:    with controller. */
+bad: struct mscp {
+bad:   unsigned char opcode: 3;		/* type of command */
+bad:   unsigned char xdir: 2;		/* data transfer direction */
+bad:   unsigned char dcn: 1;		/* disable disconnect */
+bad:   unsigned char ca: 1;		/* use cache (if available) */
+bad:   unsigned char sg: 1;		/* scatter/gather operation */
+bad:   unsigned char target_id: 3;		/* target SCSI id */
+bad:   unsigned char ch_no: 2;		/* SCSI channel (always 0 for 14f) */
+bad:   unsigned char lun: 3;		/* logical unit number */
+BAD:!!!!!   unsigned int transfer_data PACKED;	/* transfer data pointer */
+bad:   unsigned int transfer_data_length PACKED;	/* length in bytes */
+bad:   unsigned int command_link PACKED;	/* for linking command chains */
+bad:   unsigned char scsi_command_link_id;	/* identifies command in chain */
+bad:   unsigned char number_of_sg_list;	/* (if sg is set) 8 bytes per list */
+bad:   unsigned char length_of_sense_byte;
+bad:   unsigned char length_of_scsi_cdbs;	/* 6, 10, or 12 */
+bad:   unsigned char scsi_cdbs[12];	/* SCSI commands */
+bad:   unsigned char adapter_status;	/* non-zero indicates HA error */
+bad:   unsigned char target_status;	/* non-zero indicates target error */
+bad:   u32 sense_data PACKED;
+bad:   /* The following fields are for software only.  They are included in
+bad:      the MSCP structure because they are associated with SCSI requests.  */
+bad:   void (*done) (struct scsi_cmnd *);
+bad:   struct scsi_cmnd *SCint;
+bad:   ultrastor_sg_list sglist[ULTRASTOR_24F_MAX_SG]; /* use larger size for 24F */
+bad: };
+Type_annoter: not finding type for port
+Type_annoter: not finding type for port
+Type_annoter: not finding type for port
+Type_annoter: not finding type for port
+Type_annoter: not finding type for port
+Type_annoter: not finding type for port
+Type_annoter: not finding type for panic
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for request_region
+Type_annoter: not finding type for inb
+Type_annoter: not finding type for release_region
+Type_annoter: not finding type for outb
+Type_annoter: not finding type for request_irq
+Type_annoter: not finding type for request_dma
+Type_annoter: not finding type for free_irq
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for inb
+Type_annoter: not finding type for scsi_register
+Type_annoter: not finding type for free_irq
+Type_annoter: not finding type for request_irq
+Type_annoter: not finding type for outb
+Type_annoter: not finding type for free_irq
+Type_annoter: not finding type for free_dma
+Type_annoter: not finding type for release_region
+Type_annoter: not finding type for scsi_unregister
+Type_annoter: not finding type for sprintf
+Type_annoter: not finding type for isa_page_to_bus
+Type_annoter: not finding type for isa_virt_to_bus
+Type_annoter: not finding type for panic
+Type_annoter: not finding type for isa_virt_to_bus
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for inb
+Type_annoter: not finding type for barrier
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for set_bit
+Type_annoter: not finding type for outl
+Type_annoter: not finding type for outb
+Type_annoter: not finding type for panic
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for strcpy
+Type_annoter: not finding type for inb
+Type_annoter: not finding type for isa_bus_to_virt
+Type_annoter: not finding type for inl
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for outl
+Type_annoter: not finding type for isa_virt_to_bus
+Type_annoter: not finding type for udelay
+Type_annoter: not finding type for outb
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for outb
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for isa_bus_to_virt
+Type_annoter: not finding type for inl
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for inb
+Type_annoter: not finding type for outb
+Type_annoter: not finding type for set_bit
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for spin_unlock_irqrestore
+semantic error two or more data types
+ =File "seagate.c", line 242, column 20,  charpos = 6832
+    around = '*', whole content = static void __iomem *st0x_cr_sr;	/* control register write, status
+ERROR-RECOV: found sync col 0 at line 248
+badcount: 9
+bad: static unsigned int base_address = 0;	/* Where the card ROM starts, used to 
+bad: 					   calculate memory mapped register
+bad: 					   location.  */
+bad: 
+BAD:!!!!! static void __iomem *st0x_cr_sr;	/* control register write, status
+bad: 					   register read.  256 bytes in
+bad: 					   length.
+bad: 					   Read is status of SCSI BUS, as per 
+bad: 					   STAT masks.  */
+bad: 
+semantic error two or more data types
+ =File "seagate.c", line 248, column 20,  charpos = 7021
+    around = '*', whole content = static void __iomem *st0x_dr;	/* data register, read write 256
+ERROR-RECOV: found sync col 0 at line 251
+badcount: 3
+bad: 
+BAD:!!!!! static void __iomem *st0x_dr;	/* data register, read write 256
+bad: 				   bytes in length.  */
+bad: 
+semantic error two or more data types
+ =File "seagate.c", line 284, column 28,  charpos = 7981
+    around = 'signatures', whole content = static Signature __initdata signatures[] = {
+ERROR-RECOV: found sync '}' at line 313
+ERROR-RECOV: found sync bis, eating } and ;
+badcount: 31
+bad: } Signature;
+bad: 
+BAD:!!!!! static Signature __initdata signatures[] = {
+bad: 	{"ST01 v1.7  (C) Copyright 1987 Seagate", 15, 37, SEAGATE},
+bad: 	{"SCSI BIOS 2.00  (C) Copyright 1987 Seagate", 15, 40, SEAGATE},
+bad: 
+bad: /*
+bad:  * The following two lines are NOT mistakes.  One detects ROM revision
+bad:  * 3.0.0, the other 3.2.  Since seagate has only one type of SCSI adapter,
+bad:  * and this is not going to change, the "SEAGATE" and "SCSI" together
+bad:  * are probably "good enough"
+bad:  */
+bad: 
+bad: 	{"SEAGATE SCSI BIOS ", 16, 17, SEAGATE},
+bad: 	{"SEAGATE SCSI BIOS ", 17, 17, SEAGATE},
+bad: 
+bad: /*
+bad:  * However, future domain makes several incompatible SCSI boards, so specific
+bad:  * signatures must be used.
+bad:  */
+bad: 
+bad: 	{"FUTURE DOMAIN CORP. (C) 1986-1989 V5.0C2/14/89", 5, 46, FD},
+bad: 	{"FUTURE DOMAIN CORP. (C) 1986-1989 V6.0A7/28/89", 5, 46, FD},
+bad: 	{"FUTURE DOMAIN CORP. (C) 1986-1990 V6.0105/31/90", 5, 47, FD},
+bad: 	{"FUTURE DOMAIN CORP. (C) 1986-1990 V6.0209/18/90", 5, 47, FD},
+bad: 	{"FUTURE DOMAIN CORP. (C) 1986-1990 V7.009/18/90", 5, 46, FD},
+bad: 	{"FUTURE DOMAIN CORP. (C) 1992 V8.00.004/02/92", 5, 44, FD},
+bad: 	{"IBM F1 BIOS V1.1004/30/92", 5, 25, FD},
+bad: 	{"FUTURE DOMAIN TMC-950", 5, 21, FD},
+bad: 	/* Added for 2.2.16 by Matthias_Heidbrink@b.maus.de */
+bad: 	{"IBM F1 V1.2009/22/93", 5, 25, FD},
+bad: };
+semantic error two or more data types
+ =File "seagate.c", line 375, column 19,  charpos = 11456
+    around = 'borken_init', whole content = static void __init borken_init (void)
+ERROR-RECOV: found sync '}' at line 396
+badcount: 23
+bad: static int borken_calibration = 0;
+bad: 
+BAD:!!!!! static void __init borken_init (void)
+bad: {
+bad: 	register int count = 0, start = jiffies + 1, stop = start + 25;
+bad: 
+bad: 	/* FIXME: There may be a better approach, this is a straight port for
+bad: 	   now */
+bad: 	preempt_disable();
+bad: 	while (time_before (jiffies, start))
+bad: 		cpu_relax();
+bad: 	for (; time_before (jiffies, stop); ++count)
+bad: 		cpu_relax();
+bad: 	preempt_enable();
+bad: 
+bad: /*
+bad:  * Ok, we now have a count for .25 seconds.  Convert to a
+bad:  * count per second and divide by transfer rate in K.  */
+bad: 
+bad: 	borken_calibration = (count * 4) / (SLOW_RATE * 1024);
+bad: 
+bad: 	if (borken_calibration < 1)
+bad: 		borken_calibration = 1;
+bad: }
+parse error 
+ = File "seagate.c", line 419, column 0,  charpos = 12534
+    around = '', whole content = #define TIMEOUT (!(clock--))
+ERROR-RECOV: found sync end of #define 418
+badcount: 9
+bad: }
+bad: 
+bad: #endif				/* def SLOW_RATE */
+bad: 
+bad: /* These beasts only live on ISA, and ISA means 8MHz. Each ULOOP()
+bad:  * contains at least one ISA access, which takes more than 0.125
+bad:  * usec. So if we loop 8 times time in usec, we are safe.
+bad:  */
+bad: 
+BAD:!!!!! #define ULOOP( i ) for (clock = i*8;;)
+semantic error two or more data types
+ =File "seagate.c", line 421, column 11,  charpos = 12575
+    around = 'seagate_st0x_detect', whole content = int __init seagate_st0x_detect (struct scsi_host_template * tpnt)
+ERROR-RECOV: found sync '}' at line 554
+badcount: 135
+bad: #define TIMEOUT (!(clock--))
+bad: 
+BAD:!!!!! int __init seagate_st0x_detect (struct scsi_host_template * tpnt)
+bad: {
+bad: 	struct Scsi_Host *instance;
+bad: 	int i, j;
+bad: 	unsigned long cr, dr;
+bad: 
+bad: 	tpnt->proc_name = "seagate";
+bad: /*
+bad:  *	First, we try for the manual override.
+bad:  */
+bad: 	DANY ("Autodetecting ST0x / TMC-8xx\n");
+bad: 
+bad: 	if (hostno != -1) {
+bad: 		printk (KERN_ERR "seagate_st0x_detect() called twice?!\n");
+bad: 		return 0;
+bad: 	}
+bad: 
+bad: /* If the user specified the controller type from the command line,
+bad:    controller_type will be non-zero, so don't try to detect one */
+bad: 
+bad: 	if (!controller_type) {
+bad: #ifdef OVERRIDE
+bad: 		base_address = OVERRIDE;
+bad: 		controller_type = CONTROLLER;
+bad: 
+bad: 		DANY ("Base address overridden to %x, controller type is %s\n",
+bad: 		      base_address,
+bad: 		      controller_type == SEAGATE ? "SEAGATE" : "FD");
+bad: #else				/* OVERRIDE */
+bad: /*
+bad:  * 	To detect this card, we simply look for the signature
+bad:  *      from the BIOS version notice in all the possible locations
+bad:  *      of the ROM's.  This has a nice side effect of not trashing
+bad:  *      any register locations that might be used by something else.
+bad:  *
+bad:  * XXX - note that we probably should be probing the address
+bad:  * space for the on-board RAM instead.
+bad:  */
+bad: 
+bad: 		for (i = 0; i < ARRAY_SIZE(seagate_bases); ++i) {
+bad: 			void __iomem *p = ioremap(seagate_bases[i], 0x2000);
+bad: 			if (!p)
+bad: 				continue;
+bad: 			for (j = 0; j < NUM_SIGNATURES; ++j)
+bad: 				if (check_signature(p + signatures[j].offset, signatures[j].signature, signatures[j].length)) {
+bad: 					base_address = seagate_bases[i];
+bad: 					controller_type = signatures[j].type;
+bad: 					break;
+bad: 				}
+bad: 			iounmap(p);
+bad: 		}
+bad: #endif				/* OVERRIDE */
+bad: 	}
+bad: 	/* (! controller_type) */
+bad: 	tpnt->this_id = (controller_type == SEAGATE) ? 7 : 6;
+bad: 	tpnt->name = (controller_type == SEAGATE) ? ST0X_ID_STR : FD_ID_STR;
+bad: 
+bad: 	if (!base_address) {
+bad: 		printk(KERN_INFO "seagate: ST0x/TMC-8xx not detected.\n");
+bad: 		return 0;
+bad: 	}
+bad: 
+bad: 	cr = base_address + (controller_type == SEAGATE ? 0x1a00 : 0x1c00);
+bad: 	dr = cr + 0x200;
+bad: 	st0x_cr_sr = ioremap(cr, 0x100);
+bad: 	st0x_dr = ioremap(dr, 0x100);
+bad: 
+bad: 	DANY("%s detected. Base address = %x, cr = %x, dr = %x\n",
+bad: 	      tpnt->name, base_address, cr, dr);
+bad: 
+bad: 	/*
+bad: 	 *	At all times, we will use IRQ 5.  Should also check for IRQ3
+bad: 	 *	if we lose our first interrupt.
+bad: 	 */
+bad: 	instance = scsi_register (tpnt, 0);
+bad: 	if (instance == NULL)
+bad: 		return 0;
+bad: 
+bad: 	hostno = instance->host_no;
+bad: 	if (request_irq (irq, do_seagate_reconnect_intr, IRQF_DISABLED, (controller_type == SEAGATE) ? "seagate" : "tmc-8xx", instance)) {
+bad: 		printk(KERN_ERR "scsi%d : unable to allocate IRQ%d\n", hostno, irq);
+bad: 		return 0;
+bad: 	}
+bad: 	instance->irq = irq;
+bad: 	instance->io_port = base_address;
+bad: #ifdef SLOW_RATE
+bad: 	printk(KERN_INFO "Calibrating borken timer... ");
+bad: 	borken_init();
+bad: 	printk(" %d cycles per transfer\n", borken_calibration);
+bad: #endif
+bad: 	printk (KERN_INFO "This is one second... ");
+bad: 	{
+bad: 		int clock;
+bad: 		ULOOP (1 * 1000 * 1000) {
+bad: 			STATUS;
+bad: 			if (TIMEOUT)
+bad: 				break;
+bad: 		}
+bad: 	}
+bad: 
+bad: 	printk ("done, %s options:"
+bad: #ifdef ARBITRATE
+bad: 		" ARBITRATE"
+bad: #endif
+bad: #ifdef DEBUG
+bad: 		" DEBUG"
+bad: #endif
+bad: #ifdef FAST
+bad: 		" FAST"
+bad: #ifdef FAST32
+bad: 		"32"
+bad: #endif
+bad: #endif
+bad: #ifdef LINKED
+bad: 		" LINKED"
+bad: #endif
+bad: #ifdef PARITY
+bad: 		" PARITY"
+bad: #endif
+bad: #ifdef SEAGATE_USE_ASM
+bad: 		" SEAGATE_USE_ASM"
+bad: #endif
+bad: #ifdef SLOW_RATE
+bad: 		" SLOW_RATE"
+bad: #endif
+bad: #ifdef SWAPSTAT
+bad: 		" SWAPSTAT"
+bad: #endif
+bad: #ifdef SWAPCNTDATA
+bad: 		" SWAPCNTDATA"
+bad: #endif
+bad: 		"\n", tpnt->name);
+bad: 	return 1;
+bad: }
+parse error 
+ = File "seagate.c", line 1565, column 1,  charpos = 44404
+    around = 'else', whole content = 	else
+ERROR-RECOV: found sync '}' at line 1610
+badcount: 883
+bad: }
+bad: 
+bad: static int internal_command (unsigned char target, unsigned char lun,
+bad: 		  const void *cmnd, void *buff, int bufflen, int reselect)
+bad: {
+bad: 	unsigned char *data = NULL;
+bad: 	struct scatterlist *buffer = NULL;
+bad: 	int clock, temp, nobuffs = 0, done = 0, len = 0;
+bad: #ifdef DEBUG
+bad: 	int transfered = 0, phase = 0, newphase;
+bad: #endif
+bad: 	register unsigned char status_read;
+bad: 	unsigned char tmp_data, tmp_control, status = 0, message = 0;
+bad: 	unsigned transfersize = 0, underflow = 0;
+bad: #ifdef SLOW_RATE
+bad: 	int borken = (int) SCint->device->borken;	/* Does the current target require
+bad: 							   Very Slow I/O ?  */
+bad: #endif
+bad: 
+bad: 	incommand = 0;
+bad: 	st0x_aborted = 0;
+bad: 
+bad: #if (DEBUG & PRINT_COMMAND)
+bad: 	printk("scsi%d : target = %d, command = ", hostno, target);
+bad: 	__scsi_print_command((unsigned char *) cmnd);
+bad: #endif
+bad: 
+bad: #if (DEBUG & PHASE_RESELECT)
+bad: 	switch (reselect) {
+bad: 	case RECONNECT_NOW:
+bad: 		printk("scsi%d : reconnecting\n", hostno);
+bad: 		break;
+bad: #ifdef LINKED
+bad: 	case LINKED_RIGHT:
+bad: 		printk("scsi%d : connected, can reconnect\n", hostno);
+bad: 		break;
+bad: 	case LINKED_WRONG:
+bad: 		printk("scsi%d : connected to wrong target, can reconnect\n",
+bad: 			hostno);
+bad: 		break;
+bad: #endif
+bad: 	case CAN_RECONNECT:
+bad: 		printk("scsi%d : allowed to reconnect\n", hostno);
+bad: 		break;
+bad: 	default:
+bad: 		printk("scsi%d : not allowed to reconnect\n", hostno);
+bad: 	}
+bad: #endif
+bad: 
+bad: 	if (target == (controller_type == SEAGATE ? 7 : 6))
+bad: 		return DID_BAD_TARGET;
+bad: 
+bad: 	/*
+bad: 	 *	We work it differently depending on if this is is "the first time,"
+bad: 	 *      or a reconnect.  If this is a reselect phase, then SEL will
+bad: 	 *      be asserted, and we must skip selection / arbitration phases.
+bad: 	 */
+bad: 
+bad: 	switch (reselect) {
+bad: 	case RECONNECT_NOW:
+bad: 		DPRINTK (PHASE_RESELECT, "scsi%d : phase RESELECT \n", hostno);
+bad: 		/*
+bad: 		 *	At this point, we should find the logical or of our ID
+bad: 		 *	and the original target's ID on the BUS, with BSY, SEL,
+bad: 		 *	and I/O signals asserted.
+bad: 		 *
+bad: 		 *      After ARBITRATION phase is completed, only SEL, BSY,
+bad: 		 *	and the target ID are asserted.  A valid initiator ID
+bad: 		 *	is not on the bus until IO is asserted, so we must wait
+bad: 		 *	for that.
+bad: 		 */
+bad: 		ULOOP (100 * 1000) {
+bad: 			temp = STATUS;
+bad: 			if ((temp & STAT_IO) && !(temp & STAT_BSY))
+bad: 				break;
+bad: 			if (TIMEOUT) {
+bad: 				DPRINTK (PHASE_RESELECT, "scsi%d : RESELECT timed out while waiting for IO .\n", hostno);
+bad: 				return (DID_BAD_INTR << 16);
+bad: 			}
+bad: 		}
+bad: 
+bad: 		/*
+bad: 		 *	After I/O is asserted by the target, we can read our ID
+bad: 		 *	and its ID off of the BUS.
+bad: 		 */
+bad: 
+bad: 		if (!((temp = DATA) & (controller_type == SEAGATE ? 0x80 : 0x40))) {
+bad: 			DPRINTK (PHASE_RESELECT, "scsi%d : detected reconnect request to different target.\n\tData bus = %d\n", hostno, temp);
+bad: 			return (DID_BAD_INTR << 16);
+bad: 		}
+bad: 
+bad: 		if (!(temp & (1 << current_target))) {
+bad: 			printk(KERN_WARNING "scsi%d : Unexpected reselect interrupt.  Data bus = %d\n", hostno, temp);
+bad: 			return (DID_BAD_INTR << 16);
+bad: 		}
+bad: 
+bad: 		buffer = current_buffer;
+bad: 		cmnd = current_cmnd;	/* WDE add */
+bad: 		data = current_data;	/* WDE add */
+bad: 		len = current_bufflen;	/* WDE add */
+bad: 		nobuffs = current_nobuffs;
+bad: 
+bad: 		/*
+bad: 		 *	We have determined that we have been selected.  At this
+bad: 		 *	point, we must respond to the reselection by asserting
+bad: 		 *	BSY ourselves
+bad: 		 */
+bad: 
+bad: #if 1
+bad: 		WRITE_CONTROL (BASE_CMD | CMD_DRVR_ENABLE | CMD_BSY);
+bad: #else
+bad: 		WRITE_CONTROL (BASE_CMD | CMD_BSY);
+bad: #endif
+bad: 
+bad: 		/*
+bad: 		 *	The target will drop SEL, and raise BSY, at which time
+bad: 		 *	we must drop BSY.
+bad: 		 */
+bad: 
+bad: 		ULOOP (100 * 1000) {
+bad: 			if (!(STATUS & STAT_SEL))
+bad: 				break;
+bad: 			if (TIMEOUT) {
+bad: 				WRITE_CONTROL (BASE_CMD | CMD_INTR);
+bad: 				DPRINTK (PHASE_RESELECT, "scsi%d : RESELECT timed out while waiting for SEL.\n", hostno);
+bad: 				return (DID_BAD_INTR << 16);
+bad: 			}
+bad: 		}
+bad: 		WRITE_CONTROL (BASE_CMD);
+bad: 		/*
+bad: 		 *	At this point, we have connected with the target
+bad: 		 *	and can get on with our lives.
+bad: 		 */
+bad: 		break;
+bad: 	case CAN_RECONNECT:
+bad: #ifdef LINKED
+bad: 		/*
+bad: 		 * This is a bletcherous hack, just as bad as the Unix #!
+bad: 		 * interpreter stuff. If it turns out we are using the wrong
+bad: 		 * I_T_L nexus, the easiest way to deal with it is to go into
+bad: 		 *  our INFORMATION TRANSFER PHASE code, send a ABORT
+bad: 		 * message on MESSAGE OUT phase, and then loop back to here.
+bad: 		 */
+bad: connect_loop:
+bad: #endif
+bad: 		DPRINTK (PHASE_BUS_FREE, "scsi%d : phase = BUS FREE \n", hostno);
+bad: 
+bad: 		/*
+bad: 		 *    BUS FREE PHASE
+bad: 		 *
+bad: 		 *      On entry, we make sure that the BUS is in a BUS FREE
+bad: 		 *      phase, by insuring that both BSY and SEL are low for
+bad: 		 *      at least one bus settle delay.  Several reads help
+bad: 		 *      eliminate wire glitch.
+bad: 		 */
+bad: 
+bad: #ifndef ARBITRATE
+bad: #error FIXME: this is broken: we may not use jiffies here - we are under cli(). It will hardlock.
+bad: 		clock = jiffies + ST0X_BUS_FREE_DELAY;
+bad: 
+bad: 		while (((STATUS | STATUS | STATUS) & (STAT_BSY | STAT_SEL)) && (!st0x_aborted) && time_before (jiffies, clock))
+bad: 			cpu_relax();
+bad: 
+bad: 		if (time_after (jiffies, clock))
+bad: 			return retcode (DID_BUS_BUSY);
+bad: 		else if (st0x_aborted)
+bad: 			return retcode (st0x_aborted);
+bad: #endif
+bad: 		DPRINTK (PHASE_SELECTION, "scsi%d : phase = SELECTION\n", hostno);
+bad: 
+bad: 		clock = jiffies + ST0X_SELECTION_DELAY;
+bad: 
+bad: 		/*
+bad: 		 * Arbitration/selection procedure :
+bad: 		 * 1.  Disable drivers
+bad: 		 * 2.  Write HOST adapter address bit
+bad: 		 * 3.  Set start arbitration.
+bad: 		 * 4.  We get either ARBITRATION COMPLETE or SELECT at this
+bad: 		 *     point.
+bad: 		 * 5.  OR our ID and targets on bus.
+bad: 		 * 6.  Enable SCSI drivers and asserted SEL and ATTN
+bad: 		 */
+bad: 
+bad: #ifdef ARBITRATE
+bad: 		/* FIXME: verify host lock is always held here */
+bad: 		WRITE_CONTROL(0);
+bad: 		WRITE_DATA((controller_type == SEAGATE) ? 0x80 : 0x40);
+bad: 		WRITE_CONTROL(CMD_START_ARB);
+bad: 
+bad: 		ULOOP (ST0X_SELECTION_DELAY * 10000) {
+bad: 			status_read = STATUS;
+bad: 			if (status_read & STAT_ARB_CMPL)
+bad: 				break;
+bad: 			if (st0x_aborted)	/* FIXME: What? We are going to do something even after abort? */
+bad: 				break;
+bad: 			if (TIMEOUT || (status_read & STAT_SEL)) {
+bad: 				printk(KERN_WARNING "scsi%d : arbitration lost or timeout.\n", hostno);
+bad: 				WRITE_CONTROL (BASE_CMD);
+bad: 				return retcode (DID_NO_CONNECT);
+bad: 			}
+bad: 		}
+bad: 		DPRINTK (PHASE_SELECTION, "scsi%d : arbitration complete\n", hostno);
+bad: #endif
+bad: 
+bad: 		/*
+bad: 		 *    When the SCSI device decides that we're gawking at it, 
+bad: 		 *    it will respond by asserting BUSY on the bus.
+bad: 		 *
+bad: 		 *    Note : the Seagate ST-01/02 product manual says that we
+bad: 		 *    should twiddle the DATA register before the control
+bad: 		 *    register. However, this does not work reliably so we do
+bad: 		 *    it the other way around.
+bad: 		 *
+bad: 		 *    Probably could be a problem with arbitration too, we
+bad: 		 *    really should try this with a SCSI protocol or logic 
+bad: 		 *    analyzer to see what is going on.
+bad: 		 */
+bad: 		tmp_data = (unsigned char) ((1 << target) | (controller_type == SEAGATE ? 0x80 : 0x40));
+bad: 		tmp_control = BASE_CMD | CMD_DRVR_ENABLE | CMD_SEL | (reselect ? CMD_ATTN : 0);
+bad: 
+bad: 		/* FIXME: verify host lock is always held here */
+bad: #ifdef OLDCNTDATASCEME
+bad: #ifdef SWAPCNTDATA
+bad: 		WRITE_CONTROL (tmp_control);
+bad: 		WRITE_DATA (tmp_data);
+bad: #else
+bad: 		WRITE_DATA (tmp_data);
+bad: 		WRITE_CONTROL (tmp_control);
+bad: #endif
+bad: #else
+bad: 		tmp_control ^= CMD_BSY;	/* This is guesswork. What used to be in driver    */
+bad: 		WRITE_CONTROL (tmp_control);	/* could never work: it sent data into control     */
+bad: 		WRITE_DATA (tmp_data);	/* register and control info into data. Hopefully  */
+bad: 		tmp_control ^= CMD_BSY;	/* fixed, but order of first two may be wrong.     */
+bad: 		WRITE_CONTROL (tmp_control);	/* -- pavel@ucw.cz   */
+bad: #endif
+bad: 
+bad: 		ULOOP (250 * 1000) {
+bad: 			if (st0x_aborted) {
+bad: 				/*
+bad: 				 *	If we have been aborted, and we have a
+bad: 				 *	command in progress, IE the target 
+bad: 				 *	still has BSY asserted, then we will
+bad: 				 *	reset the bus, and notify the midlevel
+bad: 				 *	driver to expect sense.
+bad: 				 */
+bad: 
+bad: 				WRITE_CONTROL (BASE_CMD);
+bad: 				if (STATUS & STAT_BSY) {
+bad: 					printk(KERN_WARNING "scsi%d : BST asserted after we've been aborted.\n", hostno);
+bad: 					seagate_st0x_bus_reset(NULL);
+bad: 					return retcode (DID_RESET);
+bad: 				}
+bad: 				return retcode (st0x_aborted);
+bad: 			}
+bad: 			if (STATUS & STAT_BSY)
+bad: 				break;
+bad: 			if (TIMEOUT) {
+bad: 				DPRINTK (PHASE_SELECTION, "scsi%d : NO CONNECT with target %d, stat = %x \n", hostno, target, STATUS);
+bad: 				return retcode (DID_NO_CONNECT);
+bad: 			}
+bad: 		}
+bad: 
+bad: 		/* Establish current pointers.  Take into account scatter / gather */
+bad: 
+bad: 		if ((nobuffs = SCint->use_sg)) {
+bad: #if (DEBUG & DEBUG_SG)
+bad: 			{
+bad: 				int i;
+bad: 				printk("scsi%d : scatter gather requested, using %d buffers.\n", hostno, nobuffs);
+bad: 				for (i = 0; i < nobuffs; ++i)
+bad: 					printk("scsi%d : buffer %d address = %p length = %d\n",
+bad: 					     hostno, i,
+bad: 					     page_address(buffer[i].page) + buffer[i].offset,
+bad: 					     buffer[i].length);
+bad: 			}
+bad: #endif
+bad: 
+bad: 			buffer = (struct scatterlist *) SCint->request_buffer;
+bad: 			len = buffer->length;
+bad: 			data = page_address(buffer->page) + buffer->offset;
+bad: 		} else {
+bad: 			DPRINTK (DEBUG_SG, "scsi%d : scatter gather not requested.\n", hostno);
+bad: 			buffer = NULL;
+bad: 			len = SCint->request_bufflen;
+bad: 			data = (unsigned char *) SCint->request_buffer;
+bad: 		}
+bad: 
+bad: 		DPRINTK (PHASE_DATAIN | PHASE_DATAOUT, "scsi%d : len = %d\n",
+bad: 			 hostno, len);
+bad: 
+bad: 		break;
+bad: #ifdef LINKED
+bad: 	case LINKED_RIGHT:
+bad: 		break;
+bad: 	case LINKED_WRONG:
+bad: 		break;
+bad: #endif
+bad: 	}			/* end of switch(reselect) */
+bad: 
+bad: 	/*
+bad: 	 *    There are several conditions under which we wish to send a message :
+bad: 	 *      1.  When we are allowing disconnect / reconnect, and need to
+bad: 	 *	establish the I_T_L nexus via an IDENTIFY with the DiscPriv bit
+bad: 	 *	set.
+bad: 	 *
+bad: 	 *      2.  When we are doing linked commands, are have the wrong I_T_L
+bad: 	 *	nexus established and want to send an ABORT message.
+bad: 	 */
+bad: 
+bad: 	/* GCC does not like an ifdef inside a macro, so do it the hard way. */
+bad: #ifdef LINKED
+bad: 	WRITE_CONTROL (BASE_CMD | CMD_DRVR_ENABLE | (((reselect == CAN_RECONNECT)|| (reselect == LINKED_WRONG))? CMD_ATTN : 0));
+bad: #else
+bad: 	WRITE_CONTROL (BASE_CMD | CMD_DRVR_ENABLE | (((reselect == CAN_RECONNECT))? CMD_ATTN : 0));
+bad: #endif
+bad: 
+bad: 	/*
+bad: 	 *    INFORMATION TRANSFER PHASE
+bad: 	 *
+bad: 	 *      The nasty looking read / write inline assembler loops we use for
+bad: 	 *      DATAIN and DATAOUT phases are approximately 4-5 times as fast as
+bad: 	 *      the 'C' versions - since we're moving 1024 bytes of data, this
+bad: 	 *      really adds up.
+bad: 	 *
+bad: 	 *      SJT: The nasty-looking assembler is gone, so it's slower.
+bad: 	 *
+bad: 	 */
+bad: 
+bad: 	DPRINTK (PHASE_ETC, "scsi%d : phase = INFORMATION TRANSFER\n", hostno);
+bad: 
+bad: 	incommand = 1;
+bad: 	transfersize = SCint->transfersize;
+bad: 	underflow = SCint->underflow;
+bad: 
+bad: 	/*
+bad: 	 *	Now, we poll the device for status information,
+bad: 	 *      and handle any requests it makes.  Note that since we are unsure
+bad: 	 *	of how much data will be flowing across the system, etc and
+bad: 	 *	cannot make reasonable timeouts, that we will instead have the
+bad: 	 *	midlevel driver handle any timeouts that occur in this phase.
+bad: 	 */
+bad: 
+bad: 	while (((status_read = STATUS) & STAT_BSY) && !st0x_aborted && !done) {
+bad: #ifdef PARITY
+bad: 		if (status_read & STAT_PARITY) {
+bad: 			printk(KERN_ERR "scsi%d : got parity error\n", hostno);
+bad: 			st0x_aborted = DID_PARITY;
+bad: 		}
+bad: #endif
+bad: 		if (status_read & STAT_REQ) {
+bad: #if ((DEBUG & PHASE_ETC) == PHASE_ETC)
+bad: 			if ((newphase = (status_read & REQ_MASK)) != phase) {
+bad: 				phase = newphase;
+bad: 				switch (phase) {
+bad: 				case REQ_DATAOUT:
+bad: 					printk ("scsi%d : phase = DATA OUT\n", hostno);
+bad: 					break;
+bad: 				case REQ_DATAIN:
+bad: 					printk ("scsi%d : phase = DATA IN\n", hostno);
+bad: 					break;
+bad: 				case REQ_CMDOUT:
+bad: 					printk
+bad: 					    ("scsi%d : phase = COMMAND OUT\n", hostno);
+bad: 					break;
+bad: 				case REQ_STATIN:
+bad: 					printk ("scsi%d : phase = STATUS IN\n",	hostno);
+bad: 					break;
+bad: 				case REQ_MSGOUT:
+bad: 					printk
+bad: 					    ("scsi%d : phase = MESSAGE OUT\n", hostno);
+bad: 					break;
+bad: 				case REQ_MSGIN:
+bad: 					printk ("scsi%d : phase = MESSAGE IN\n", hostno);
+bad: 					break;
+bad: 				default:
+bad: 					printk ("scsi%d : phase = UNKNOWN\n", hostno);
+bad: 					st0x_aborted = DID_ERROR;
+bad: 				}
+bad: 			}
+bad: #endif
+bad: 			switch (status_read & REQ_MASK) {
+bad: 			case REQ_DATAOUT:
+bad: 				/*
+bad: 				 * If we are in fast mode, then we simply splat
+bad: 				 * the data out in word-sized chunks as fast as
+bad: 				 * we can.
+bad: 				 */
+bad: 
+bad: 				if (!len) {
+bad: #if 0
+bad: 					printk("scsi%d: underflow to target %d lun %d \n", hostno, target, lun);
+bad: 					st0x_aborted = DID_ERROR;
+bad: 					fast = 0;
+bad: #endif
+bad: 					break;
+bad: 				}
+bad: 
+bad: 				if (fast && transfersize
+bad: 				    && !(len % transfersize)
+bad: 				    && (len >= transfersize)
+bad: #ifdef FAST32
+bad: 				    && !(transfersize % 4)
+bad: #endif
+bad: 				    ) {
+bad: 					DPRINTK (DEBUG_FAST,
+bad: 						 "scsi%d : FAST transfer, underflow = %d, transfersize = %d\n"
+bad: 						 "         len = %d, data = %08x\n",
+bad: 						 hostno, SCint->underflow,
+bad: 						 SCint->transfersize, len,
+bad: 						 data);
+bad: 
+bad: 			/* SJT: Start. Fast Write */
+bad: #ifdef SEAGATE_USE_ASM
+bad: 					__asm__ ("cld\n\t"
+bad: #ifdef FAST32
+bad: 						 "shr $2, %%ecx\n\t"
+bad: 						 "1:\t"
+bad: 						 "lodsl\n\t"
+bad: 						 "movl %%eax, (%%edi)\n\t"
+bad: #else
+bad: 						 "1:\t"
+bad: 						 "lodsb\n\t"
+bad: 						 "movb %%al, (%%edi)\n\t"
+bad: #endif
+bad: 						 "loop 1b;"
+bad: 				      /* output */ :
+bad: 				      /* input */ :"D" (st0x_dr),
+bad: 						 "S"
+bad: 						 (data),
+bad: 						 "c" (SCint->transfersize)
+bad: /* clobbered */
+bad: 				      :	 "eax", "ecx",
+bad: 						 "esi");
+bad: #else				/* SEAGATE_USE_ASM */
+bad: 					memcpy_toio(st0x_dr, data, transfersize);
+bad: #endif				/* SEAGATE_USE_ASM */
+bad: /* SJT: End */
+bad: 					len -= transfersize;
+bad: 					data += transfersize;
+bad: 					DPRINTK (DEBUG_FAST, "scsi%d : FAST transfer complete len = %d data = %08x\n", hostno, len, data);
+bad: 				} else {
+bad: 					/*
+bad: 					 *    We loop as long as we are in a 
+bad: 					 *    data out phase, there is data to
+bad: 					 *    send, and BSY is still active.
+bad: 					 */
+bad: 
+bad: /* SJT: Start. Slow Write. */
+bad: #ifdef SEAGATE_USE_ASM
+bad: 
+bad: 					int __dummy_1, __dummy_2;
+bad: 
+bad: /*
+bad:  *      We loop as long as we are in a data out phase, there is data to send, 
+bad:  *      and BSY is still active.
+bad:  */
+bad: /* Local variables : len = ecx , data = esi, 
+bad:                      st0x_cr_sr = ebx, st0x_dr =  edi
+bad: */
+bad: 					__asm__ (
+bad: 							/* Test for any data here at all. */
+bad: 							"orl %%ecx, %%ecx\n\t"
+bad: 							"jz 2f\n\t" "cld\n\t"
+bad: /*                    "movl st0x_cr_sr, %%ebx\n\t"  */
+bad: /*                    "movl st0x_dr, %%edi\n\t"  */
+bad: 							"1:\t"
+bad: 							"movb (%%ebx), %%al\n\t"
+bad: 							/* Test for BSY */
+bad: 							"test $1, %%al\n\t"
+bad: 							"jz 2f\n\t"
+bad: 							/* Test for data out phase - STATUS & REQ_MASK should be 
+bad: 							   REQ_DATAOUT, which is 0. */
+bad: 							"test $0xe, %%al\n\t"
+bad: 							"jnz 2f\n\t"
+bad: 							/* Test for REQ */
+bad: 							"test $0x10, %%al\n\t"
+bad: 							"jz 1b\n\t"
+bad: 							"lodsb\n\t"
+bad: 							"movb %%al, (%%edi)\n\t"
+bad: 							"loop 1b\n\t" "2:\n"
+bad: 				      /* output */ :"=S" (data), "=c" (len),
+bad: 							"=b"
+bad: 							(__dummy_1),
+bad: 							"=D" (__dummy_2)
+bad: /* input */
+bad: 				      :		"0" (data), "1" (len),
+bad: 							"2" (st0x_cr_sr),
+bad: 							"3" (st0x_dr)
+bad: /* clobbered */
+bad: 				      :		"eax");
+bad: #else				/* SEAGATE_USE_ASM */
+bad: 					while (len) {
+bad: 						unsigned char stat;
+bad: 
+bad: 						stat = STATUS;
+bad: 						if (!(stat & STAT_BSY)
+bad: 						    || ((stat & REQ_MASK) !=
+bad: 							REQ_DATAOUT))
+bad: 							break;
+bad: 						if (stat & STAT_REQ) {
+bad: 							WRITE_DATA (*data++);
+bad: 							--len;
+bad: 						}
+bad: 					}
+bad: #endif				/* SEAGATE_USE_ASM */
+bad: /* SJT: End. */
+bad: 				}
+bad: 
+bad: 				if (!len && nobuffs) {
+bad: 					--nobuffs;
+bad: 					++buffer;
+bad: 					len = buffer->length;
+bad: 					data = page_address(buffer->page) + buffer->offset;
+bad: 					DPRINTK (DEBUG_SG,
+bad: 						 "scsi%d : next scatter-gather buffer len = %d address = %08x\n",
+bad: 						 hostno, len, data);
+bad: 				}
+bad: 				break;
+bad: 
+bad: 			case REQ_DATAIN:
+bad: #ifdef SLOW_RATE
+bad: 				if (borken) {
+bad: #if (DEBUG & (PHASE_DATAIN))
+bad: 					transfered += len;
+bad: #endif
+bad: 					for (; len && (STATUS & (REQ_MASK | STAT_REQ)) == (REQ_DATAIN | STAT_REQ); --len) {
+bad: 						*data++ = DATA;
+bad: 						borken_wait();
+bad: 					}
+bad: #if (DEBUG & (PHASE_DATAIN))
+bad: 					transfered -= len;
+bad: #endif
+bad: 				} else
+bad: #endif
+bad: 
+bad: 					if (fast && transfersize
+bad: 					    && !(len % transfersize)
+bad: 					    && (len >= transfersize)
+bad: #ifdef FAST32
+bad: 					    && !(transfersize % 4)
+bad: #endif
+bad: 				    ) {
+bad: 					DPRINTK (DEBUG_FAST,
+bad: 						 "scsi%d : FAST transfer, underflow = %d, transfersize = %d\n"
+bad: 						 "         len = %d, data = %08x\n",
+bad: 						 hostno, SCint->underflow,
+bad: 						 SCint->transfersize, len,
+bad: 						 data);
+bad: 
+bad: /* SJT: Start. Fast Read */
+bad: #ifdef SEAGATE_USE_ASM
+bad: 					__asm__ ("cld\n\t"
+bad: #ifdef FAST32
+bad: 						 "shr $2, %%ecx\n\t"
+bad: 						 "1:\t"
+bad: 						 "movl (%%esi), %%eax\n\t"
+bad: 						 "stosl\n\t"
+bad: #else
+bad: 						 "1:\t"
+bad: 						 "movb (%%esi), %%al\n\t"
+bad: 						 "stosb\n\t"
+bad: #endif
+bad: 						 "loop 1b\n\t"
+bad: 				      /* output */ :
+bad: 				      /* input */ :"S" (st0x_dr),
+bad: 						 "D"
+bad: 						 (data),
+bad: 						 "c" (SCint->transfersize)
+bad: /* clobbered */
+bad: 				      :	 "eax", "ecx",
+bad: 						 "edi");
+bad: #else				/* SEAGATE_USE_ASM */
+bad: 					memcpy_fromio(data, st0x_dr, len);
+bad: #endif				/* SEAGATE_USE_ASM */
+bad: /* SJT: End */
+bad: 					len -= transfersize;
+bad: 					data += transfersize;
+bad: #if (DEBUG & PHASE_DATAIN)
+bad: 					printk ("scsi%d: transfered += %d\n", hostno, transfersize);
+bad: 					transfered += transfersize;
+bad: #endif
+bad: 
+bad: 					DPRINTK (DEBUG_FAST, "scsi%d : FAST transfer complete len = %d data = %08x\n", hostno, len, data);
+bad: 				} else {
+bad: 
+bad: #if (DEBUG & PHASE_DATAIN)
+bad: 					printk ("scsi%d: transfered += %d\n", hostno, len);
+bad: 					transfered += len;	/* Assume we'll transfer it all, then
+bad: 								   subtract what we *didn't* transfer */
+bad: #endif
+bad: 
+bad: /*
+bad:  *	We loop as long as we are in a data in phase, there is room to read,
+bad:  *      and BSY is still active
+bad:  */
+bad: 
+bad: /* SJT: Start. */
+bad: #ifdef SEAGATE_USE_ASM
+bad: 
+bad: 					int __dummy_3, __dummy_4;
+bad: 
+bad: /* Dummy clobbering variables for the new gcc-2.95 */
+bad: 
+bad: /*
+bad:  *      We loop as long as we are in a data in phase, there is room to read, 
+bad:  *      and BSY is still active
+bad:  */
+bad: 					/* Local variables : ecx = len, edi = data
+bad: 					   esi = st0x_cr_sr, ebx = st0x_dr */
+bad: 					__asm__ (
+bad: 							/* Test for room to read */
+bad: 							"orl %%ecx, %%ecx\n\t"
+bad: 							"jz 2f\n\t" "cld\n\t"
+bad: /*                "movl st0x_cr_sr, %%esi\n\t"  */
+bad: /*                "movl st0x_dr, %%ebx\n\t"  */
+bad: 							"1:\t"
+bad: 							"movb (%%esi), %%al\n\t"
+bad: 							/* Test for BSY */
+bad: 							"test $1, %%al\n\t"
+bad: 							"jz 2f\n\t"
+bad: 							/* Test for data in phase - STATUS & REQ_MASK should be REQ_DATAIN, 
+bad: 							   = STAT_IO, which is 4. */
+bad: 							"movb $0xe, %%ah\n\t"
+bad: 							"andb %%al, %%ah\n\t"
+bad: 							"cmpb $0x04, %%ah\n\t"
+bad: 							"jne 2f\n\t"
+bad: 							/* Test for REQ */
+bad: 							"test $0x10, %%al\n\t"
+bad: 							"jz 1b\n\t"
+bad: 							"movb (%%ebx), %%al\n\t"
+bad: 							"stosb\n\t"
+bad: 							"loop 1b\n\t" "2:\n"
+bad: 				      /* output */ :"=D" (data), "=c" (len),
+bad: 							"=S"
+bad: 							(__dummy_3),
+bad: 							"=b" (__dummy_4)
+bad: /* input */
+bad: 				      :		"0" (data), "1" (len),
+bad: 							"2" (st0x_cr_sr),
+bad: 							"3" (st0x_dr)
+bad: /* clobbered */
+bad: 				      :		"eax");
+bad: #else				/* SEAGATE_USE_ASM */
+bad: 					while (len) {
+bad: 						unsigned char stat;
+bad: 
+bad: 						stat = STATUS;
+bad: 						if (!(stat & STAT_BSY)
+bad: 						    || ((stat & REQ_MASK) !=
+bad: 							REQ_DATAIN))
+bad: 							break;
+bad: 						if (stat & STAT_REQ) {
+bad: 							*data++ = DATA;
+bad: 							--len;
+bad: 						}
+bad: 					}
+bad: #endif				/* SEAGATE_USE_ASM */
+bad: /* SJT: End. */
+bad: #if (DEBUG & PHASE_DATAIN)
+bad: 					printk ("scsi%d: transfered -= %d\n", hostno, len);
+bad: 					transfered -= len;	/* Since we assumed all of Len got  *
+bad: 								   transfered, correct our mistake */
+bad: #endif
+bad: 				}
+bad: 
+bad: 				if (!len && nobuffs) {
+bad: 					--nobuffs;
+bad: 					++buffer;
+bad: 					len = buffer->length;
+bad: 					data = page_address(buffer->page) + buffer->offset;
+bad: 					DPRINTK (DEBUG_SG, "scsi%d : next scatter-gather buffer len = %d address = %08x\n", hostno, len, data);
+bad: 				}
+bad: 				break;
+bad: 
+bad: 			case REQ_CMDOUT:
+bad: 				while (((status_read = STATUS) & STAT_BSY) &&
+bad: 				       ((status_read & REQ_MASK) == REQ_CMDOUT))
+bad: 					if (status_read & STAT_REQ) {
+bad: 						WRITE_DATA (*(const unsigned char *) cmnd);
+bad: 						cmnd = 1 + (const unsigned char *)cmnd;
+bad: #ifdef SLOW_RATE
+bad: 						if (borken)
+bad: 							borken_wait ();
+bad: #endif
+bad: 					}
+bad: 				break;
+bad: 
+bad: 			case REQ_STATIN:
+bad: 				status = DATA;
+bad: 				break;
+bad: 
+bad: 			case REQ_MSGOUT:
+bad: 				/*
+bad: 				 *	We can only have sent a MSG OUT if we
+bad: 				 *	requested to do this by raising ATTN.
+bad: 				 *	So, we must drop ATTN.
+bad: 				 */
+bad: 				WRITE_CONTROL (BASE_CMD | CMD_DRVR_ENABLE);
+bad: 				/*
+bad: 				 *	If we are reconnecting, then we must 
+bad: 				 *	send an IDENTIFY message in response
+bad: 				 *	to MSGOUT.
+bad: 				 */
+bad: 				switch (reselect) {
+bad: 				case CAN_RECONNECT:
+bad: 					WRITE_DATA (IDENTIFY (1, lun));
+bad: 					DPRINTK (PHASE_RESELECT | PHASE_MSGOUT, "scsi%d : sent IDENTIFY message.\n", hostno);
+bad: 					break;
+bad: #ifdef LINKED
+bad: 				case LINKED_WRONG:
+bad: 					WRITE_DATA (ABORT);
+bad: 					linked_connected = 0;
+bad: 					reselect = CAN_RECONNECT;
+bad: 					goto connect_loop;
+bad: 					DPRINTK (PHASE_MSGOUT | DEBUG_LINKED, "scsi%d : sent ABORT message to cancel incorrect I_T_L nexus.\n", hostno);
+bad: #endif					/* LINKED */
+bad: 					DPRINTK (DEBUG_LINKED, "correct\n");
+bad: 				default:
+bad: 					WRITE_DATA (NOP);
+bad: 					printk("scsi%d : target %d requested MSGOUT, sent NOP message.\n", hostno, target);
+bad: 				}
+bad: 				break;
+bad: 
+bad: 			case REQ_MSGIN:
+bad: 				switch (message = DATA) {
+bad: 				case DISCONNECT:
+bad: 					DANY("seagate: deciding to disconnect\n");
+bad: 					should_reconnect = 1;
+bad: 					current_data = data;	/* WDE add */
+bad: 					current_buffer = buffer;
+bad: 					current_bufflen = len;	/* WDE add */
+bad: 					current_nobuffs = nobuffs;
+bad: #ifdef LINKED
+bad: 					linked_connected = 0;
+bad: #endif
+bad: 					done = 1;
+bad: 					DPRINTK ((PHASE_RESELECT | PHASE_MSGIN), "scsi%d : disconnected.\n", hostno);
+bad: 					break;
+bad: 
+bad: #ifdef LINKED
+bad: 				case LINKED_CMD_COMPLETE:
+bad: 				case LINKED_FLG_CMD_COMPLETE:
+bad: #endif
+bad: 				case COMMAND_COMPLETE:
+bad: 					/*
+bad: 					 * Note : we should check for underflow here.
+bad: 					 */
+bad: 					DPRINTK(PHASE_MSGIN, "scsi%d : command complete.\n", hostno);
+bad: 					done = 1;
+bad: 					break;
+bad: 				case ABORT:
+bad: 					DPRINTK(PHASE_MSGIN, "scsi%d : abort message.\n", hostno);
+bad: 					done = 1;
+bad: 					break;
+bad: 				case SAVE_POINTERS:
+bad: 					current_buffer = buffer;
+bad: 					current_bufflen = len;	/* WDE add */
+bad: 					current_data = data;	/* WDE mod */
+bad: 					current_nobuffs = nobuffs;
+bad: 					DPRINTK (PHASE_MSGIN, "scsi%d : pointers saved.\n", hostno);
+bad: 					break;
+bad: 				case RESTORE_POINTERS:
+bad: 					buffer = current_buffer;
+bad: 					cmnd = current_cmnd;
+bad: 					data = current_data;	/* WDE mod */
+bad: 					len = current_bufflen;
+bad: 					nobuffs = current_nobuffs;
+bad: 					DPRINTK(PHASE_MSGIN, "scsi%d : pointers restored.\n", hostno);
+bad: 					break;
+bad: 				default:
+bad: 
+bad: 					/*
+bad: 					 *	IDENTIFY distinguishes itself
+bad: 					 *	from the other messages by 
+bad: 					 *	setting the high bit.
+bad: 					 *
+bad: 					 *      Note : we need to handle at 
+bad: 					 *	least one outstanding command
+bad: 					 *	per LUN, and need to hash the 
+bad: 					 *	SCSI command for that I_T_L
+bad: 					 *	nexus based on the known ID 
+bad: 					 *	(at this point) and LUN.
+bad: 					 */
+bad: 
+bad: 					if (message & 0x80) {
+bad: 						DPRINTK (PHASE_MSGIN, "scsi%d : IDENTIFY message received from id %d, lun %d.\n", hostno, target, message & 7);
+bad: 					} else {
+bad: 						/*
+bad: 						 *      We should go into a
+bad: 						 *	MESSAGE OUT phase, and
+bad: 						 *	send  a MESSAGE_REJECT
+bad: 						 *      if we run into a message 
+bad: 						 *	that we don't like.  The
+bad: 						 *	seagate driver needs 
+bad: 						 *	some serious 
+bad: 						 *	restructuring first
+bad: 						 *	though.
+bad: 						 */
+bad: 						DPRINTK (PHASE_MSGIN, "scsi%d : unknown message %d from target %d.\n", hostno, message, target);
+bad: 					}
+bad: 				}
+bad: 				break;
+bad: 			default:
+bad: 				printk(KERN_ERR "scsi%d : unknown phase.\n", hostno);
+bad: 				st0x_aborted = DID_ERROR;
+bad: 			}	/* end of switch (status_read &  REQ_MASK) */
+bad: #ifdef SLOW_RATE
+bad: 			/*
+bad: 			 * I really don't care to deal with borken devices in
+bad: 			 * each single byte transfer case (ie, message in,
+bad: 			 * message out, status), so I'll do the wait here if 
+bad: 			 * necessary.
+bad: 			 */
+bad: 			if(borken)
+bad: 				borken_wait();
+bad: #endif
+bad: 
+bad: 		}		/* if(status_read & STAT_REQ) ends */
+bad: 	}			/* while(((status_read = STATUS)...) ends */
+bad: 
+bad: 	DPRINTK(PHASE_DATAIN | PHASE_DATAOUT | PHASE_EXIT, "scsi%d : Transfered %d bytes\n", hostno, transfered);
+bad: 
+bad: #if (DEBUG & PHASE_EXIT)
+bad: #if 0				/* Doesn't work for scatter/gather */
+bad: 	printk("Buffer : \n");
+bad: 	for(i = 0; i < 20; ++i)
+bad: 		printk("%02x  ", ((unsigned char *) data)[i]);	/* WDE mod */
+bad: 	printk("\n");
+bad: #endif
+bad: 	printk("scsi%d : status = ", hostno);
+bad: 	scsi_print_status(status);
+bad: 	printk(" message = %02x\n", message);
+bad: #endif
+bad: 
+bad: 	/* We shouldn't reach this until *after* BSY has been deasserted */
+bad: 
+bad: #ifdef LINKED
+BAD:!!!!! 	else
+bad: 	{
+bad: 		/*
+bad: 		 * Fix the message byte so that unsuspecting high level drivers
+bad: 		 * don't puke when they see a LINKED COMMAND message in place of
+bad: 		 * the COMMAND COMPLETE they may be expecting.  Shouldn't be
+bad: 		 * necessary, but it's better to be on the safe side.
+bad: 		 *
+bad: 		 * A non LINKED* message byte will indicate that the command
+bad: 		 * completed, and we are now disconnected.
+bad: 		 */
+bad: 
+bad: 		switch (message) {
+bad: 		case LINKED_CMD_COMPLETE:
+bad: 		case LINKED_FLG_CMD_COMPLETE:
+bad: 			message = COMMAND_COMPLETE;
+bad: 			linked_target = current_target;
+bad: 			linked_lun = current_lun;
+bad: 			linked_connected = 1;
+bad: 			DPRINTK (DEBUG_LINKED, "scsi%d : keeping I_T_L nexus established for linked command.\n", hostno);
+bad: 			/* We also will need to adjust status to accommodate intermediate
+bad: 			   conditions. */
+bad: 			if ((status == INTERMEDIATE_GOOD) || (status == INTERMEDIATE_C_GOOD))
+bad: 				status = GOOD;
+bad: 			break;
+bad: 			/*
+bad: 			 * We should also handle what are "normal" termination
+bad: 			 * messages here (ABORT, BUS_DEVICE_RESET?, and
+bad: 			 * COMMAND_COMPLETE individually, and flake if things
+bad: 			 * aren't right.
+bad: 			 */
+bad: 		default:
+bad: 			DPRINTK (DEBUG_LINKED, "scsi%d : closing I_T_L nexus.\n", hostno);
+bad: 			linked_connected = 0;
+bad: 		}
+bad: 	}
+bad: #endif	/* LINKED */
+bad: 
+bad: 	if (should_reconnect) {
+bad: 		DPRINTK (PHASE_RESELECT, "scsi%d : exiting seagate_st0x_queue_command() with reconnect enabled.\n", hostno);
+bad: 		WRITE_CONTROL (BASE_CMD | CMD_INTR);
+bad: 	} else
+bad: 		WRITE_CONTROL (BASE_CMD);
+bad: 
+bad: 	return retcode (st0x_aborted);
+bad: }				/* end of internal_command */
+Type_annoter: not finding type for when
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for msg
+Type_annoter: not finding type for msg
+Type_annoter: not finding type for uint
+Type_annoter: not finding type for byte
+Type_annoter: not finding type for result
+Type_annoter: not finding type for message
+Type_annoter: not finding type for status
+Type_annoter: not finding type for readb
+Type_annoter: not finding type for st0x_cr_sr
+Type_annoter: not finding type for readb
+Type_annoter: not finding type for st0x_dr
+Type_annoter: not finding type for writeb
+Type_annoter: not finding type for d
+Type_annoter: not finding type for st0x_cr_sr
+Type_annoter: not finding type for writeb
+Type_annoter: not finding type for d
+Type_annoter: not finding type for st0x_dr
+Type_annoter: not finding type for signatures
+no type, certainly because Void type ?
+Type_annoter: not finding type for cpu_relax
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for clock
+Type_annoter: not finding type for snprintf
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for msg_byte
+Type_annoter: not finding type for panic
+Type_annoter: not finding type for msg_byte
+Type_annoter: not finding type for mdelay
+Type_annoter: not finding type for free_irq
+Type_annoter: not finding type for release_region
+Type_annoter: not finding type for seagate_st0x_detect
+semantic error two or more data types
+ =File "seagate.res", line 241, column 20,  charpos = 6811
+    around = '*', whole content = static void __iomem *st0x_cr_sr;	/* control register write, status
+ERROR-RECOV: found sync col 0 at line 247
+badcount: 9
+bad: static unsigned int base_address = 0;	/* Where the card ROM starts, used to 
+bad: 					   calculate memory mapped register
+bad: 					   location.  */
+bad: 
+BAD:!!!!! static void __iomem *st0x_cr_sr;	/* control register write, status
+bad: 					   register read.  256 bytes in
+bad: 					   length.
+bad: 					   Read is status of SCSI BUS, as per 
+bad: 					   STAT masks.  */
+bad: 
+semantic error two or more data types
+ =File "seagate.res", line 247, column 20,  charpos = 7000
+    around = '*', whole content = static void __iomem *st0x_dr;	/* data register, read write 256
+ERROR-RECOV: found sync col 0 at line 250
+badcount: 3
+bad: 
+BAD:!!!!! static void __iomem *st0x_dr;	/* data register, read write 256
+bad: 				   bytes in length.  */
+bad: 
+semantic error two or more data types
+ =File "seagate.res", line 283, column 28,  charpos = 7960
+    around = 'signatures', whole content = static Signature __initdata signatures[] = {
+ERROR-RECOV: found sync '}' at line 312
+ERROR-RECOV: found sync bis, eating } and ;
+badcount: 31
+bad: } Signature;
+bad: 
+BAD:!!!!! static Signature __initdata signatures[] = {
+bad: 	{"ST01 v1.7  (C) Copyright 1987 Seagate", 15, 37, SEAGATE},
+bad: 	{"SCSI BIOS 2.00  (C) Copyright 1987 Seagate", 15, 40, SEAGATE},
+bad: 
+bad: /*
+bad:  * The following two lines are NOT mistakes.  One detects ROM revision
+bad:  * 3.0.0, the other 3.2.  Since seagate has only one type of SCSI adapter,
+bad:  * and this is not going to change, the "SEAGATE" and "SCSI" together
+bad:  * are probably "good enough"
+bad:  */
+bad: 
+bad: 	{"SEAGATE SCSI BIOS ", 16, 17, SEAGATE},
+bad: 	{"SEAGATE SCSI BIOS ", 17, 17, SEAGATE},
+bad: 
+bad: /*
+bad:  * However, future domain makes several incompatible SCSI boards, so specific
+bad:  * signatures must be used.
+bad:  */
+bad: 
+bad: 	{"FUTURE DOMAIN CORP. (C) 1986-1989 V5.0C2/14/89", 5, 46, FD},
+bad: 	{"FUTURE DOMAIN CORP. (C) 1986-1989 V6.0A7/28/89", 5, 46, FD},
+bad: 	{"FUTURE DOMAIN CORP. (C) 1986-1990 V6.0105/31/90", 5, 47, FD},
+bad: 	{"FUTURE DOMAIN CORP. (C) 1986-1990 V6.0209/18/90", 5, 47, FD},
+bad: 	{"FUTURE DOMAIN CORP. (C) 1986-1990 V7.009/18/90", 5, 46, FD},
+bad: 	{"FUTURE DOMAIN CORP. (C) 1992 V8.00.004/02/92", 5, 44, FD},
+bad: 	{"IBM F1 BIOS V1.1004/30/92", 5, 25, FD},
+bad: 	{"FUTURE DOMAIN TMC-950", 5, 21, FD},
+bad: 	/* Added for 2.2.16 by Matthias_Heidbrink@b.maus.de */
+bad: 	{"IBM F1 V1.2009/22/93", 5, 25, FD},
+bad: };
+semantic error two or more data types
+ =File "seagate.res", line 375, column 19,  charpos = 11490
+    around = 'borken_init', whole content = static void __init borken_init (void)
+ERROR-RECOV: found sync '}' at line 396
+badcount: 23
+bad: static int borken_calibration = 0;
+bad: 
+BAD:!!!!! static void __init borken_init (void)
+bad: {
+bad: 	register int count = 0, start = jiffies + 1, stop = start + 25;
+bad: 
+bad: 	/* FIXME: There may be a better approach, this is a straight port for
+bad: 	   now */
+bad: 	preempt_disable();
+bad: 	while (time_before (jiffies, start))
+bad: 		cpu_relax();
+bad: 	for (; time_before (jiffies, stop); ++count)
+bad: 		cpu_relax();
+bad: 	preempt_enable();
+bad: 
+bad: /*
+bad:  * Ok, we now have a count for .25 seconds.  Convert to a
+bad:  * count per second and divide by transfer rate in K.  */
+bad: 
+bad: 	borken_calibration = (count * 4) / (SLOW_RATE * 1024);
+bad: 
+bad: 	if (borken_calibration < 1)
+bad: 		borken_calibration = 1;
+bad: }
+parse error 
+ = File "seagate.res", line 419, column 0,  charpos = 12568
+    around = '', whole content = #define TIMEOUT (!(clock--))
+ERROR-RECOV: found sync end of #define 418
+badcount: 9
+bad: }
+bad: 
+bad: #endif				/* def SLOW_RATE */
+bad: 
+bad: /* These beasts only live on ISA, and ISA means 8MHz. Each ULOOP()
+bad:  * contains at least one ISA access, which takes more than 0.125
+bad:  * usec. So if we loop 8 times time in usec, we are safe.
+bad:  */
+bad: 
+BAD:!!!!! #define ULOOP( i ) for (clock = i*8;;)
+semantic error two or more data types
+ =File "seagate.res", line 421, column 11,  charpos = 12609
+    around = 'seagate_st0x_detect', whole content = int __init seagate_st0x_detect (struct scsi_host_template * tpnt)
+ERROR-RECOV: found sync '}' at line 554
+badcount: 135
+bad: #define TIMEOUT (!(clock--))
+bad: 
+BAD:!!!!! int __init seagate_st0x_detect (struct scsi_host_template * tpnt)
+bad: {
+bad: 	struct Scsi_Host *instance;
+bad: 	int i, j;
+bad: 	unsigned long cr, dr;
+bad: 
+bad: 	tpnt->proc_name = "seagate";
+bad: /*
+bad:  *	First, we try for the manual override.
+bad:  */
+bad: 	DANY ("Autodetecting ST0x / TMC-8xx\n");
+bad: 
+bad: 	if (hostno != -1) {
+bad: 		printk (KERN_ERR "seagate_st0x_detect() called twice?!\n");
+bad: 		return 0;
+bad: 	}
+bad: 
+bad: /* If the user specified the controller type from the command line,
+bad:    controller_type will be non-zero, so don't try to detect one */
+bad: 
+bad: 	if (!controller_type) {
+bad: #ifdef OVERRIDE
+bad: 		base_address = OVERRIDE;
+bad: 		controller_type = CONTROLLER;
+bad: 
+bad: 		DANY ("Base address overridden to %x, controller type is %s\n",
+bad: 		      base_address,
+bad: 		      controller_type == SEAGATE ? "SEAGATE" : "FD");
+bad: #else				/* OVERRIDE */
+bad: /*
+bad:  * 	To detect this card, we simply look for the signature
+bad:  *      from the BIOS version notice in all the possible locations
+bad:  *      of the ROM's.  This has a nice side effect of not trashing
+bad:  *      any register locations that might be used by something else.
+bad:  *
+bad:  * XXX - note that we probably should be probing the address
+bad:  * space for the on-board RAM instead.
+bad:  */
+bad: 
+bad: 		for (i = 0; i < ARRAY_SIZE(seagate_bases); ++i) {
+bad: 			void __iomem *p = ioremap(seagate_bases[i], 0x2000);
+bad: 			if (!p)
+bad: 				continue;
+bad: 			for (j = 0; j < NUM_SIGNATURES; ++j)
+bad: 				if (check_signature(p + signatures[j].offset, signatures[j].signature, signatures[j].length)) {
+bad: 					base_address = seagate_bases[i];
+bad: 					controller_type = signatures[j].type;
+bad: 					break;
+bad: 				}
+bad: 			iounmap(p);
+bad: 		}
+bad: #endif				/* OVERRIDE */
+bad: 	}
+bad: 	/* (! controller_type) */
+bad: 	tpnt->this_id = (controller_type == SEAGATE) ? 7 : 6;
+bad: 	tpnt->name = (controller_type == SEAGATE) ? ST0X_ID_STR : FD_ID_STR;
+bad: 
+bad: 	if (!base_address) {
+bad: 		printk(KERN_INFO "seagate: ST0x/TMC-8xx not detected.\n");
+bad: 		return 0;
+bad: 	}
+bad: 
+bad: 	cr = base_address + (controller_type == SEAGATE ? 0x1a00 : 0x1c00);
+bad: 	dr = cr + 0x200;
+bad: 	st0x_cr_sr = ioremap(cr, 0x100);
+bad: 	st0x_dr = ioremap(dr, 0x100);
+bad: 
+bad: 	DANY("%s detected. Base address = %x, cr = %x, dr = %x\n",
+bad: 	      tpnt->name, base_address, cr, dr);
+bad: 
+bad: 	/*
+bad: 	 *	At all times, we will use IRQ 5.  Should also check for IRQ3
+bad: 	 *	if we lose our first interrupt.
+bad: 	 */
+bad: 	instance = scsi_register (tpnt, 0);
+bad: 	if (instance == NULL)
+bad: 		return 0;
+bad: 
+bad: 	hostno = instance->host_no;
+bad: 	if (request_irq (irq, do_seagate_reconnect_intr, IRQF_DISABLED, (controller_type == SEAGATE) ? "seagate" : "tmc-8xx", instance)) {
+bad: 		printk(KERN_ERR "scsi%d : unable to allocate IRQ%d\n", hostno, irq);
+bad: 		return 0;
+bad: 	}
+bad: 	instance->irq = irq;
+bad: 	instance->io_port = base_address;
+bad: #ifdef SLOW_RATE
+bad: 	printk(KERN_INFO "Calibrating borken timer... ");
+bad: 	borken_init();
+bad: 	printk(" %d cycles per transfer\n", borken_calibration);
+bad: #endif
+bad: 	printk (KERN_INFO "This is one second... ");
+bad: 	{
+bad: 		int clock;
+bad: 		ULOOP (1 * 1000 * 1000) {
+bad: 			STATUS;
+bad: 			if (TIMEOUT)
+bad: 				break;
+bad: 		}
+bad: 	}
+bad: 
+bad: 	printk ("done, %s options:"
+bad: #ifdef ARBITRATE
+bad: 		" ARBITRATE"
+bad: #endif
+bad: #ifdef DEBUG
+bad: 		" DEBUG"
+bad: #endif
+bad: #ifdef FAST
+bad: 		" FAST"
+bad: #ifdef FAST32
+bad: 		"32"
+bad: #endif
+bad: #endif
+bad: #ifdef LINKED
+bad: 		" LINKED"
+bad: #endif
+bad: #ifdef PARITY
+bad: 		" PARITY"
+bad: #endif
+bad: #ifdef SEAGATE_USE_ASM
+bad: 		" SEAGATE_USE_ASM"
+bad: #endif
+bad: #ifdef SLOW_RATE
+bad: 		" SLOW_RATE"
+bad: #endif
+bad: #ifdef SWAPSTAT
+bad: 		" SWAPSTAT"
+bad: #endif
+bad: #ifdef SWAPCNTDATA
+bad: 		" SWAPCNTDATA"
+bad: #endif
+bad: 		"\n", tpnt->name);
+bad: 	return 1;
+bad: }
+parse error 
+ = File "seagate.res", line 1566, column 1,  charpos = 44489
+    around = 'else', whole content = 	else
+ERROR-RECOV: found sync '}' at line 1611
+badcount: 883
+bad: }
+bad: 
+bad: static int internal_command (unsigned char target, unsigned char lun,
+bad: 		  const void *cmnd, void *buff, int bufflen, int reselect)
+bad: {
+bad: 	unsigned char *data = NULL;
+bad: 	struct scatterlist *buffer = NULL;
+bad: 	int clock, temp, nobuffs = 0, done = 0, len = 0;
+bad: #ifdef DEBUG
+bad: 	int transfered = 0, phase = 0, newphase;
+bad: #endif
+bad: 	register unsigned char status_read;
+bad: 	unsigned char tmp_data, tmp_control, status = 0, message = 0;
+bad: 	unsigned transfersize = 0, underflow = 0;
+bad: #ifdef SLOW_RATE
+bad: 	int borken = (int) SCint->device->borken;	/* Does the current target require
+bad: 							   Very Slow I/O ?  */
+bad: #endif
+bad: 
+bad: 	incommand = 0;
+bad: 	st0x_aborted = 0;
+bad: 
+bad: #if (DEBUG & PRINT_COMMAND)
+bad: 	printk("scsi%d : target = %d, command = ", hostno, target);
+bad: 	__scsi_print_command((unsigned char *) cmnd);
+bad: #endif
+bad: 
+bad: #if (DEBUG & PHASE_RESELECT)
+bad: 	switch (reselect) {
+bad: 	case RECONNECT_NOW:
+bad: 		printk("scsi%d : reconnecting\n", hostno);
+bad: 		break;
+bad: #ifdef LINKED
+bad: 	case LINKED_RIGHT:
+bad: 		printk("scsi%d : connected, can reconnect\n", hostno);
+bad: 		break;
+bad: 	case LINKED_WRONG:
+bad: 		printk("scsi%d : connected to wrong target, can reconnect\n",
+bad: 			hostno);
+bad: 		break;
+bad: #endif
+bad: 	case CAN_RECONNECT:
+bad: 		printk("scsi%d : allowed to reconnect\n", hostno);
+bad: 		break;
+bad: 	default:
+bad: 		printk("scsi%d : not allowed to reconnect\n", hostno);
+bad: 	}
+bad: #endif
+bad: 
+bad: 	if (target == (controller_type == SEAGATE ? 7 : 6))
+bad: 		return DID_BAD_TARGET;
+bad: 
+bad: 	/*
+bad: 	 *	We work it differently depending on if this is is "the first time,"
+bad: 	 *      or a reconnect.  If this is a reselect phase, then SEL will
+bad: 	 *      be asserted, and we must skip selection / arbitration phases.
+bad: 	 */
+bad: 
+bad: 	switch (reselect) {
+bad: 	case RECONNECT_NOW:
+bad: 		DPRINTK (PHASE_RESELECT, "scsi%d : phase RESELECT \n", hostno);
+bad: 		/*
+bad: 		 *	At this point, we should find the logical or of our ID
+bad: 		 *	and the original target's ID on the BUS, with BSY, SEL,
+bad: 		 *	and I/O signals asserted.
+bad: 		 *
+bad: 		 *      After ARBITRATION phase is completed, only SEL, BSY,
+bad: 		 *	and the target ID are asserted.  A valid initiator ID
+bad: 		 *	is not on the bus until IO is asserted, so we must wait
+bad: 		 *	for that.
+bad: 		 */
+bad: 		ULOOP (100 * 1000) {
+bad: 			temp = STATUS;
+bad: 			if ((temp & STAT_IO) && !(temp & STAT_BSY))
+bad: 				break;
+bad: 			if (TIMEOUT) {
+bad: 				DPRINTK (PHASE_RESELECT, "scsi%d : RESELECT timed out while waiting for IO .\n", hostno);
+bad: 				return (DID_BAD_INTR << 16);
+bad: 			}
+bad: 		}
+bad: 
+bad: 		/*
+bad: 		 *	After I/O is asserted by the target, we can read our ID
+bad: 		 *	and its ID off of the BUS.
+bad: 		 */
+bad: 
+bad: 		if (!((temp = DATA) & (controller_type == SEAGATE ? 0x80 : 0x40))) {
+bad: 			DPRINTK (PHASE_RESELECT, "scsi%d : detected reconnect request to different target.\n\tData bus = %d\n", hostno, temp);
+bad: 			return (DID_BAD_INTR << 16);
+bad: 		}
+bad: 
+bad: 		if (!(temp & (1 << current_target))) {
+bad: 			printk(KERN_WARNING "scsi%d : Unexpected reselect interrupt.  Data bus = %d\n", hostno, temp);
+bad: 			return (DID_BAD_INTR << 16);
+bad: 		}
+bad: 
+bad: 		buffer = current_buffer;
+bad: 		cmnd = current_cmnd;	/* WDE add */
+bad: 		data = current_data;	/* WDE add */
+bad: 		len = current_bufflen;	/* WDE add */
+bad: 		nobuffs = current_nobuffs;
+bad: 
+bad: 		/*
+bad: 		 *	We have determined that we have been selected.  At this
+bad: 		 *	point, we must respond to the reselection by asserting
+bad: 		 *	BSY ourselves
+bad: 		 */
+bad: 
+bad: #if 1
+bad: 		WRITE_CONTROL (BASE_CMD | CMD_DRVR_ENABLE | CMD_BSY);
+bad: #else
+bad: 		WRITE_CONTROL (BASE_CMD | CMD_BSY);
+bad: #endif
+bad: 
+bad: 		/*
+bad: 		 *	The target will drop SEL, and raise BSY, at which time
+bad: 		 *	we must drop BSY.
+bad: 		 */
+bad: 
+bad: 		ULOOP (100 * 1000) {
+bad: 			if (!(STATUS & STAT_SEL))
+bad: 				break;
+bad: 			if (TIMEOUT) {
+bad: 				WRITE_CONTROL (BASE_CMD | CMD_INTR);
+bad: 				DPRINTK (PHASE_RESELECT, "scsi%d : RESELECT timed out while waiting for SEL.\n", hostno);
+bad: 				return (DID_BAD_INTR << 16);
+bad: 			}
+bad: 		}
+bad: 		WRITE_CONTROL (BASE_CMD);
+bad: 		/*
+bad: 		 *	At this point, we have connected with the target
+bad: 		 *	and can get on with our lives.
+bad: 		 */
+bad: 		break;
+bad: 	case CAN_RECONNECT:
+bad: #ifdef LINKED
+bad: 		/*
+bad: 		 * This is a bletcherous hack, just as bad as the Unix #!
+bad: 		 * interpreter stuff. If it turns out we are using the wrong
+bad: 		 * I_T_L nexus, the easiest way to deal with it is to go into
+bad: 		 *  our INFORMATION TRANSFER PHASE code, send a ABORT
+bad: 		 * message on MESSAGE OUT phase, and then loop back to here.
+bad: 		 */
+bad: connect_loop:
+bad: #endif
+bad: 		DPRINTK (PHASE_BUS_FREE, "scsi%d : phase = BUS FREE \n", hostno);
+bad: 
+bad: 		/*
+bad: 		 *    BUS FREE PHASE
+bad: 		 *
+bad: 		 *      On entry, we make sure that the BUS is in a BUS FREE
+bad: 		 *      phase, by insuring that both BSY and SEL are low for
+bad: 		 *      at least one bus settle delay.  Several reads help
+bad: 		 *      eliminate wire glitch.
+bad: 		 */
+bad: 
+bad: #ifndef ARBITRATE
+bad: #error FIXME: this is broken: we may not use jiffies here - we are under cli(). It will hardlock.
+bad: 		clock = jiffies + ST0X_BUS_FREE_DELAY;
+bad: 
+bad: 		while (((STATUS | STATUS | STATUS) & (STAT_BSY | STAT_SEL)) && (!st0x_aborted) && time_before (jiffies, clock))
+bad: 			cpu_relax();
+bad: 
+bad: 		if (time_after (jiffies, clock))
+bad: 			return retcode (DID_BUS_BUSY);
+bad: 		else if (st0x_aborted)
+bad: 			return retcode (st0x_aborted);
+bad: #endif
+bad: 		DPRINTK (PHASE_SELECTION, "scsi%d : phase = SELECTION\n", hostno);
+bad: 
+bad: 		clock = jiffies + ST0X_SELECTION_DELAY;
+bad: 
+bad: 		/*
+bad: 		 * Arbitration/selection procedure :
+bad: 		 * 1.  Disable drivers
+bad: 		 * 2.  Write HOST adapter address bit
+bad: 		 * 3.  Set start arbitration.
+bad: 		 * 4.  We get either ARBITRATION COMPLETE or SELECT at this
+bad: 		 *     point.
+bad: 		 * 5.  OR our ID and targets on bus.
+bad: 		 * 6.  Enable SCSI drivers and asserted SEL and ATTN
+bad: 		 */
+bad: 
+bad: #ifdef ARBITRATE
+bad: 		/* FIXME: verify host lock is always held here */
+bad: 		WRITE_CONTROL(0);
+bad: 		WRITE_DATA((controller_type == SEAGATE) ? 0x80 : 0x40);
+bad: 		WRITE_CONTROL(CMD_START_ARB);
+bad: 
+bad: 		ULOOP (ST0X_SELECTION_DELAY * 10000) {
+bad: 			status_read = STATUS;
+bad: 			if (status_read & STAT_ARB_CMPL)
+bad: 				break;
+bad: 			if (st0x_aborted)	/* FIXME: What? We are going to do something even after abort? */
+bad: 				break;
+bad: 			if (TIMEOUT || (status_read & STAT_SEL)) {
+bad: 				printk(KERN_WARNING "scsi%d : arbitration lost or timeout.\n", hostno);
+bad: 				WRITE_CONTROL (BASE_CMD);
+bad: 				return retcode (DID_NO_CONNECT);
+bad: 			}
+bad: 		}
+bad: 		DPRINTK (PHASE_SELECTION, "scsi%d : arbitration complete\n", hostno);
+bad: #endif
+bad: 
+bad: 		/*
+bad: 		 *    When the SCSI device decides that we're gawking at it, 
+bad: 		 *    it will respond by asserting BUSY on the bus.
+bad: 		 *
+bad: 		 *    Note : the Seagate ST-01/02 product manual says that we
+bad: 		 *    should twiddle the DATA register before the control
+bad: 		 *    register. However, this does not work reliably so we do
+bad: 		 *    it the other way around.
+bad: 		 *
+bad: 		 *    Probably could be a problem with arbitration too, we
+bad: 		 *    really should try this with a SCSI protocol or logic 
+bad: 		 *    analyzer to see what is going on.
+bad: 		 */
+bad: 		tmp_data = (unsigned char) ((1 << target) | (controller_type == SEAGATE ? 0x80 : 0x40));
+bad: 		tmp_control = BASE_CMD | CMD_DRVR_ENABLE | CMD_SEL | (reselect ? CMD_ATTN : 0);
+bad: 
+bad: 		/* FIXME: verify host lock is always held here */
+bad: #ifdef OLDCNTDATASCEME
+bad: #ifdef SWAPCNTDATA
+bad: 		WRITE_CONTROL (tmp_control);
+bad: 		WRITE_DATA (tmp_data);
+bad: #else
+bad: 		WRITE_DATA (tmp_data);
+bad: 		WRITE_CONTROL (tmp_control);
+bad: #endif
+bad: #else
+bad: 		tmp_control ^= CMD_BSY;	/* This is guesswork. What used to be in driver    */
+bad: 		WRITE_CONTROL (tmp_control);	/* could never work: it sent data into control     */
+bad: 		WRITE_DATA (tmp_data);	/* register and control info into data. Hopefully  */
+bad: 		tmp_control ^= CMD_BSY;	/* fixed, but order of first two may be wrong.     */
+bad: 		WRITE_CONTROL (tmp_control);	/* -- pavel@ucw.cz   */
+bad: #endif
+bad: 
+bad: 		ULOOP (250 * 1000) {
+bad: 			if (st0x_aborted) {
+bad: 				/*
+bad: 				 *	If we have been aborted, and we have a
+bad: 				 *	command in progress, IE the target 
+bad: 				 *	still has BSY asserted, then we will
+bad: 				 *	reset the bus, and notify the midlevel
+bad: 				 *	driver to expect sense.
+bad: 				 */
+bad: 
+bad: 				WRITE_CONTROL (BASE_CMD);
+bad: 				if (STATUS & STAT_BSY) {
+bad: 					printk(KERN_WARNING "scsi%d : BST asserted after we've been aborted.\n", hostno);
+bad: 					seagate_st0x_bus_reset(NULL);
+bad: 					return retcode (DID_RESET);
+bad: 				}
+bad: 				return retcode (st0x_aborted);
+bad: 			}
+bad: 			if (STATUS & STAT_BSY)
+bad: 				break;
+bad: 			if (TIMEOUT) {
+bad: 				DPRINTK (PHASE_SELECTION, "scsi%d : NO CONNECT with target %d, stat = %x \n", hostno, target, STATUS);
+bad: 				return retcode (DID_NO_CONNECT);
+bad: 			}
+bad: 		}
+bad: 
+bad: 		/* Establish current pointers.  Take into account scatter / gather */
+bad: 
+bad: 		if ((nobuffs = SCint->use_sg)) {
+bad: #if (DEBUG & DEBUG_SG)
+bad: 			{
+bad: 				int i;
+bad: 				printk("scsi%d : scatter gather requested, using %d buffers.\n", hostno, nobuffs);
+bad: 				for (i = 0; i < nobuffs; ++i)
+bad: 					printk("scsi%d : buffer %d address = %p length = %d\n",
+bad: 					     hostno, i,
+bad: 					     page_address(buffer[i].page) + buffer[i].offset,
+bad: 					     buffer[i].length);
+bad: 			}
+bad: #endif
+bad: 
+bad: 			buffer = (struct scatterlist *) SCint->request_buffer;
+bad: 			len = buffer->length;
+bad: 			data = page_address(buffer->page) + buffer->offset;
+bad: 		} else {
+bad: 			DPRINTK (DEBUG_SG, "scsi%d : scatter gather not requested.\n", hostno);
+bad: 			buffer = NULL;
+bad: 			len = SCint->request_bufflen;
+bad: 			data = (unsigned char *) SCint->request_buffer;
+bad: 		}
+bad: 
+bad: 		DPRINTK (PHASE_DATAIN | PHASE_DATAOUT, "scsi%d : len = %d\n",
+bad: 			 hostno, len);
+bad: 
+bad: 		break;
+bad: #ifdef LINKED
+bad: 	case LINKED_RIGHT:
+bad: 		break;
+bad: 	case LINKED_WRONG:
+bad: 		break;
+bad: #endif
+bad: 	}			/* end of switch(reselect) */
+bad: 
+bad: 	/*
+bad: 	 *    There are several conditions under which we wish to send a message :
+bad: 	 *      1.  When we are allowing disconnect / reconnect, and need to
+bad: 	 *	establish the I_T_L nexus via an IDENTIFY with the DiscPriv bit
+bad: 	 *	set.
+bad: 	 *
+bad: 	 *      2.  When we are doing linked commands, are have the wrong I_T_L
+bad: 	 *	nexus established and want to send an ABORT message.
+bad: 	 */
+bad: 
+bad: 	/* GCC does not like an ifdef inside a macro, so do it the hard way. */
+bad: #ifdef LINKED
+bad: 	WRITE_CONTROL (BASE_CMD | CMD_DRVR_ENABLE | (((reselect == CAN_RECONNECT)|| (reselect == LINKED_WRONG))? CMD_ATTN : 0));
+bad: #else
+bad: 	WRITE_CONTROL (BASE_CMD | CMD_DRVR_ENABLE | (((reselect == CAN_RECONNECT))? CMD_ATTN : 0));
+bad: #endif
+bad: 
+bad: 	/*
+bad: 	 *    INFORMATION TRANSFER PHASE
+bad: 	 *
+bad: 	 *      The nasty looking read / write inline assembler loops we use for
+bad: 	 *      DATAIN and DATAOUT phases are approximately 4-5 times as fast as
+bad: 	 *      the 'C' versions - since we're moving 1024 bytes of data, this
+bad: 	 *      really adds up.
+bad: 	 *
+bad: 	 *      SJT: The nasty-looking assembler is gone, so it's slower.
+bad: 	 *
+bad: 	 */
+bad: 
+bad: 	DPRINTK (PHASE_ETC, "scsi%d : phase = INFORMATION TRANSFER\n", hostno);
+bad: 
+bad: 	incommand = 1;
+bad: 	transfersize = SCint->transfersize;
+bad: 	underflow = SCint->underflow;
+bad: 
+bad: 	/*
+bad: 	 *	Now, we poll the device for status information,
+bad: 	 *      and handle any requests it makes.  Note that since we are unsure
+bad: 	 *	of how much data will be flowing across the system, etc and
+bad: 	 *	cannot make reasonable timeouts, that we will instead have the
+bad: 	 *	midlevel driver handle any timeouts that occur in this phase.
+bad: 	 */
+bad: 
+bad: 	while (((status_read = STATUS) & STAT_BSY) && !st0x_aborted && !done) {
+bad: #ifdef PARITY
+bad: 		if (status_read & STAT_PARITY) {
+bad: 			printk(KERN_ERR "scsi%d : got parity error\n", hostno);
+bad: 			st0x_aborted = DID_PARITY;
+bad: 		}
+bad: #endif
+bad: 		if (status_read & STAT_REQ) {
+bad: #if ((DEBUG & PHASE_ETC) == PHASE_ETC)
+bad: 			if ((newphase = (status_read & REQ_MASK)) != phase) {
+bad: 				phase = newphase;
+bad: 				switch (phase) {
+bad: 				case REQ_DATAOUT:
+bad: 					printk ("scsi%d : phase = DATA OUT\n", hostno);
+bad: 					break;
+bad: 				case REQ_DATAIN:
+bad: 					printk ("scsi%d : phase = DATA IN\n", hostno);
+bad: 					break;
+bad: 				case REQ_CMDOUT:
+bad: 					printk
+bad: 					    ("scsi%d : phase = COMMAND OUT\n", hostno);
+bad: 					break;
+bad: 				case REQ_STATIN:
+bad: 					printk ("scsi%d : phase = STATUS IN\n",	hostno);
+bad: 					break;
+bad: 				case REQ_MSGOUT:
+bad: 					printk
+bad: 					    ("scsi%d : phase = MESSAGE OUT\n", hostno);
+bad: 					break;
+bad: 				case REQ_MSGIN:
+bad: 					printk ("scsi%d : phase = MESSAGE IN\n", hostno);
+bad: 					break;
+bad: 				default:
+bad: 					printk ("scsi%d : phase = UNKNOWN\n", hostno);
+bad: 					st0x_aborted = DID_ERROR;
+bad: 				}
+bad: 			}
+bad: #endif
+bad: 			switch (status_read & REQ_MASK) {
+bad: 			case REQ_DATAOUT:
+bad: 				/*
+bad: 				 * If we are in fast mode, then we simply splat
+bad: 				 * the data out in word-sized chunks as fast as
+bad: 				 * we can.
+bad: 				 */
+bad: 
+bad: 				if (!len) {
+bad: #if 0
+bad: 					printk("scsi%d: underflow to target %d lun %d \n", hostno, target, lun);
+bad: 					st0x_aborted = DID_ERROR;
+bad: 					fast = 0;
+bad: #endif
+bad: 					break;
+bad: 				}
+bad: 
+bad: 				if (fast && transfersize
+bad: 				    && !(len % transfersize)
+bad: 				    && (len >= transfersize)
+bad: #ifdef FAST32
+bad: 				    && !(transfersize % 4)
+bad: #endif
+bad: 				    ) {
+bad: 					DPRINTK (DEBUG_FAST,
+bad: 						 "scsi%d : FAST transfer, underflow = %d, transfersize = %d\n"
+bad: 						 "         len = %d, data = %08x\n",
+bad: 						 hostno, SCint->underflow,
+bad: 						 SCint->transfersize, len,
+bad: 						 data);
+bad: 
+bad: 			/* SJT: Start. Fast Write */
+bad: #ifdef SEAGATE_USE_ASM
+bad: 					__asm__ ("cld\n\t"
+bad: #ifdef FAST32
+bad: 						 "shr $2, %%ecx\n\t"
+bad: 						 "1:\t"
+bad: 						 "lodsl\n\t"
+bad: 						 "movl %%eax, (%%edi)\n\t"
+bad: #else
+bad: 						 "1:\t"
+bad: 						 "lodsb\n\t"
+bad: 						 "movb %%al, (%%edi)\n\t"
+bad: #endif
+bad: 						 "loop 1b;"
+bad: 				      /* output */ :
+bad: 				      /* input */ :"D" (st0x_dr),
+bad: 						 "S"
+bad: 						 (data),
+bad: 						 "c" (SCint->transfersize)
+bad: /* clobbered */
+bad: 				      :	 "eax", "ecx",
+bad: 						 "esi");
+bad: #else				/* SEAGATE_USE_ASM */
+bad: 					memcpy_toio(st0x_dr, data, transfersize);
+bad: #endif				/* SEAGATE_USE_ASM */
+bad: /* SJT: End */
+bad: 					len -= transfersize;
+bad: 					data += transfersize;
+bad: 					DPRINTK (DEBUG_FAST, "scsi%d : FAST transfer complete len = %d data = %08x\n", hostno, len, data);
+bad: 				} else {
+bad: 					/*
+bad: 					 *    We loop as long as we are in a 
+bad: 					 *    data out phase, there is data to
+bad: 					 *    send, and BSY is still active.
+bad: 					 */
+bad: 
+bad: /* SJT: Start. Slow Write. */
+bad: #ifdef SEAGATE_USE_ASM
+bad: 
+bad: 					int __dummy_1, __dummy_2;
+bad: 
+bad: /*
+bad:  *      We loop as long as we are in a data out phase, there is data to send, 
+bad:  *      and BSY is still active.
+bad:  */
+bad: /* Local variables : len = ecx , data = esi, 
+bad:                      st0x_cr_sr = ebx, st0x_dr =  edi
+bad: */
+bad: 					__asm__ (
+bad: 							/* Test for any data here at all. */
+bad: 							"orl %%ecx, %%ecx\n\t"
+bad: 							"jz 2f\n\t" "cld\n\t"
+bad: /*                    "movl st0x_cr_sr, %%ebx\n\t"  */
+bad: /*                    "movl st0x_dr, %%edi\n\t"  */
+bad: 							"1:\t"
+bad: 							"movb (%%ebx), %%al\n\t"
+bad: 							/* Test for BSY */
+bad: 							"test $1, %%al\n\t"
+bad: 							"jz 2f\n\t"
+bad: 							/* Test for data out phase - STATUS & REQ_MASK should be 
+bad: 							   REQ_DATAOUT, which is 0. */
+bad: 							"test $0xe, %%al\n\t"
+bad: 							"jnz 2f\n\t"
+bad: 							/* Test for REQ */
+bad: 							"test $0x10, %%al\n\t"
+bad: 							"jz 1b\n\t"
+bad: 							"lodsb\n\t"
+bad: 							"movb %%al, (%%edi)\n\t"
+bad: 							"loop 1b\n\t" "2:\n"
+bad: 				      /* output */ :"=S" (data), "=c" (len),
+bad: 							"=b"
+bad: 							(__dummy_1),
+bad: 							"=D" (__dummy_2)
+bad: /* input */
+bad: 				      :		"0" (data), "1" (len),
+bad: 							"2" (st0x_cr_sr),
+bad: 							"3" (st0x_dr)
+bad: /* clobbered */
+bad: 				      :		"eax");
+bad: #else				/* SEAGATE_USE_ASM */
+bad: 					while (len) {
+bad: 						unsigned char stat;
+bad: 
+bad: 						stat = STATUS;
+bad: 						if (!(stat & STAT_BSY)
+bad: 						    || ((stat & REQ_MASK) !=
+bad: 							REQ_DATAOUT))
+bad: 							break;
+bad: 						if (stat & STAT_REQ) {
+bad: 							WRITE_DATA (*data++);
+bad: 							--len;
+bad: 						}
+bad: 					}
+bad: #endif				/* SEAGATE_USE_ASM */
+bad: /* SJT: End. */
+bad: 				}
+bad: 
+bad: 				if (!len && nobuffs) {
+bad: 					--nobuffs;
+bad: 					++buffer;
+bad: 					len = buffer->length;
+bad: 					data = page_address(buffer->page) + buffer->offset;
+bad: 					DPRINTK (DEBUG_SG,
+bad: 						 "scsi%d : next scatter-gather buffer len = %d address = %08x\n",
+bad: 						 hostno, len, data);
+bad: 				}
+bad: 				break;
+bad: 
+bad: 			case REQ_DATAIN:
+bad: #ifdef SLOW_RATE
+bad: 				if (borken) {
+bad: #if (DEBUG & (PHASE_DATAIN))
+bad: 					transfered += len;
+bad: #endif
+bad: 					for (; len && (STATUS & (REQ_MASK | STAT_REQ)) == (REQ_DATAIN | STAT_REQ); --len) {
+bad: 						*data++ = DATA;
+bad: 						borken_wait();
+bad: 					}
+bad: #if (DEBUG & (PHASE_DATAIN))
+bad: 					transfered -= len;
+bad: #endif
+bad: 				} else
+bad: #endif
+bad: 
+bad: 					if (fast && transfersize
+bad: 					    && !(len % transfersize)
+bad: 					    && (len >= transfersize)
+bad: #ifdef FAST32
+bad: 					    && !(transfersize % 4)
+bad: #endif
+bad: 				    ) {
+bad: 					DPRINTK (DEBUG_FAST,
+bad: 						 "scsi%d : FAST transfer, underflow = %d, transfersize = %d\n"
+bad: 						 "         len = %d, data = %08x\n",
+bad: 						 hostno, SCint->underflow,
+bad: 						 SCint->transfersize, len,
+bad: 						 data);
+bad: 
+bad: /* SJT: Start. Fast Read */
+bad: #ifdef SEAGATE_USE_ASM
+bad: 					__asm__ ("cld\n\t"
+bad: #ifdef FAST32
+bad: 						 "shr $2, %%ecx\n\t"
+bad: 						 "1:\t"
+bad: 						 "movl (%%esi), %%eax\n\t"
+bad: 						 "stosl\n\t"
+bad: #else
+bad: 						 "1:\t"
+bad: 						 "movb (%%esi), %%al\n\t"
+bad: 						 "stosb\n\t"
+bad: #endif
+bad: 						 "loop 1b\n\t"
+bad: 				      /* output */ :
+bad: 				      /* input */ :"S" (st0x_dr),
+bad: 						 "D"
+bad: 						 (data),
+bad: 						 "c" (SCint->transfersize)
+bad: /* clobbered */
+bad: 				      :	 "eax", "ecx",
+bad: 						 "edi");
+bad: #else				/* SEAGATE_USE_ASM */
+bad: 					memcpy_fromio(data, st0x_dr, len);
+bad: #endif				/* SEAGATE_USE_ASM */
+bad: /* SJT: End */
+bad: 					len -= transfersize;
+bad: 					data += transfersize;
+bad: #if (DEBUG & PHASE_DATAIN)
+bad: 					printk ("scsi%d: transfered += %d\n", hostno, transfersize);
+bad: 					transfered += transfersize;
+bad: #endif
+bad: 
+bad: 					DPRINTK (DEBUG_FAST, "scsi%d : FAST transfer complete len = %d data = %08x\n", hostno, len, data);
+bad: 				} else {
+bad: 
+bad: #if (DEBUG & PHASE_DATAIN)
+bad: 					printk ("scsi%d: transfered += %d\n", hostno, len);
+bad: 					transfered += len;	/* Assume we'll transfer it all, then
+bad: 								   subtract what we *didn't* transfer */
+bad: #endif
+bad: 
+bad: /*
+bad:  *	We loop as long as we are in a data in phase, there is room to read,
+bad:  *      and BSY is still active
+bad:  */
+bad: 
+bad: /* SJT: Start. */
+bad: #ifdef SEAGATE_USE_ASM
+bad: 
+bad: 					int __dummy_3, __dummy_4;
+bad: 
+bad: /* Dummy clobbering variables for the new gcc-2.95 */
+bad: 
+bad: /*
+bad:  *      We loop as long as we are in a data in phase, there is room to read, 
+bad:  *      and BSY is still active
+bad:  */
+bad: 					/* Local variables : ecx = len, edi = data
+bad: 					   esi = st0x_cr_sr, ebx = st0x_dr */
+bad: 					__asm__ (
+bad: 							/* Test for room to read */
+bad: 							"orl %%ecx, %%ecx\n\t"
+bad: 							"jz 2f\n\t" "cld\n\t"
+bad: /*                "movl st0x_cr_sr, %%esi\n\t"  */
+bad: /*                "movl st0x_dr, %%ebx\n\t"  */
+bad: 							"1:\t"
+bad: 							"movb (%%esi), %%al\n\t"
+bad: 							/* Test for BSY */
+bad: 							"test $1, %%al\n\t"
+bad: 							"jz 2f\n\t"
+bad: 							/* Test for data in phase - STATUS & REQ_MASK should be REQ_DATAIN, 
+bad: 							   = STAT_IO, which is 4. */
+bad: 							"movb $0xe, %%ah\n\t"
+bad: 							"andb %%al, %%ah\n\t"
+bad: 							"cmpb $0x04, %%ah\n\t"
+bad: 							"jne 2f\n\t"
+bad: 							/* Test for REQ */
+bad: 							"test $0x10, %%al\n\t"
+bad: 							"jz 1b\n\t"
+bad: 							"movb (%%ebx), %%al\n\t"
+bad: 							"stosb\n\t"
+bad: 							"loop 1b\n\t" "2:\n"
+bad: 				      /* output */ :"=D" (data), "=c" (len),
+bad: 							"=S"
+bad: 							(__dummy_3),
+bad: 							"=b" (__dummy_4)
+bad: /* input */
+bad: 				      :		"0" (data), "1" (len),
+bad: 							"2" (st0x_cr_sr),
+bad: 							"3" (st0x_dr)
+bad: /* clobbered */
+bad: 				      :		"eax");
+bad: #else				/* SEAGATE_USE_ASM */
+bad: 					while (len) {
+bad: 						unsigned char stat;
+bad: 
+bad: 						stat = STATUS;
+bad: 						if (!(stat & STAT_BSY)
+bad: 						    || ((stat & REQ_MASK) !=
+bad: 							REQ_DATAIN))
+bad: 							break;
+bad: 						if (stat & STAT_REQ) {
+bad: 							*data++ = DATA;
+bad: 							--len;
+bad: 						}
+bad: 					}
+bad: #endif				/* SEAGATE_USE_ASM */
+bad: /* SJT: End. */
+bad: #if (DEBUG & PHASE_DATAIN)
+bad: 					printk ("scsi%d: transfered -= %d\n", hostno, len);
+bad: 					transfered -= len;	/* Since we assumed all of Len got  *
+bad: 								   transfered, correct our mistake */
+bad: #endif
+bad: 				}
+bad: 
+bad: 				if (!len && nobuffs) {
+bad: 					--nobuffs;
+bad: 					++buffer;
+bad: 					len = buffer->length;
+bad: 					data = page_address(buffer->page) + buffer->offset;
+bad: 					DPRINTK (DEBUG_SG, "scsi%d : next scatter-gather buffer len = %d address = %08x\n", hostno, len, data);
+bad: 				}
+bad: 				break;
+bad: 
+bad: 			case REQ_CMDOUT:
+bad: 				while (((status_read = STATUS) & STAT_BSY) &&
+bad: 				       ((status_read & REQ_MASK) == REQ_CMDOUT))
+bad: 					if (status_read & STAT_REQ) {
+bad: 						WRITE_DATA (*(const unsigned char *) cmnd);
+bad: 						cmnd = 1 + (const unsigned char *)cmnd;
+bad: #ifdef SLOW_RATE
+bad: 						if (borken)
+bad: 							borken_wait ();
+bad: #endif
+bad: 					}
+bad: 				break;
+bad: 
+bad: 			case REQ_STATIN:
+bad: 				status = DATA;
+bad: 				break;
+bad: 
+bad: 			case REQ_MSGOUT:
+bad: 				/*
+bad: 				 *	We can only have sent a MSG OUT if we
+bad: 				 *	requested to do this by raising ATTN.
+bad: 				 *	So, we must drop ATTN.
+bad: 				 */
+bad: 				WRITE_CONTROL (BASE_CMD | CMD_DRVR_ENABLE);
+bad: 				/*
+bad: 				 *	If we are reconnecting, then we must 
+bad: 				 *	send an IDENTIFY message in response
+bad: 				 *	to MSGOUT.
+bad: 				 */
+bad: 				switch (reselect) {
+bad: 				case CAN_RECONNECT:
+bad: 					WRITE_DATA (IDENTIFY (1, lun));
+bad: 					DPRINTK (PHASE_RESELECT | PHASE_MSGOUT, "scsi%d : sent IDENTIFY message.\n", hostno);
+bad: 					break;
+bad: #ifdef LINKED
+bad: 				case LINKED_WRONG:
+bad: 					WRITE_DATA (ABORT);
+bad: 					linked_connected = 0;
+bad: 					reselect = CAN_RECONNECT;
+bad: 					goto connect_loop;
+bad: 					DPRINTK (PHASE_MSGOUT | DEBUG_LINKED, "scsi%d : sent ABORT message to cancel incorrect I_T_L nexus.\n", hostno);
+bad: #endif					/* LINKED */
+bad: 					DPRINTK (DEBUG_LINKED, "correct\n");
+bad: 				default:
+bad: 					WRITE_DATA (NOP);
+bad: 					printk("scsi%d : target %d requested MSGOUT, sent NOP message.\n", hostno, target);
+bad: 				}
+bad: 				break;
+bad: 
+bad: 			case REQ_MSGIN:
+bad: 				switch (message = DATA) {
+bad: 				case DISCONNECT:
+bad: 					DANY("seagate: deciding to disconnect\n");
+bad: 					should_reconnect = 1;
+bad: 					current_data = data;	/* WDE add */
+bad: 					current_buffer = buffer;
+bad: 					current_bufflen = len;	/* WDE add */
+bad: 					current_nobuffs = nobuffs;
+bad: #ifdef LINKED
+bad: 					linked_connected = 0;
+bad: #endif
+bad: 					done = 1;
+bad: 					DPRINTK ((PHASE_RESELECT | PHASE_MSGIN), "scsi%d : disconnected.\n", hostno);
+bad: 					break;
+bad: 
+bad: #ifdef LINKED
+bad: 				case LINKED_CMD_COMPLETE:
+bad: 				case LINKED_FLG_CMD_COMPLETE:
+bad: #endif
+bad: 				case COMMAND_COMPLETE:
+bad: 					/*
+bad: 					 * Note : we should check for underflow here.
+bad: 					 */
+bad: 					DPRINTK(PHASE_MSGIN, "scsi%d : command complete.\n", hostno);
+bad: 					done = 1;
+bad: 					break;
+bad: 				case ABORT:
+bad: 					DPRINTK(PHASE_MSGIN, "scsi%d : abort message.\n", hostno);
+bad: 					done = 1;
+bad: 					break;
+bad: 				case SAVE_POINTERS:
+bad: 					current_buffer = buffer;
+bad: 					current_bufflen = len;	/* WDE add */
+bad: 					current_data = data;	/* WDE mod */
+bad: 					current_nobuffs = nobuffs;
+bad: 					DPRINTK (PHASE_MSGIN, "scsi%d : pointers saved.\n", hostno);
+bad: 					break;
+bad: 				case RESTORE_POINTERS:
+bad: 					buffer = current_buffer;
+bad: 					cmnd = current_cmnd;
+bad: 					data = current_data;	/* WDE mod */
+bad: 					len = current_bufflen;
+bad: 					nobuffs = current_nobuffs;
+bad: 					DPRINTK(PHASE_MSGIN, "scsi%d : pointers restored.\n", hostno);
+bad: 					break;
+bad: 				default:
+bad: 
+bad: 					/*
+bad: 					 *	IDENTIFY distinguishes itself
+bad: 					 *	from the other messages by 
+bad: 					 *	setting the high bit.
+bad: 					 *
+bad: 					 *      Note : we need to handle at 
+bad: 					 *	least one outstanding command
+bad: 					 *	per LUN, and need to hash the 
+bad: 					 *	SCSI command for that I_T_L
+bad: 					 *	nexus based on the known ID 
+bad: 					 *	(at this point) and LUN.
+bad: 					 */
+bad: 
+bad: 					if (message & 0x80) {
+bad: 						DPRINTK (PHASE_MSGIN, "scsi%d : IDENTIFY message received from id %d, lun %d.\n", hostno, target, message & 7);
+bad: 					} else {
+bad: 						/*
+bad: 						 *      We should go into a
+bad: 						 *	MESSAGE OUT phase, and
+bad: 						 *	send  a MESSAGE_REJECT
+bad: 						 *      if we run into a message 
+bad: 						 *	that we don't like.  The
+bad: 						 *	seagate driver needs 
+bad: 						 *	some serious 
+bad: 						 *	restructuring first
+bad: 						 *	though.
+bad: 						 */
+bad: 						DPRINTK (PHASE_MSGIN, "scsi%d : unknown message %d from target %d.\n", hostno, message, target);
+bad: 					}
+bad: 				}
+bad: 				break;
+bad: 			default:
+bad: 				printk(KERN_ERR "scsi%d : unknown phase.\n", hostno);
+bad: 				st0x_aborted = DID_ERROR;
+bad: 			}	/* end of switch (status_read &  REQ_MASK) */
+bad: #ifdef SLOW_RATE
+bad: 			/*
+bad: 			 * I really don't care to deal with borken devices in
+bad: 			 * each single byte transfer case (ie, message in,
+bad: 			 * message out, status), so I'll do the wait here if 
+bad: 			 * necessary.
+bad: 			 */
+bad: 			if(borken)
+bad: 				borken_wait();
+bad: #endif
+bad: 
+bad: 		}		/* if(status_read & STAT_REQ) ends */
+bad: 	}			/* while(((status_read = STATUS)...) ends */
+bad: 
+bad: 	DPRINTK(PHASE_DATAIN | PHASE_DATAOUT | PHASE_EXIT, "scsi%d : Transfered %d bytes\n", hostno, transfered);
+bad: 
+bad: #if (DEBUG & PHASE_EXIT)
+bad: #if 0				/* Doesn't work for scatter/gather */
+bad: 	printk("Buffer : \n");
+bad: 	for(i = 0; i < 20; ++i)
+bad: 		printk("%02x  ", ((unsigned char *) data)[i]);	/* WDE mod */
+bad: 	printk("\n");
+bad: #endif
+bad: 	printk("scsi%d : status = ", hostno);
+bad: 	scsi_print_status(status);
+bad: 	printk(" message = %02x\n", message);
+bad: #endif
+bad: 
+bad: 	/* We shouldn't reach this until *after* BSY has been deasserted */
+bad: 
+bad: #ifdef LINKED
+BAD:!!!!! 	else
+bad: 	{
+bad: 		/*
+bad: 		 * Fix the message byte so that unsuspecting high level drivers
+bad: 		 * don't puke when they see a LINKED COMMAND message in place of
+bad: 		 * the COMMAND COMPLETE they may be expecting.  Shouldn't be
+bad: 		 * necessary, but it's better to be on the safe side.
+bad: 		 *
+bad: 		 * A non LINKED* message byte will indicate that the command
+bad: 		 * completed, and we are now disconnected.
+bad: 		 */
+bad: 
+bad: 		switch (message) {
+bad: 		case LINKED_CMD_COMPLETE:
+bad: 		case LINKED_FLG_CMD_COMPLETE:
+bad: 			message = COMMAND_COMPLETE;
+bad: 			linked_target = current_target;
+bad: 			linked_lun = current_lun;
+bad: 			linked_connected = 1;
+bad: 			DPRINTK (DEBUG_LINKED, "scsi%d : keeping I_T_L nexus established for linked command.\n", hostno);
+bad: 			/* We also will need to adjust status to accommodate intermediate
+bad: 			   conditions. */
+bad: 			if ((status == INTERMEDIATE_GOOD) || (status == INTERMEDIATE_C_GOOD))
+bad: 				status = GOOD;
+bad: 			break;
+bad: 			/*
+bad: 			 * We should also handle what are "normal" termination
+bad: 			 * messages here (ABORT, BUS_DEVICE_RESET?, and
+bad: 			 * COMMAND_COMPLETE individually, and flake if things
+bad: 			 * aren't right.
+bad: 			 */
+bad: 		default:
+bad: 			DPRINTK (DEBUG_LINKED, "scsi%d : closing I_T_L nexus.\n", hostno);
+bad: 			linked_connected = 0;
+bad: 		}
+bad: 	}
+bad: #endif	/* LINKED */
+bad: 
+bad: 	if (should_reconnect) {
+bad: 		DPRINTK (PHASE_RESELECT, "scsi%d : exiting seagate_st0x_queue_command() with reconnect enabled.\n", hostno);
+bad: 		WRITE_CONTROL (BASE_CMD | CMD_INTR);
+bad: 	} else
+bad: 		WRITE_CONTROL (BASE_CMD);
+bad: 
+bad: 	return retcode (st0x_aborted);
+bad: }				/* end of internal_command */
+Type_annoter: not finding type for when
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for msg
+Type_annoter: not finding type for msg
+Type_annoter: not finding type for uint
+Type_annoter: not finding type for byte
+Type_annoter: not finding type for result
+Type_annoter: not finding type for message
+Type_annoter: not finding type for status
+Type_annoter: not finding type for readb
+Type_annoter: not finding type for st0x_cr_sr
+Type_annoter: not finding type for readb
+Type_annoter: not finding type for st0x_dr
+Type_annoter: not finding type for writeb
+Type_annoter: not finding type for d
+Type_annoter: not finding type for st0x_cr_sr
+Type_annoter: not finding type for writeb
+Type_annoter: not finding type for d
+Type_annoter: not finding type for st0x_dr
+Type_annoter: not finding type for signatures
+no type, certainly because Void type ?
+Type_annoter: not finding type for cpu_relax
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for clock
+Type_annoter: not finding type for snprintf
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for msg_byte
+Type_annoter: not finding type for panic
+Type_annoter: not finding type for msg_byte
+Type_annoter: not finding type for mdelay
+Type_annoter: not finding type for free_irq
+Type_annoter: not finding type for release_region
+Type_annoter: not finding type for seagate_st0x_detect

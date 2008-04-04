@@ -1,0 +1,4 @@
+ibmvstgt.c.orig ibmvstgt.c.new
+#libsrp.c.orig libsrp.c.new
+#scsi_tgt_if.c.orig scsi_tgt_if.c.new
+scsi_tgt_lib.c.orig scsi_tgt_lib.c.new

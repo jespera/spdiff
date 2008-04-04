@@ -1,0 +1,17 @@
+bus.c.orig bus.c.new
+sys.c.orig sys.c.new
+pktcdvd.c.orig pktcdvd.c.new
+cpufreq.c.orig cpufreq.c.new
+sysfs.c.orig sysfs.c.new
+edac_device_sysfs.c.orig edac_device_sysfs.c.new
+edac_mc_sysfs.c.orig edac_mc_sysfs.c.new
+edac_pci_sysfs.c.orig edac_pci_sysfs.c.new
+edd.c.orig edd.c.new
+efivars.c.orig efivars.c.new
+sysfs.c.orig sysfs.c.new
+ibmveth.c.orig ibmveth.c.new
+md.c.orig md.c.new
+pdc_stable.c.orig pdc_stable.c.new
+pci_hotplug_core.c.orig pci_hotplug_core.c.new
+rpadlpar_sysfs.c.orig rpadlpar_sysfs.c.new
+uio.c.orig uio.c.new

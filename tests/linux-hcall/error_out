@@ -1,0 +1,528 @@
+PB MAYBE: dangerous typedef inference, maybe not a typedef: pgd_t
+parse error 
+ = File "lg.h.orig", line 54, column 27,  charpos = 1237
+    around = '*', whole content = 	struct lguest_data __user *lguest_data;
+ERROR-RECOV: found sync '}' at line 103
+ERROR-RECOV: found sync bis, eating } and ;
+badcount: 57
+bad: };
+bad: 
+bad: /* The private info the thread maintains about the guest. */
+bad: struct lguest
+bad: {
+bad: 	/* At end of a page shared mapped over lguest_pages in guest.  */
+bad: 	unsigned long regs_page;
+bad: 	struct lguest_regs *regs;
+BAD:!!!!! 	struct lguest_data __user *lguest_data;
+bad: 	struct task_struct *tsk;
+bad: 	struct mm_struct *mm; 	/* == tsk->mm, but that becomes NULL on exit */
+bad: 	struct lg_cpu cpus[NR_CPUS];
+bad: 	unsigned int nr_cpus;
+bad: 
+bad: 	u32 pfn_limit;
+bad: 	/* This provides the offset to the base of guest-physical
+bad: 	 * memory in the Launcher. */
+bad: 	void __user *mem_base;
+bad: 	unsigned long kernel_address;
+bad: 	u32 cr2;
+bad: 	int halted;
+bad: 	int ts;
+bad: 	u32 next_hcall;
+bad: 	u32 esp1;
+bad: 	u8 ss1;
+bad: 
+bad: 	/* If a hypercall was asked for, this points to the arguments. */
+bad: 	struct hcall_args *hcall;
+bad: 
+bad: 	/* Do we need to stop what we're doing and return to userspace? */
+bad: 	int break_out;
+bad: 	wait_queue_head_t break_wq;
+bad: 
+bad: 	/* Bitmap of what has changed: see CHANGED_* above. */
+bad: 	int changed;
+bad: 	struct lguest_pages *last_pages;
+bad: 
+bad: 	/* We keep a small number of these. */
+bad: 	u32 pgdidx;
+bad: 	struct pgdir pgdirs[4];
+bad: 
+bad: 	unsigned long noirq_start, noirq_end;
+bad: 	unsigned long pending_notify; /* pfn from LHCALL_NOTIFY */
+bad: 
+bad: 	unsigned int stack_pages;
+bad: 	u32 tsc_khz;
+bad: 
+bad: 	/* Dead? */
+bad: 	const char *dead;
+bad: 
+bad: 	struct lguest_arch arch;
+bad: 
+bad: 	/* Virtual clock device */
+bad: 	struct hrtimer hrt;
+bad: 
+bad: 	/* Pending virtual interrupts */
+bad: 	DECLARE_BITMAP(irqs_pending, LGUEST_IRQS);
+bad: };
+semantic error signed, unsigned valid only for char and int
+ =File "lg.h.orig", line 129, column 60,  charpos = 3325
+    around = ')', whole content = int run_guest(struct lg_cpu *cpu, unsigned long __user *user);
+ERROR-RECOV: found sync col 0 at line 139
+badcount: 12
+bad: 	} while(0)
+bad: /* (end of memory access helper routines) :*/
+bad: 
+BAD:!!!!! int run_guest(struct lg_cpu *cpu, unsigned long __user *user);
+bad: 
+bad: /* Helper macros to obtain the first 12 or the last 20 bits, this is only the
+bad:  * first step in the migration to the kernel types.  pte_pfn is already defined
+bad:  * in the kernel. */
+bad: #define pgd_flags(x)	(pgd_val(x) & ~PAGE_MASK)
+bad: #define pte_flags(x)	(pte_val(x) & ~PAGE_MASK)
+bad: #define pgd_pfn(x)	(pgd_val(x) >> PAGE_SHIFT)
+bad: 
+bad: /* interrupts_and_traps.c: */
+Type_annoter: not finding type for lg
+Type_annoter: not finding type for addr
+Type_annoter: not finding type for typecheck
+Type_annoter: not finding type for val
+Type_annoter: not finding type for lg
+Type_annoter: not finding type for addr
+Type_annoter: not finding type for lg
+Type_annoter: not finding type for kasprintf
+Type_annoter: not finding type for fmt
+PB MAYBE: dangerous typedef inference, maybe not a typedef: pgd_t
+parse error 
+ = File "lg.h.new", line 58, column 27,  charpos = 1349
+    around = '*', whole content = 	struct lguest_data __user *lguest_data;
+ERROR-RECOV: found sync '}' at line 103
+ERROR-RECOV: found sync bis, eating } and ;
+badcount: 53
+bad: };
+bad: 
+bad: /* The private info the thread maintains about the guest. */
+bad: struct lguest
+bad: {
+bad: 	/* At end of a page shared mapped over lguest_pages in guest.  */
+bad: 	unsigned long regs_page;
+bad: 	struct lguest_regs *regs;
+BAD:!!!!! 	struct lguest_data __user *lguest_data;
+bad: 	struct task_struct *tsk;
+bad: 	struct mm_struct *mm; 	/* == tsk->mm, but that becomes NULL on exit */
+bad: 	struct lg_cpu cpus[NR_CPUS];
+bad: 	unsigned int nr_cpus;
+bad: 
+bad: 	u32 pfn_limit;
+bad: 	/* This provides the offset to the base of guest-physical
+bad: 	 * memory in the Launcher. */
+bad: 	void __user *mem_base;
+bad: 	unsigned long kernel_address;
+bad: 	u32 cr2;
+bad: 	int halted;
+bad: 	int ts;
+bad: 	u32 esp1;
+bad: 	u8 ss1;
+bad: 
+bad: 	/* Do we need to stop what we're doing and return to userspace? */
+bad: 	int break_out;
+bad: 	wait_queue_head_t break_wq;
+bad: 
+bad: 	/* Bitmap of what has changed: see CHANGED_* above. */
+bad: 	int changed;
+bad: 	struct lguest_pages *last_pages;
+bad: 
+bad: 	/* We keep a small number of these. */
+bad: 	u32 pgdidx;
+bad: 	struct pgdir pgdirs[4];
+bad: 
+bad: 	unsigned long noirq_start, noirq_end;
+bad: 	unsigned long pending_notify; /* pfn from LHCALL_NOTIFY */
+bad: 
+bad: 	unsigned int stack_pages;
+bad: 	u32 tsc_khz;
+bad: 
+bad: 	/* Dead? */
+bad: 	const char *dead;
+bad: 
+bad: 	struct lguest_arch arch;
+bad: 
+bad: 	/* Virtual clock device */
+bad: 	struct hrtimer hrt;
+bad: 
+bad: 	/* Pending virtual interrupts */
+bad: 	DECLARE_BITMAP(irqs_pending, LGUEST_IRQS);
+bad: };
+semantic error signed, unsigned valid only for char and int
+ =File "lg.h.new", line 129, column 60,  charpos = 3325
+    around = ')', whole content = int run_guest(struct lg_cpu *cpu, unsigned long __user *user);
+ERROR-RECOV: found sync col 0 at line 139
+badcount: 12
+bad: 	} while(0)
+bad: /* (end of memory access helper routines) :*/
+bad: 
+BAD:!!!!! int run_guest(struct lg_cpu *cpu, unsigned long __user *user);
+bad: 
+bad: /* Helper macros to obtain the first 12 or the last 20 bits, this is only the
+bad:  * first step in the migration to the kernel types.  pte_pfn is already defined
+bad:  * in the kernel. */
+bad: #define pgd_flags(x)	(pgd_val(x) & ~PAGE_MASK)
+bad: #define pte_flags(x)	(pte_val(x) & ~PAGE_MASK)
+bad: #define pgd_pfn(x)	(pgd_val(x) >> PAGE_SHIFT)
+bad: 
+bad: /* interrupts_and_traps.c: */
+Type_annoter: not finding type for lg
+Type_annoter: not finding type for addr
+Type_annoter: not finding type for typecheck
+Type_annoter: not finding type for val
+Type_annoter: not finding type for lg
+Type_annoter: not finding type for addr
+Type_annoter: not finding type for lg
+Type_annoter: not finding type for kasprintf
+Type_annoter: not finding type for fmt
+semantic error two or more data types
+ =File "core.c.orig", line 369, column 12,  charpos = 13772
+    around = 'lguest_arch_host_init', whole content = void __init lguest_arch_host_init(void)
+ERROR-RECOV: found sync '}' at line 477
+ERROR-RECOV: found sync bis, eating } and ;
+badcount: 112
+bad: }
+bad: 
+bad: /*H:020 Now the Switcher is mapped and every thing else is ready, we need to do
+bad:  * some more i386-specific initialization. */
+BAD:!!!!! void __init lguest_arch_host_init(void)
+bad: {
+bad: 	int i;
+bad: 
+bad: 	/* Most of the i386/switcher.S doesn't care that it's been moved; on
+bad: 	 * Intel, jumps are relative, and it doesn't access any references to
+bad: 	 * external code or data.
+bad: 	 *
+bad: 	 * The only exception is the interrupt handlers in switcher.S: their
+bad: 	 * addresses are placed in a table (default_idt_entries), so we need to
+bad: 	 * update the table with the new addresses.  switcher_offset() is a
+bad: 	 * convenience function which returns the distance between the builtin
+bad: 	 * switcher code and the high-mapped copy we just made. */
+bad: 	for (i = 0; i < IDT_ENTRIES; i++)
+bad: 		default_idt_entries[i] += switcher_offset();
+bad: 
+bad: 	/*
+bad: 	 * Set up the Switcher's per-cpu areas.
+bad: 	 *
+bad: 	 * Each CPU gets two pages of its own within the high-mapped region
+bad: 	 * (aka. "struct lguest_pages").  Much of this can be initialized now,
+bad: 	 * but some depends on what Guest we are running (which is set up in
+bad: 	 * copy_in_guest_info()).
+bad: 	 */
+bad: 	for_each_possible_cpu(i) {
+bad: 		/* lguest_pages() returns this CPU's two pages. */
+bad: 		struct lguest_pages *pages = lguest_pages(i);
+bad: 		/* This is a convenience pointer to make the code fit one
+bad: 		 * statement to a line. */
+bad: 		struct lguest_ro_state *state = &pages->state;
+bad: 
+bad: 		/* The Global Descriptor Table: the Host has a different one
+bad: 		 * for each CPU.  We keep a descriptor for the GDT which says
+bad: 		 * where it is and how big it is (the size is actually the last
+bad: 		 * byte, not the size, hence the "-1"). */
+bad: 		state->host_gdt_desc.size = GDT_SIZE-1;
+bad: 		state->host_gdt_desc.address = (long)get_cpu_gdt_table(i);
+bad: 
+bad: 		/* All CPUs on the Host use the same Interrupt Descriptor
+bad: 		 * Table, so we just use store_idt(), which gets this CPU's IDT
+bad: 		 * descriptor. */
+bad: 		store_idt(&state->host_idt_desc);
+bad: 
+bad: 		/* The descriptors for the Guest's GDT and IDT can be filled
+bad: 		 * out now, too.  We copy the GDT & IDT into ->guest_gdt and
+bad: 		 * ->guest_idt before actually running the Guest. */
+bad: 		state->guest_idt_desc.size = sizeof(state->guest_idt)-1;
+bad: 		state->guest_idt_desc.address = (long)&state->guest_idt;
+bad: 		state->guest_gdt_desc.size = sizeof(state->guest_gdt)-1;
+bad: 		state->guest_gdt_desc.address = (long)&state->guest_gdt;
+bad: 
+bad: 		/* We know where we want the stack to be when the Guest enters
+bad: 		 * the switcher: in pages->regs.  The stack grows upwards, so
+bad: 		 * we start it at the end of that structure. */
+bad: 		state->guest_tss.esp0 = (long)(&pages->regs + 1);
+bad: 		/* And this is the GDT entry to use for the stack: we keep a
+bad: 		 * couple of special LGUEST entries. */
+bad: 		state->guest_tss.ss0 = LGUEST_DS;
+bad: 
+bad: 		/* x86 can have a finegrained bitmap which indicates what I/O
+bad: 		 * ports the process can use.  We set it to the end of our
+bad: 		 * structure, meaning "none". */
+bad: 		state->guest_tss.io_bitmap_base = sizeof(state->guest_tss);
+bad: 
+bad: 		/* Some GDT entries are the same across all Guests, so we can
+bad: 		 * set them up now. */
+bad: 		setup_default_gdt_entries(state);
+bad: 		/* Most IDT entries are the same for all Guests, too.*/
+bad: 		setup_default_idt_entries(state, default_idt_entries);
+bad: 
+bad: 		/* The Host needs to be able to use the LGUEST segments on this
+bad: 		 * CPU, too, so put them in the Host GDT. */
+bad: 		get_cpu_gdt_table(i)[GDT_ENTRY_LGUEST_CS] = FULL_EXEC_SEGMENT;
+bad: 		get_cpu_gdt_table(i)[GDT_ENTRY_LGUEST_DS] = FULL_SEGMENT;
+bad: 	}
+bad: 
+bad: 	/* In the Switcher, we want the %cs segment register to use the
+bad: 	 * LGUEST_CS GDT entry: we've put that in the Host and Guest GDTs, so
+bad: 	 * it will be undisturbed when we switch.  To change %cs and jump we
+bad: 	 * need this structure to feed to Intel's "lcall" instruction. */
+bad: 	lguest_entry.offset = (long)switch_to_guest + switcher_offset();
+bad: 	lguest_entry.segment = LGUEST_CS;
+bad: 
+bad: 	/* Finally, we need to turn off "Page Global Enable".  PGE is an
+bad: 	 * optimization where page table entries are specially marked to show
+bad: 	 * they never change.  The Host kernel marks all the kernel pages this
+bad: 	 * way because it's always present, even when userspace is running.
+bad: 	 *
+bad: 	 * Lguest breaks this: unbeknownst to the rest of the Host kernel, we
+bad: 	 * switch to the Guest kernel.  If you don't disable this on all CPUs,
+bad: 	 * you'll get really weird bugs that you'll chase for two days.
+bad: 	 *
+bad: 	 * I used to turn PGE off every time we switched to the Guest and back
+bad: 	 * on when we return, but that slowed the Switcher down noticibly. */
+bad: 
+bad: 	/* We don't need the complexity of CPUs coming and going while we're
+bad: 	 * doing this. */
+bad: 	get_online_cpus();
+bad: 	if (cpu_has_pge) { /* We have a broader idea of "global". */
+bad: 		/* Remember that this was originally set (for cleanup). */
+bad: 		cpu_had_pge = 1;
+bad: 		/* adjust_pge is a helper function which sets or unsets the PGE
+bad: 		 * bit on its CPU, depending on the argument (0 == unset). */
+bad: 		on_each_cpu(adjust_pge, (void *)0, 0, 1);
+bad: 		/* Turn off the feature in the global feature set. */
+bad: 		clear_bit(X86_FEATURE_PGE, boot_cpu_data.x86_capability);
+bad: 	}
+bad: 	put_online_cpus();
+bad: };
+semantic error two or more data types
+ =File "core.c.orig", line 480, column 12,  charpos = 18591
+    around = 'lguest_arch_host_fini', whole content = void __exit lguest_arch_host_fini(void)
+ERROR-RECOV: found sync '}' at line 490
+badcount: 13
+bad: };
+bad: /*:*/
+bad: 
+BAD:!!!!! void __exit lguest_arch_host_fini(void)
+bad: {
+bad: 	/* If we had PGE before we started, turn it back on now. */
+bad: 	get_online_cpus();
+bad: 	if (cpu_had_pge) {
+bad: 		set_bit(X86_FEATURE_PGE, boot_cpu_data.x86_capability);
+bad: 		/* adjust_pge's argument "1" means set PGE. */
+bad: 		on_each_cpu(adjust_pge, (void *)1, 0, 1);
+bad: 	}
+bad: 	put_online_cpus();
+bad: }
+no type, certainly because Void type ?
+Type_annoter: not finding type for start_switcher_text
+Type_annoter: not finding type for last_guest
+Type_annoter: not finding type for last_guest
+Type_annoter: not finding type for current
+Type_annoter: not finding type for map_switcher_in_guest
+Type_annoter: not finding type for copy_traps
+Type_annoter: not finding type for default_idt_entries
+Type_annoter: not finding type for copy_gdt
+Type_annoter: not finding type for copy_gdt_tls
+Type_annoter: not finding type for lguest_set_ts
+Type_annoter: not finding type for boot_cpu_has
+Type_annoter: not finding type for wrmsr
+Type_annoter: not finding type for raw_smp_processor_id
+Type_annoter: not finding type for read_cr2
+Type_annoter: not finding type for math_state_restore
+Type_annoter: not finding type for guest_pa
+Type_annoter: not finding type for lgread
+Type_annoter: not finding type for demand_page
+Type_annoter: not finding type for put_user
+Type_annoter: not finding type for kill_guest
+Type_annoter: not finding type for cond_resched
+Type_annoter: not finding type for deliver_trap
+Type_annoter: not finding type for write_cr4
+Type_annoter: not finding type for read_cr4
+Type_annoter: not finding type for load_guest_gdt
+Type_annoter: not finding type for load_guest_idt_entry
+Type_annoter: not finding type for guest_load_tls
+Type_annoter: not finding type for lguest_address_ok
+Type_annoter: not finding type for boot_cpu_has
+Type_annoter: not finding type for check_tsc_unstable
+Type_annoter: not finding type for tsc_khz
+Type_annoter: not finding type for put_user
+Type_annoter: not finding type for check_syscall_vector
+Type_annoter: not finding type for kill_guest
+Type_annoter: not finding type for setup_guest_gdt
+semantic error two or more data types
+ =File "core.c.new", line 370, column 12,  charpos = 13804
+    around = 'lguest_arch_host_init', whole content = void __init lguest_arch_host_init(void)
+ERROR-RECOV: found sync '}' at line 478
+ERROR-RECOV: found sync bis, eating } and ;
+badcount: 112
+bad: }
+bad: 
+bad: /*H:020 Now the Switcher is mapped and every thing else is ready, we need to do
+bad:  * some more i386-specific initialization. */
+BAD:!!!!! void __init lguest_arch_host_init(void)
+bad: {
+bad: 	int i;
+bad: 
+bad: 	/* Most of the i386/switcher.S doesn't care that it's been moved; on
+bad: 	 * Intel, jumps are relative, and it doesn't access any references to
+bad: 	 * external code or data.
+bad: 	 *
+bad: 	 * The only exception is the interrupt handlers in switcher.S: their
+bad: 	 * addresses are placed in a table (default_idt_entries), so we need to
+bad: 	 * update the table with the new addresses.  switcher_offset() is a
+bad: 	 * convenience function which returns the distance between the builtin
+bad: 	 * switcher code and the high-mapped copy we just made. */
+bad: 	for (i = 0; i < IDT_ENTRIES; i++)
+bad: 		default_idt_entries[i] += switcher_offset();
+bad: 
+bad: 	/*
+bad: 	 * Set up the Switcher's per-cpu areas.
+bad: 	 *
+bad: 	 * Each CPU gets two pages of its own within the high-mapped region
+bad: 	 * (aka. "struct lguest_pages").  Much of this can be initialized now,
+bad: 	 * but some depends on what Guest we are running (which is set up in
+bad: 	 * copy_in_guest_info()).
+bad: 	 */
+bad: 	for_each_possible_cpu(i) {
+bad: 		/* lguest_pages() returns this CPU's two pages. */
+bad: 		struct lguest_pages *pages = lguest_pages(i);
+bad: 		/* This is a convenience pointer to make the code fit one
+bad: 		 * statement to a line. */
+bad: 		struct lguest_ro_state *state = &pages->state;
+bad: 
+bad: 		/* The Global Descriptor Table: the Host has a different one
+bad: 		 * for each CPU.  We keep a descriptor for the GDT which says
+bad: 		 * where it is and how big it is (the size is actually the last
+bad: 		 * byte, not the size, hence the "-1"). */
+bad: 		state->host_gdt_desc.size = GDT_SIZE-1;
+bad: 		state->host_gdt_desc.address = (long)get_cpu_gdt_table(i);
+bad: 
+bad: 		/* All CPUs on the Host use the same Interrupt Descriptor
+bad: 		 * Table, so we just use store_idt(), which gets this CPU's IDT
+bad: 		 * descriptor. */
+bad: 		store_idt(&state->host_idt_desc);
+bad: 
+bad: 		/* The descriptors for the Guest's GDT and IDT can be filled
+bad: 		 * out now, too.  We copy the GDT & IDT into ->guest_gdt and
+bad: 		 * ->guest_idt before actually running the Guest. */
+bad: 		state->guest_idt_desc.size = sizeof(state->guest_idt)-1;
+bad: 		state->guest_idt_desc.address = (long)&state->guest_idt;
+bad: 		state->guest_gdt_desc.size = sizeof(state->guest_gdt)-1;
+bad: 		state->guest_gdt_desc.address = (long)&state->guest_gdt;
+bad: 
+bad: 		/* We know where we want the stack to be when the Guest enters
+bad: 		 * the switcher: in pages->regs.  The stack grows upwards, so
+bad: 		 * we start it at the end of that structure. */
+bad: 		state->guest_tss.esp0 = (long)(&pages->regs + 1);
+bad: 		/* And this is the GDT entry to use for the stack: we keep a
+bad: 		 * couple of special LGUEST entries. */
+bad: 		state->guest_tss.ss0 = LGUEST_DS;
+bad: 
+bad: 		/* x86 can have a finegrained bitmap which indicates what I/O
+bad: 		 * ports the process can use.  We set it to the end of our
+bad: 		 * structure, meaning "none". */
+bad: 		state->guest_tss.io_bitmap_base = sizeof(state->guest_tss);
+bad: 
+bad: 		/* Some GDT entries are the same across all Guests, so we can
+bad: 		 * set them up now. */
+bad: 		setup_default_gdt_entries(state);
+bad: 		/* Most IDT entries are the same for all Guests, too.*/
+bad: 		setup_default_idt_entries(state, default_idt_entries);
+bad: 
+bad: 		/* The Host needs to be able to use the LGUEST segments on this
+bad: 		 * CPU, too, so put them in the Host GDT. */
+bad: 		get_cpu_gdt_table(i)[GDT_ENTRY_LGUEST_CS] = FULL_EXEC_SEGMENT;
+bad: 		get_cpu_gdt_table(i)[GDT_ENTRY_LGUEST_DS] = FULL_SEGMENT;
+bad: 	}
+bad: 
+bad: 	/* In the Switcher, we want the %cs segment register to use the
+bad: 	 * LGUEST_CS GDT entry: we've put that in the Host and Guest GDTs, so
+bad: 	 * it will be undisturbed when we switch.  To change %cs and jump we
+bad: 	 * need this structure to feed to Intel's "lcall" instruction. */
+bad: 	lguest_entry.offset = (long)switch_to_guest + switcher_offset();
+bad: 	lguest_entry.segment = LGUEST_CS;
+bad: 
+bad: 	/* Finally, we need to turn off "Page Global Enable".  PGE is an
+bad: 	 * optimization where page table entries are specially marked to show
+bad: 	 * they never change.  The Host kernel marks all the kernel pages this
+bad: 	 * way because it's always present, even when userspace is running.
+bad: 	 *
+bad: 	 * Lguest breaks this: unbeknownst to the rest of the Host kernel, we
+bad: 	 * switch to the Guest kernel.  If you don't disable this on all CPUs,
+bad: 	 * you'll get really weird bugs that you'll chase for two days.
+bad: 	 *
+bad: 	 * I used to turn PGE off every time we switched to the Guest and back
+bad: 	 * on when we return, but that slowed the Switcher down noticibly. */
+bad: 
+bad: 	/* We don't need the complexity of CPUs coming and going while we're
+bad: 	 * doing this. */
+bad: 	get_online_cpus();
+bad: 	if (cpu_has_pge) { /* We have a broader idea of "global". */
+bad: 		/* Remember that this was originally set (for cleanup). */
+bad: 		cpu_had_pge = 1;
+bad: 		/* adjust_pge is a helper function which sets or unsets the PGE
+bad: 		 * bit on its CPU, depending on the argument (0 == unset). */
+bad: 		on_each_cpu(adjust_pge, (void *)0, 0, 1);
+bad: 		/* Turn off the feature in the global feature set. */
+bad: 		clear_bit(X86_FEATURE_PGE, boot_cpu_data.x86_capability);
+bad: 	}
+bad: 	put_online_cpus();
+bad: };
+semantic error two or more data types
+ =File "core.c.new", line 481, column 12,  charpos = 18623
+    around = 'lguest_arch_host_fini', whole content = void __exit lguest_arch_host_fini(void)
+ERROR-RECOV: found sync '}' at line 491
+badcount: 13
+bad: };
+bad: /*:*/
+bad: 
+BAD:!!!!! void __exit lguest_arch_host_fini(void)
+bad: {
+bad: 	/* If we had PGE before we started, turn it back on now. */
+bad: 	get_online_cpus();
+bad: 	if (cpu_had_pge) {
+bad: 		set_bit(X86_FEATURE_PGE, boot_cpu_data.x86_capability);
+bad: 		/* adjust_pge's argument "1" means set PGE. */
+bad: 		on_each_cpu(adjust_pge, (void *)1, 0, 1);
+bad: 	}
+bad: 	put_online_cpus();
+bad: }
+no type, certainly because Void type ?
+Type_annoter: not finding type for start_switcher_text
+Type_annoter: not finding type for last_guest
+Type_annoter: not finding type for last_guest
+Type_annoter: not finding type for current
+Type_annoter: not finding type for map_switcher_in_guest
+Type_annoter: not finding type for copy_traps
+Type_annoter: not finding type for default_idt_entries
+Type_annoter: not finding type for copy_gdt
+Type_annoter: not finding type for copy_gdt_tls
+Type_annoter: not finding type for lguest_set_ts
+Type_annoter: not finding type for boot_cpu_has
+Type_annoter: not finding type for wrmsr
+Type_annoter: not finding type for raw_smp_processor_id
+Type_annoter: not finding type for read_cr2
+Type_annoter: not finding type for math_state_restore
+Type_annoter: not finding type for guest_pa
+Type_annoter: not finding type for lgread
+Type_annoter: not finding type for demand_page
+Type_annoter: not finding type for put_user
+Type_annoter: not finding type for kill_guest
+Type_annoter: not finding type for cond_resched
+Type_annoter: not finding type for deliver_trap
+Type_annoter: not finding type for write_cr4
+Type_annoter: not finding type for read_cr4
+Type_annoter: not finding type for load_guest_gdt
+Type_annoter: not finding type for load_guest_idt_entry
+Type_annoter: not finding type for guest_load_tls
+Type_annoter: not finding type for lguest_address_ok
+Type_annoter: not finding type for boot_cpu_has
+Type_annoter: not finding type for check_tsc_unstable
+Type_annoter: not finding type for tsc_khz
+Type_annoter: not finding type for put_user
+Type_annoter: not finding type for check_syscall_vector
+Type_annoter: not finding type for kill_guest
+Type_annoter: not finding type for setup_guest_gdt

@@ -1,0 +1,250 @@
+PB MAYBE: dangerous typedef inference, maybe not a typedef: ax25_dev
+CONFLICT:ax25_dev
+TODO:other transforming?
+Type_annoter: not finding type for skb_pull
+Type_annoter: not finding type for skb_queue_tail
+Type_annoter: not finding type for alloc_skb
+Type_annoter: not finding type for skb_queue_purge
+Type_annoter: not finding type for skb_reserve
+Type_annoter: not finding type for skb_reset_network_header
+Type_annoter: not finding type for skb_reset_transport_header
+Type_annoter: not finding type for skb_dequeue
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for skb_put
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for ax25_rx_iframe
+Type_annoter: not finding type for ax25_start_idletimer
+Type_annoter: not finding type for skb_copy
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for skb_pull
+Type_annoter: not finding type for skb_reset_mac_header
+Type_annoter: not finding type for skb_reset_network_header
+Type_annoter: not finding type for htons
+Type_annoter: not finding type for netif_rx
+Type_annoter: not finding type for ax25_protocol_function
+Type_annoter: not finding type for sock_queue_rcv_skb
+Type_annoter: not finding type for ax25_std_frame_in
+Type_annoter: not finding type for ax25_ds_frame_in
+Type_annoter: not finding type for skb_reset_transport_header
+Type_annoter: not finding type for ax25_dev_ax25dev
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for ax25_addr_parse
+Type_annoter: not finding type for skb_pull
+Type_annoter: not finding type for ax25_addr_size
+Type_annoter: not finding type for ax25cmp
+Type_annoter: not finding type for ax25_listen_mine
+Type_annoter: not finding type for skb_set_transport_header
+Type_annoter: not finding type for ax25_send_to_raw
+Type_annoter: not finding type for skb_reset_network_header
+Type_annoter: not finding type for htons
+Type_annoter: not finding type for netif_rx
+Type_annoter: not finding type for ax25_get_socket
+Type_annoter: not finding type for bh_lock_sock
+Type_annoter: not finding type for atomic_read
+Type_annoter: not finding type for sock_queue_rcv_skb
+Type_annoter: not finding type for bh_unlock_sock
+Type_annoter: not finding type for sock_put
+Type_annoter: not finding type for ax25_digi_invert
+Type_annoter: not finding type for ax25_find_cb
+Type_annoter: not finding type for ax25_cb_put
+Type_annoter: not finding type for ax25_return_dm
+Type_annoter: not finding type for ax25_find_listener
+Type_annoter: not finding type for sk_acceptq_is_full
+Type_annoter: not finding type for ax25_make_new
+Type_annoter: not finding type for ax25_sk
+Type_annoter: not finding type for skb_set_owner_r
+Type_annoter: not finding type for skb_queue_head
+Type_annoter: not finding type for ax25_create_cb
+Type_annoter: not finding type for ax25_fillin_cb
+Type_annoter: not finding type for kmalloc
+Type_annoter: not finding type for ax25_destroy_socket
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for ax25_send_control
+Type_annoter: not finding type for ax25_dama_on
+Type_annoter: not finding type for ax25_cb_add
+Type_annoter: not finding type for ax25_start_heartbeat
+Type_annoter: not finding type for ax25_start_t3timer
+Type_annoter: not finding type for ax25_start_idletimer
+Type_annoter: not finding type for sock_flag
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for skb_pull
+PB MAYBE: dangerous typedef inference, maybe not a typedef: ax25_dev
+CONFLICT:ax25_dev
+TODO:other transforming?
+Type_annoter: not finding type for skb_pull
+Type_annoter: not finding type for skb_queue_tail
+Type_annoter: not finding type for alloc_skb
+Type_annoter: not finding type for skb_queue_purge
+Type_annoter: not finding type for skb_reserve
+Type_annoter: not finding type for skb_reset_network_header
+Type_annoter: not finding type for skb_reset_transport_header
+Type_annoter: not finding type for skb_dequeue
+Type_annoter: not finding type for skb_copy_from_linear_data
+Type_annoter: not finding type for skb_put
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for ax25_rx_iframe
+Type_annoter: not finding type for ax25_start_idletimer
+Type_annoter: not finding type for skb_copy
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for skb_pull
+Type_annoter: not finding type for skb_reset_mac_header
+Type_annoter: not finding type for skb_reset_network_header
+Type_annoter: not finding type for htons
+Type_annoter: not finding type for netif_rx
+Type_annoter: not finding type for ax25_protocol_function
+Type_annoter: not finding type for sock_queue_rcv_skb
+Type_annoter: not finding type for ax25_std_frame_in
+Type_annoter: not finding type for ax25_ds_frame_in
+Type_annoter: not finding type for skb_reset_transport_header
+Type_annoter: not finding type for ax25_dev_ax25dev
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for ax25_addr_parse
+Type_annoter: not finding type for skb_pull
+Type_annoter: not finding type for ax25_addr_size
+Type_annoter: not finding type for ax25cmp
+Type_annoter: not finding type for ax25_listen_mine
+Type_annoter: not finding type for skb_set_transport_header
+Type_annoter: not finding type for ax25_send_to_raw
+Type_annoter: not finding type for skb_reset_network_header
+Type_annoter: not finding type for htons
+Type_annoter: not finding type for netif_rx
+Type_annoter: not finding type for ax25_get_socket
+Type_annoter: not finding type for bh_lock_sock
+Type_annoter: not finding type for atomic_read
+Type_annoter: not finding type for sock_queue_rcv_skb
+Type_annoter: not finding type for bh_unlock_sock
+Type_annoter: not finding type for sock_put
+Type_annoter: not finding type for ax25_digi_invert
+Type_annoter: not finding type for ax25_find_cb
+Type_annoter: not finding type for ax25_cb_put
+Type_annoter: not finding type for ax25_return_dm
+Type_annoter: not finding type for ax25_find_listener
+Type_annoter: not finding type for sk_acceptq_is_full
+Type_annoter: not finding type for ax25_make_new
+Type_annoter: not finding type for ax25_sk
+Type_annoter: not finding type for skb_set_owner_r
+Type_annoter: not finding type for skb_queue_head
+Type_annoter: not finding type for ax25_create_cb
+Type_annoter: not finding type for ax25_fillin_cb
+Type_annoter: not finding type for kmalloc
+Type_annoter: not finding type for ax25_destroy_socket
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for ax25_send_control
+Type_annoter: not finding type for ax25_dama_on
+Type_annoter: not finding type for ax25_cb_add
+Type_annoter: not finding type for ax25_start_heartbeat
+Type_annoter: not finding type for ax25_start_t3timer
+Type_annoter: not finding type for ax25_start_idletimer
+Type_annoter: not finding type for sock_flag
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for skb_pull
+semantic error two or more data types
+ =File "dn_rtmsg.c.orig", line 136, column 18,  charpos = 3274
+    around = 'dn_rtmsg_init', whole content = static int __init dn_rtmsg_init(void)
+ERROR-RECOV: found sync '}' at line 153
+badcount: 19
+bad: };
+bad: 
+BAD:!!!!! static int __init dn_rtmsg_init(void)
+bad: {
+bad: 	int rv = 0;
+bad: 
+bad: 	dnrmg = netlink_kernel_create(NETLINK_DNRTMSG, DNRNG_NLGRP_MAX,
+bad: 				      dnrmg_receive_user_sk, THIS_MODULE);
+bad: 	if (dnrmg == NULL) {
+bad: 		printk(KERN_ERR "dn_rtmsg: Cannot create netlink socket");
+bad: 		return -ENOMEM;
+bad: 	}
+bad: 
+bad: 	rv = nf_register_hook(&dnrmg_ops);
+bad: 	if (rv) {
+bad: 		sock_release(dnrmg->sk_socket);
+bad: 	}
+bad: 
+bad: 	return rv;
+bad: }
+semantic error two or more data types
+ =File "dn_rtmsg.c.orig", line 155, column 19,  charpos = 3646
+    around = 'dn_rtmsg_fini', whole content = static void __exit dn_rtmsg_fini(void)
+ERROR-RECOV: found sync '}' at line 159
+badcount: 6
+bad: }
+bad: 
+BAD:!!!!! static void __exit dn_rtmsg_fini(void)
+bad: {
+bad: 	nf_unregister_hook(&dnrmg_ops);
+bad: 	sock_release(dnrmg->sk_socket);
+bad: }
+Type_annoter: not finding type for alloc_skb
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for net_ratelimit
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for netlink_broadcast
+Type_annoter: not finding type for netlink_ack
+Type_annoter: not finding type for skb
+Type_annoter: not finding type for nlh
+Type_annoter: not finding type for err
+Type_annoter: not finding type for nlmsg_hdr
+Type_annoter: not finding type for security_netlink_recv
+Type_annoter: not finding type for skb_queue_len
+Type_annoter: not finding type for skb_dequeue
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for dn_rtmsg_init
+Type_annoter: not finding type for dn_rtmsg_fini
+semantic error two or more data types
+ =File "dn_rtmsg.c.new", line 136, column 18,  charpos = 3287
+    around = 'dn_rtmsg_init', whole content = static int __init dn_rtmsg_init(void)
+ERROR-RECOV: found sync '}' at line 153
+badcount: 19
+bad: };
+bad: 
+BAD:!!!!! static int __init dn_rtmsg_init(void)
+bad: {
+bad: 	int rv = 0;
+bad: 
+bad: 	dnrmg = netlink_kernel_create(NETLINK_DNRTMSG, DNRNG_NLGRP_MAX,
+bad: 				      dnrmg_receive_user_sk, THIS_MODULE);
+bad: 	if (dnrmg == NULL) {
+bad: 		printk(KERN_ERR "dn_rtmsg: Cannot create netlink socket");
+bad: 		return -ENOMEM;
+bad: 	}
+bad: 
+bad: 	rv = nf_register_hook(&dnrmg_ops);
+bad: 	if (rv) {
+bad: 		sock_release(dnrmg->sk_socket);
+bad: 	}
+bad: 
+bad: 	return rv;
+bad: }
+semantic error two or more data types
+ =File "dn_rtmsg.c.new", line 155, column 19,  charpos = 3659
+    around = 'dn_rtmsg_fini', whole content = static void __exit dn_rtmsg_fini(void)
+ERROR-RECOV: found sync '}' at line 159
+badcount: 6
+bad: }
+bad: 
+BAD:!!!!! static void __exit dn_rtmsg_fini(void)
+bad: {
+bad: 	nf_unregister_hook(&dnrmg_ops);
+bad: 	sock_release(dnrmg->sk_socket);
+bad: }
+Type_annoter: not finding type for alloc_skb
+Type_annoter: not finding type for skb_copy_from_linear_data
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for net_ratelimit
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for netlink_broadcast
+Type_annoter: not finding type for netlink_ack
+Type_annoter: not finding type for skb
+Type_annoter: not finding type for nlh
+Type_annoter: not finding type for err
+Type_annoter: not finding type for nlmsg_hdr
+Type_annoter: not finding type for security_netlink_recv
+Type_annoter: not finding type for skb_queue_len
+Type_annoter: not finding type for skb_dequeue
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for dn_rtmsg_init
+Type_annoter: not finding type for dn_rtmsg_fini
