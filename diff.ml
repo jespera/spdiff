@@ -1526,20 +1526,21 @@ let rec abs_term_imp terms_changed is_fixed should_abs up =
         if should_abs t && not(terms_changed t)
         then get_metas build_mode env t 
         else [], env
-        in
-        cur_depth := !cur_depth - 1;
-        let ts_lists, env_ts = List.fold_left
-        (fun (ts_lists_acc, acc_env) tn ->
-          let abs_tns, env_n = 
-            loop build_mode acc_env tn 
       in
-      let abs_tns = if abs_tns = [] then [tn] else abs_tns in
-      abs_tns :: ts_lists_acc, env_n
-        ) ([], env) (List.rev ts) in
-        cur_depth := !cur_depth + 1;
-        let perms = gen_perms ts_lists in
-        let rs = List.rev (List.fold_left (fun acc_t args -> 
-          C(ct, args) :: acc_t) [] perms) in
+      cur_depth := !cur_depth - 1;
+      let ts_lists, env_ts = List.fold_left
+        (fun (ts_lists_acc, acc_env) tn ->
+          let abs_tns, env_n = loop build_mode acc_env tn 
+          in
+          let abs_tns = if abs_tns = [] then [tn] else abs_tns in
+          abs_tns :: ts_lists_acc, env_n) 
+        ([], env) (List.rev ts) 
+      in
+      cur_depth := !cur_depth + 1;
+      let perms = gen_perms ts_lists in
+      let rs = List.rev (List.fold_left (fun acc_t args -> 
+          C(ct, args) :: acc_t) [] perms) 
+      in
         metas @ rs, env_ts in(*}}}*)
   match up with 
   | UP(lhs, rhs) -> 

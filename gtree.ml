@@ -24,6 +24,14 @@ let rec gsize t =
   | C(ct, ts) -> 1 + List.fold_left 
       (fun a b -> a + gsize b) 1 ts
 
+let rec zsize t =
+  match t with
+  | A ("meta", _) -> 0
+  | A (at, ac) -> String.length ac
+  | C ("TYPEDEXP", _) -> 0
+  | C(ct, ts) -> 1 + List.fold_left 
+      (fun a b -> a + zsize b) 1 ts
+
 let rec gdepth t =
   match t with
   | A _ -> 0

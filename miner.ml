@@ -28,7 +28,7 @@
  * return res
  *)
 
-open Db
+(*open Db*)
 
 let ($) db itemset = Db.get_support_itemset db itemset
 
@@ -80,6 +80,23 @@ let rec dmine db threshold =
     if Db.sizeOne db
     then Db.makeAllPerms db
     else snd (Db.fold_unique db localf (db, Db.makeEmpty ()))
+
+let dmine_cls db_orig threshold =
+  let get_items db = Db.fold_unique db (fun a b -> a :: b) [] in
+  let g_sup iset = db_orig $ iset in
+  let (++) iset db = Db.add_itemset_cdb g_sup db (iset, g_sup iset) in
+  let rec gen acc_db current_db current_iset =
+    let next_db = Db.rm_infrequent current_db threshold in
+    if Db.isEmpty next_db
+    then current_db ++ acc_db
+    else
+      let next_items = get_items next_db in
+      List.fold_left (fun acc_db item ->
+        let next_iset = item :: current_iset in
+        let restricted_db = Db.restrict_item current_db item in
+        gen acc_db restricted_db next_iset
+      ) acc_db next_items in
+  gen (Db.makeEmpty ()) db_orig []
 
   (*let rec loop db res =*)
     (*match filter_infrequent db threshold with*)

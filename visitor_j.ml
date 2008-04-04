@@ -29,7 +29,7 @@ let rec trans_expr exp =
   match unwrap_e with
   | Ident s ->
       (match !typ with
-        | None -> "exp" @@ "ident:notype" %% s
+        | None -> "exp" @@ "ident" %% s
         | Some ft -> "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% s])
   | Constant (String (s, _)) -> 
       "exp" @@ "const" @@ "string" %% s
@@ -346,14 +346,15 @@ and trans_decl decl = match decl with
 | MacroDecl ((s, args), _) -> 
     "mdecl" @@ s @@@ List.map (function a -> trans_arg (unwrap a)) args
 and trans_odecl ((fopt, ftype, stor), _) = match fopt with
-  | None -> raise (Fail "decl_spec with no init_decl")
+  | None -> "onedecl" %% "()"
+      (*raise (Fail "decl_spec with no init_decl")*)
   | Some ((var, initOpt), _) -> 
       let gt_var = "ident" %% var in
       let gt_ft  = trans_type ftype in
       let gt_sto = trans_storage stor in
       match initOpt with
       | None -> "onedecl" @@@ [gt_var;gt_ft;gt_sto]
-      | Some ini -> "onedecl" @@@ 
+      | Some ini -> "onedecl_ini" @@@ 
         [gt_var; trans_ini ini; gt_ft; gt_sto]
 and trans_storage (sto, inl) =
   let inl_gt = "inline" %% if inl then "yes" else "no" in
@@ -406,10 +407,12 @@ and trans_define_val = A("def_val", "N/H")
 and trans_top top = 
   match top with
   | Definition def -> trans_def def
-  | Declaration _ -> A("decl", "N/H")
+  | Declaration decl -> trans_decl decl
   | Include i -> trans_include i
   | Define _ -> A("define", "N/H")
-  | MacroTop _ -> A("mtop", "N/H")
+  | MacroTop (str, args2, _) ->
+      "macrotop" @@ str @@@
+      List.map (function a2 -> trans_arg (unwrap a2)) args2
   | EmptyDef _ -> A("edef", "N/H")
   | NotParsedCorrectly _ -> A("NCP","N/H")
   | FinalDef _ -> A("fdef", "N/H")

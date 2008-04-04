@@ -4,7 +4,7 @@
 let src_file     = ref ""
 let tgt_file     = ref ""
 let toprint      = ref false
-let closed       = ref false
+let mk_closed    = ref false
 let abs          = ref false
 let spec         = ref false
 let mfile        = ref ""
@@ -15,7 +15,7 @@ let strict       = ref false
 let mvars        = ref false
 let fixed        = ref false
 let exceptions   = ref 0 
-let close        = ref false
+let print_close  = ref false
 let print_raw    = ref false
 let print_uniq   = ref false 
 let print_adding = ref false
@@ -24,7 +24,7 @@ let speclist =
   Arg.align
     ["-src",           Arg.Set_string src_file, "str   gives the name of the src file";
      "-tgt",           Arg.Set_string tgt_file, "str   gives the name of the tgt file";
-     "-close",         Arg.Set closed,          "bool  indicates that we should also produce the closed db";
+     "-mk_closed",     Arg.Set mk_closed,       "bool  indicates that we should also produce the closed db";
      "-print",         Arg.Set toprint,         "bool  indicates printing of the (non-closed) db";
      "-abs",           Arg.Set abs,             "bool  indicates whether to perform meta-variable abstraction";
      "-specfile",      Arg.Set_string mfile,    "str   name of specification file";
@@ -35,7 +35,7 @@ let speclist =
      "-multiple",      Arg.Set mvars,           "bool  allow equal terms to have different metas";
      "-fixed",         Arg.Set fixed,           "bool  never abstract fixed terms";
      "-exceptions",    Arg.Set_int exceptions,  "int   the number of allowed exceptions to the rule derived";
-     "-close",         Arg.Set close,           "bool  whether to close the resulting mined database (default: no)";
+     "-print_close",   Arg.Set print_close,     "bool  whether to close the resulting mined database (default: no)";
      "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing, "bool  also parse if0 blocks";
      "-print_abs",     Arg.Set Diff.print_abs,  "bool  print abstract updates for each term pair";
      "-relax_safe",    Arg.Set Diff.relax,      "bool  consider non-application safe";
@@ -142,8 +142,14 @@ let do_datamining abs_patches =
   let threshold = List.length abs_patches in
   print_endline ("[Main] Mining using minimum support: " ^
   string_of_int (threshold - !exceptions));
-  let rdb = Diff.DBD.dmine fdb (threshold - !exceptions) in
+  print_endline ("[Main] initial db size " ^ string_of_int (Diff.DBD.sizeOf fdb));
+  let mfunc = if !mk_closed then 
+    (print_endline "[Main] using closed sub-itemsets";
+    Diff.DBD.dmine_cls)
+    else Diff.DBD.dmine in
+  let cdb = mfunc fdb (threshold - !exceptions) in
   (* close the database occording to command line prefs *)
+  (*
   let cdb = if !close then (
     print_endline "[Mine] closing";
     Diff.DBD.close_db fdb rdb)
@@ -152,6 +158,7 @@ let do_datamining abs_patches =
   (*Diff.DBD.print_db*)
     (*Diff.string_of_diff*)
     (*cdb;*)
+  *)
   let f = fun acc itemset -> Diff.non_dub_app itemset  acc in
   Diff.DBD.fold_itemset cdb f []
   
@@ -361,6 +368,7 @@ let generate_sols chgset_orig simple_patches =
  * everywhere
  *)
 let get_all_safe changeset abs_patches =
+  print_endline "[Main] filter_all";
   if not(!Diff.relax)
   then Diff.filter_all abs_patches
   else 
@@ -447,8 +455,10 @@ let spec_main () =
    *)
   (*do_datamining abs_patches*)(*}}}*)
   print_endline "[Main] filtering all safe patches."; 
-  let filtered_patches = do_datamining abs_patches
-    (* get_all_safe term_pairs abs_patches *)
+  let filtered_patches = 
+    if !mk_closed
+    then do_datamining abs_patches
+    else get_all_safe term_pairs abs_patches
     in
   if !print_raw
   then (

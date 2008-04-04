@@ -536,8 +536,8 @@ let prefixAll i ilist = List.fold_left (fun acc_lists -> fun xs ->
 let powerset ilist = List.fold_left (fun acc -> fun el -> (prefixAll el acc)) [] ilist
 
 let makeAllPerms db = 
-  print_endline "making items... ";
-  let (num, items) = fold_unique db (fun item -> fun 1 -> fun (n, items_list)-> 
+  print_endline "making makeAllPerms";
+  let (num, items) = fold_unique db (fun item 1 (n, items_list) -> 
     (n + 1, item :: items_list)) (0,[]) in
   print_endline "done\npowerset... ";
   let db_list = powerset items in
@@ -583,8 +583,6 @@ let interestRatio itemset sup =
   (*["3"]*)
 (*let fi = function item -> function itemset -> List.exists ((=) item) itemset*)
 
-let ($) db itemset = get_support_itemset db itemset
-
 let mined_db2str string_of_item orig_db db = 
   List.fold_left (function acc_str -> function itemset ->
     List.fold_left (function inner_str -> function item ->
@@ -620,5 +618,25 @@ let rec dmine db threshold =
     if sizeOne db
     then makeAllPerms db
     else snd (fold_unique db localf (db, makeEmpty ()))
+
+let dmine_cls db_orig threshold =
+  let get_items db = fold_unique db (fun item fre ls -> item :: ls) [] in
+  let g_sup iset = db_orig $ iset in
+  let (++) iset db = 
+    print_string "+";
+    flush stdout;
+    add_itemset_cdb g_sup db (iset, g_sup iset) in
+  let rec gen acc_db current_db current_iset =
+    let next_db = rm_infrequent current_db threshold in
+    if isEmpty next_db
+    then current_iset ++ acc_db
+    else
+      let next_items = get_items next_db in
+      List.fold_left (fun acc_db item ->
+        let next_iset = item :: current_iset in
+        let restricted_db = restrict_item current_db item in
+        gen acc_db restricted_db next_iset
+      ) acc_db next_items in
+  gen (makeEmpty ()) db_orig []
 
 end
