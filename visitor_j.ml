@@ -191,8 +191,10 @@ and trans_statement sta =
 and trans_labeled lab = match lab with
 | Label (s, stat) -> "labeled" @@@ ["lname" %% s; trans_statement stat]
 | Case (e, stat) -> "case" @@@ [trans_expr e; trans_statement stat]
+| CaseRange (e1, e2, st) -> "caseRange" @@@ [
+    trans_expr e1; trans_expr e2;
+    trans_statement st]
 | Default stat -> "default" @@ trans_statement stat
-| _ -> raise (Fail "labeled")
 and trans_iter i = 
   match i with
   | While (e, s) -> "while" @@@ [
