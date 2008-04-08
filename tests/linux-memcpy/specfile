@@ -1,9 +1,9 @@
 dn_rtmsg.c.orig dn_rtmsg.c.new
 ax25_in.c.orig ax25_in.c.new
-#xpnet.c.orig xpnet.c.new
-#atmtcp.c.orig atmtcp.c.new
-#nicstar.c.orig nicstar.c.new
-#bfusb.c.orig bfusb.c.new
+xpnet.c.orig xpnet.c.new
+atmtcp.c.orig atmtcp.c.new
+nicstar.c.orig nicstar.c.new
+bfusb.c.orig bfusb.c.new
 #bpa10x.c.orig bpa10x.c.new
 #dtl1_cs.c.orig dtl1_cs.c.new
 #synclink_cs.c.orig synclink_cs.c.new

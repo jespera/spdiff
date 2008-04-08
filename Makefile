@@ -8,7 +8,7 @@ SRC=main.ml
 COCCI=/home/jespera/CS/cocci/coccinelle
 
 SYSLIBS=str.cma unix.cma
-LIBS=$(COCCI)/commons/commons.cma $(COCCI)/globals/globals.cma $(COCCI)/parsing_c/parsing_c.cma $(COCCI)/parsing_c/pretty_print_c.cmo db.cmo gtree.cmo difftype.cmo visitor_j.cmo diff.cmo main.cmo
+LIBS=$(COCCI)/commons/commons.cma $(COCCI)/globals/globals.cma $(COCCI)/parsing_c/parsing_c.cma $(COCCI)/parsing_c/pretty_print_c.cmx db.cmx gtree.cmx difftype.cmx visitor_j.cmx diff.cmx main.cmx
 
 MAKESUBDIRS=$(COCCI)/commons $(COCCI)/globals $(COCCI)/parsing_c 
 INCLUDEDIRS=$(COCCI)/commons $(COCCI)/globals $(COCCI)/parsing_c

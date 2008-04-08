@@ -73,10 +73,50 @@ let relax = ref false
 let subset_list l1 l2 =
   List.for_all (function e1 -> (List.mem e1 l2)) l1
 
-let string_of_gtree str_of_t str_of_c gt = 
+let rec string_of_gtree str_of_t str_of_c gt = 
+  let loop' gt = string_of_gtree str_of_t str_of_c gt in
+  let string_of_itype itype = (match itype with
+  | A("itype", c) -> "char"
+  | C("itype", [sgn;base]) ->
+    (match sgn, base with
+    | A ("sgn", "signed") , A ("base", b) -> b
+    | A ("sgn", "unsigned"), A ("base", b) -> "unsigned" ^ " " ^ b)) in
+  let rec string_of_ftype fts = 
+    let loc cvct = match cvct with
+    | A("tqual","const") -> "const"
+    | A("tqual","vola")  -> "volatile"
+    | A("btype","void")  -> "void"
+    | C("btype", [C("itype", _) as c])   -> string_of_itype c
+    | C("btype", [A("itype", _) as a])   -> string_of_itype a
+    | C("btype", [A("ftype", ft)]) -> ft
+    | C("pointer", [ft]) -> "*" ^ string_of_ftype [ft]
+    | C("array", [cexpopt; ft]) ->
+        string_of_ftype [ft] ^ " " ^
+        (match cexpopt with
+        | A("constExp", "none") -> "[]"
+        | C("constExp", [e]) -> "[" ^ loop' e ^ "]"
+        )
+    | C("funtype", rt :: pars) -> "funTODO"
+    | C("enum", [A ("enum_name", en); enumgt]) -> "enumTODO"
+    | C("struct", [C(sname, [stype])]) -> "structTODO"
+    | _ -> "N/A"
+    in
+    String.concat " " (List.map loc fts)
+  in
   let rec loop gt =
     match gt with
-      | A (t,c) -> str_of_t t ^ "(" ^ str_of_c c ^ ")"
+      | A ("meta", c) -> c
+      | A ("itype", _) -> string_of_itype gt
+      | A (t,c) -> c
+      | C ("fulltype", ti) -> string_of_ftype ti
+      | C ("const", [A(_, c)]) -> c
+      | C ("itype", _ ) -> string_of_itype gt
+      | C ("exp", [e]) -> loop e
+      | C ("exp", [A("meta", x0); e]) -> "(" ^ loop e ^ ":_)"
+      | C ("exp", [C ("TYPEDEXP", [t]) ; e]) -> 
+          "(" ^ loop e ^ ":" ^ loop t ^ ")"
+      | C ("call", f :: args) -> 
+          loop f ^ "(" ^ String.concat "," (List.map loop args) ^ ")"
       | C (t, gtrees) -> 
           str_of_t t ^ "[" ^
             String.concat "," (List.map loop gtrees)

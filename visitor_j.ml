@@ -341,7 +341,7 @@ and trans_floattype ft =
   | CFloat -> "float"
   | CDouble -> "double"
   | CLongDouble -> "long double" in
-  A("ftype", gt_ft)
+  "ftype" %% gt_ft
 and trans_decl decl = match decl with
 | DeclList (odecls,_) -> "dlist" @@@ 
   List.map trans_odecl odecls

@@ -1,6 +1,10 @@
 Spec. file is: specfile
 Parsed two: dn_rtmsg.c.orig, dn_rtmsg.c.new
 Parsed two: ax25_in.c.orig, ax25_in.c.new
+Parsed two: xpnet.c.orig, xpnet.c.new
+Parsed two: atmtcp.c.orig, atmtcp.c.new
+Parsed two: nicstar.c.orig, nicstar.c.new
+Parsed two: bfusb.c.orig, bfusb.c.new
 Comment
 Comment
 Comment
@@ -130,13 +134,19 @@ Comment
 Comment
 Comment
 Comment
-Comment
-Comment
-Comment
-Comment
+Reading file pair bfusb.c.orig bfusb.c.new
+Reading file pair nicstar.c.orig nicstar.c.new
+Reading file pair atmtcp.c.orig atmtcp.c.new
+Reading file pair xpnet.c.orig xpnet.c.new
 Reading file pair ax25_in.c.orig ax25_in.c.new
 Reading file pair dn_rtmsg.c.orig dn_rtmsg.c.new
-ident(dev) struct(net_device) fullType(unknown) exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sk_buff)]]]],ident(skb)] ident(skb) TYPEDEXP[fulltype[pointer[fulltype[struct(sk_buff)]]]] fulltype[pointer[fulltype[struct(sk_buff)]]] pointer[fulltype[struct(sk_buff)]] fulltype[struct(sk_buff)] struct(sk_buff) reg() param[reg(),name(skb),fulltype[pointer[fulltype[struct(sk_buff)]]]] name(skb) fulltype[btype[itype[sgn(signed),base(int)]]] btype[itype[sgn(signed),base(int)]] itype[sgn(signed),base(int)] base(int) sgn(signed) stmt[exprstmt(none)] exprstmt(none) exp[const[int(0)]] const[int(0)] int(0) stmt[exprstmt[exp[call[exp[ident(kfree_skb)],exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sk_buff)]]]],ident(skb)]]]]] exprstmt[exp[call[exp[ident(kfree_skb)],exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sk_buff)]]]],ident(skb)]]]] exp[call[exp[ident(kfree_skb)],exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sk_buff)]]]],ident(skb)]]] call[exp[ident(kfree_skb)],exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sk_buff)]]]],ident(skb)]] exp[ident(kfree_skb)] ident(kfree_skb) exp[*ref[exp[record_ptr[exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sk_buff)]]]],ident(skb)],ident(data)]]]] *ref[exp[record_ptr[exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sk_buff)]]]],ident(skb)],ident(data)]]] exp[record_ptr[exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sk_buff)]]]],ident(skb)],ident(data)]] record_ptr[exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sk_buff)]]]],ident(skb)],ident(data)] ident(data) aop(&) exp[TYPEDEXP[fulltype[pointer[fulltype[btype(void)]]]],ident(NULL)] ident(NULL) TYPEDEXP[fulltype[pointer[fulltype[btype(void)]]]] fulltype[pointer[fulltype[btype(void)]]] pointer[fulltype[btype(void)]] fulltype[btype(void)] btype(void) simple_assi(=) ident(sk) exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sock)]]]],ident(sk)] TYPEDEXP[fulltype[pointer[fulltype[struct(sock)]]]] fulltype[pointer[fulltype[struct(sock)]]] pointer[fulltype[struct(sock)]] fulltype[struct(sock)] struct(sock) exp[record_ptr[exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sk_buff)]]]],ident(skb)],ident(len)]] record_ptr[exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sk_buff)]]]],ident(skb)],ident(len)] ident(len) logiop(==) TYPEDEXP[fulltype[btype[itype[sgn(signed),base(int)]]]] logiop(&&) exp[ident(memcpy)] ident(memcpy) exp[ident(GFP_ATOMIC)] ident(GFP_ATOMIC) exp[&ref[exp[record_ptr[exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sock)]]]],ident(sk)],ident(sk_receive_queue)]]]] &ref[exp[record_ptr[exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sock)]]]],ident(sk)],ident(sk_receive_queue)]]] exp[record_ptr[exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sock)]]]],ident(sk)],ident(sk_receive_queue)]] record_ptr[exp[TYPEDEXP[fulltype[pointer[fulltype[struct(sock)]]]],ident(sk)],ident(sk_receive_queue)] ident(sk_receive_queue) logiop(||) stmt[jump(break)] jump(break) logiop(<) storage[stobis(nosto),inline(no)] inline(no) stobis(nosto) ini[exp[const[int(0)]]] ini[exp[TYPEDEXP[fulltype[pointer[fulltype[btype(void)]]]],ident(NULL)]] TYPEDEXP[fulltype[btype[itype[sgn(unsigned),base(char2)]]]] fulltype[btype[itype[sgn(unsigned),base(char2)]]] btype[itype[sgn(unsigned),base(char2)]] itype[sgn(unsigned),base(char2)] base(char2) sgn(unsigned) name() param[reg(),name(),fulltype[pointer[fulltype[struct(sk_buff)]]]] exp[ident(skb_dequeue)] ident(skb_dequeue) exp[ident(alloc_skb)] ident(alloc_skb) op_assi(+=) aop(-) inc_elem(linux) inc_elem(net) includeN[inc_elem(net),inc_elem(sock.h)] inc_elem(sock.h) includeN[inc_elem(linux),inc_elem(netfilter.h)] inc_elem(netfilter.h) includeN[inc_elem(linux),inc_elem(skbuff.h)] inc_elem(skbuff.h) includeN[inc_elem(linux),inc_elem(netdevice.h)] inc_elem(netdevice.h) 
-[Main] Constructing all safe parts for 2 term pairs
+TYPEDEXP[int] int btype[int] int int signed no  void void stmt[none] none 0 0 0 (NULL:*N/A) NULL TYPEDEXP[*N/A] *N/A pointer[void] storage[nosto,no] nosto data = param[,skb,*N/A] *N/A pointer[N/A] N/A sk_buff skb dev || len memcpy memcpy GFP_ATOMIC GFP_ATOMIC ini[0] (skb:*N/A) skb TYPEDEXP[*N/A] == record_ptr[(skb:*N/A),data] record_ptr[(skb:*N/A),data] record_ptr[(skb:*N/A),len] record_ptr[(skb:*N/A),len] stmt[break] break & && linux 
+[Main] Constructing all safe parts for 6 term pairs
 [Main] Making safe parts for pair 1
-[Main] terms that changed: ident(memcpy) exp[ident(memcpy)] 
+[Main] terms that changed: 
+[Main] abstracted one pair
+[Main] Making safe parts for pair 2
+[Main] terms that changed: record_ptr[(skb:*N/A),data] memcpy memcpy 
+[Main] abstracted one pair
+[Main] Making safe parts for pair 3
+[Main] terms that changed: record_ptr[(skb:*N/A),data] record_ptr[(skb:*N/A),data] memcpy memcpy 

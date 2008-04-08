@@ -397,6 +397,954 @@ Type_annoter: not finding type for b43_read16
 Type_annoter: not finding type for msleep
 Type_annoter: not finding type for might_sleep
 parse error 
+ = File "main2.c.orig", line 98, column 2,  charpos = 3313
+    around = '.', whole content = 		.rate	= B43legacy_RATE_TO_100KBPS(_rateid),	\
+ERROR-RECOV: found sync end of #define 102
+badcount: 13
+bad: MODULE_DEVICE_TABLE(ssb, b43legacy_ssb_tbl);
+bad: 
+bad: 
+bad: /* Channel and ratetables are shared for all devices.
+bad:  * They can't be const, because ieee80211 puts some precalculated
+bad:  * data in there. This data is the same for all devices, so we don't
+bad:  * get concurrency issues */
+bad: #define RATETAB_ENT(_rateid, _flags) \
+bad: 	{							\
+BAD:!!!!! 		.rate	= B43legacy_RATE_TO_100KBPS(_rateid),	\
+bad: 		.val	= (_rateid),				\
+bad: 		.val2	= (_rateid),				\
+bad: 		.flags	= (_flags),				\
+bad: 	}
+parse error 
+ = File "main2.c.orig", line 126, column 2,  charpos = 4565
+    around = '.', whole content = 		.chan	= (_chanid),				\
+ERROR-RECOV: found sync end of #define 134
+badcount: 12
+bad: #define b43legacy_g_ratetable_size	12
+bad: 
+bad: #define CHANTAB_ENT(_chanid, _freq) \
+bad: 	{							\
+BAD:!!!!! 		.chan	= (_chanid),				\
+bad: 		.freq	= (_freq),				\
+bad: 		.val	= (_chanid),				\
+bad: 		.flag	= IEEE80211_CHAN_W_SCAN |		\
+bad: 			  IEEE80211_CHAN_W_ACTIVE_SCAN |	\
+bad: 			  IEEE80211_CHAN_W_IBSS,		\
+bad: 		.power_level	= 0x0A,				\
+bad: 		.antenna_max	= 0xFF,				\
+bad: 	}
+semantic error two or more data types
+ =File "main2.c.orig", line 3755, column 18,  charpos = 102384
+    around = 'b43legacy_init', whole content = static int __init b43legacy_init(void)
+ERROR-RECOV: found sync '}' at line 3770
+badcount: 17
+bad: };
+bad: 
+BAD:!!!!! static int __init b43legacy_init(void)
+bad: {
+bad: 	int err;
+bad: 
+bad: 	b43legacy_debugfs_init();
+bad: 
+bad: 	err = ssb_driver_register(&b43legacy_ssb_driver);
+bad: 	if (err)
+bad: 		goto err_dfs_exit;
+bad: 
+bad: 	return err;
+bad: 
+bad: err_dfs_exit:
+bad: 	b43legacy_debugfs_exit();
+bad: 	return err;
+bad: }
+semantic error two or more data types
+ =File "main2.c.orig", line 3772, column 19,  charpos = 102619
+    around = 'b43legacy_exit', whole content = static void __exit b43legacy_exit(void)
+ERROR-RECOV: found sync '}' at line 3776
+badcount: 6
+bad: }
+bad: 
+BAD:!!!!! static void __exit b43legacy_exit(void)
+bad: {
+bad: 	ssb_driver_unregister(&b43legacy_ssb_driver);
+bad: 	b43legacy_debugfs_exit();
+bad: }
+Type_annoter: not finding type for pio
+Type_annoter: not finding type for pio
+Type_annoter: not finding type for bad_frames_preempt
+Type_annoter: not finding type for bad_frames_preempt
+Type_annoter: not finding type for fwpostfix
+Type_annoter: not finding type for fwpostfix
+Type_annoter: not finding type for ssb
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for net_ratelimit
+Type_annoter: not finding type for va_start
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for wiphy_name
+Type_annoter: not finding type for vprintk
+Type_annoter: not finding type for va_end
+Type_annoter: not finding type for va_start
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for wiphy_name
+Type_annoter: not finding type for vprintk
+Type_annoter: not finding type for va_end
+Type_annoter: not finding type for va_start
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for wiphy_name
+Type_annoter: not finding type for vprintk
+Type_annoter: not finding type for va_end
+Type_annoter: not finding type for va_start
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for wiphy_name
+Type_annoter: not finding type for vprintk
+Type_annoter: not finding type for va_end
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for swab32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for synchronize_irq
+Type_annoter: not finding type for tasklet_kill
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_radio_write16
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for udelay
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for ssb_device_enable
+Type_annoter: not finding type for msleep
+Type_annoter: not finding type for ssb_read32
+Type_annoter: not finding type for ssb_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_handle_txstatus
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for cpu_to_le32
+Type_annoter: not finding type for limit_value
+Type_annoter: not finding type for b43legacy_is_mode
+Type_annoter: not finding type for b43legacy_power_saving_ctl_bits
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_generate_plcp_hdr
+Type_annoter: not finding type for le32_to_cpu
+Type_annoter: not finding type for min
+Type_annoter: not finding type for b43legacy_generate_plcp_hdr
+Type_annoter: not finding type for ieee80211_generic_frame_duration
+Type_annoter: not finding type for le32_to_cpu
+Type_annoter: not finding type for le16_to_cpu
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for kmalloc
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for cpu_to_le16
+Type_annoter: not finding type for ieee80211_generic_frame_duration
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for min
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for min
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_is_mode
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for b43legacy_controller_restart
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for b43legacy_using_pio
+Type_annoter: not finding type for b43legacy_pio_rx
+Type_annoter: not finding type for b43legacy_dma_rx
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for b43legacy_using_pio
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for spin_lock
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for tasklet_schedule
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for spin_unlock
+Type_annoter: not finding type for release_firmware
+Type_annoter: not finding type for snprintf
+Type_annoter: not finding type for request_firmware
+Type_annoter: not finding type for be32_to_cpu
+Type_annoter: not finding type for ssb_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for be32_to_cpu
+Type_annoter: not finding type for udelay
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for be16_to_cpu
+Type_annoter: not finding type for be32_to_cpu
+Type_annoter: not finding type for get_unaligned
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for be32_to_cpu
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for ssb_write32
+Type_annoter: not finding type for ssb_read32
+Type_annoter: not finding type for ssb_write32
+Type_annoter: not finding type for irqs_disabled
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_power_saving_ctl_bits
+Type_annoter: not finding type for spin_lock_irq
+Type_annoter: not finding type for spin_unlock_irq
+Type_annoter: not finding type for might_sleep
+Type_annoter: not finding type for irqs_disabled
+Type_annoter: not finding type for spin_lock_irq
+Type_annoter: not finding type for spin_unlock_irq
+Type_annoter: not finding type for b43legacy_power_saving_ctl_bits
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for msleep
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_is_mode
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_plcp_get_ratecode_ofdm
+Type_annoter: not finding type for b43legacy_plcp_get_ratecode_cck
+Type_annoter: not finding type for b43legacy_radio_turn_off
+Type_annoter: not finding type for b43legacy_leds_exit
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_leds_init
+Type_annoter: not finding type for b43legacy_radio_turn_on
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_phy_init
+Type_annoter: not finding type for b43legacy_radio_set_interference_mitigation
+Type_annoter: not finding type for b43legacy_phy_set_antenna_diversity
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_using_pio
+Type_annoter: not finding type for ssb_read32
+Type_annoter: not finding type for ssb_write32
+Type_annoter: not finding type for b43legacy_radio_turn_off
+Type_annoter: not finding type for b43legacy_leds_exit
+Type_annoter: not finding type for b43legacy_phy_lo_g_measure
+Type_annoter: not finding type for b43legacy_phy_lo_mark_all_unused
+Type_annoter: not finding type for b43legacy_calc_nrssi_slope
+Type_annoter: not finding type for b43legacy_phy_xmitpower
+Type_annoter: not finding type for container_of
+Type_annoter: not finding type for periodic_work
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for b43legacy_debug
+Type_annoter: not finding type for msecs_to_jiffies
+Type_annoter: not finding type for round_jiffies_relative
+Type_annoter: not finding type for queue_delayed_work
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for queue_delayed_work
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for hwrng_unregister
+Type_annoter: not finding type for snprintf
+Type_annoter: not finding type for wiphy_name
+Type_annoter: not finding type for hwrng_register
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for b43legacy_using_pio
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for b43legacy_pio_tx
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for b43legacy_dma_tx
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for likely
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for b43legacy_using_pio
+Type_annoter: not finding type for b43legacy_pio_get_tx_stats
+Type_annoter: not finding type for b43legacy_dma_get_tx_stats
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for list
+Type_annoter: not finding type for ssb_read32
+Type_annoter: not finding type for ssb_write32
+Type_annoter: not finding type for msleep
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for b43legacy_radio_selectchannel
+Type_annoter: not finding type for b43legacy_phy_xmitpower
+Type_annoter: not finding type for b43legacy_is_mode
+Type_annoter: not finding type for b43legacy_radio_turn_on
+Type_annoter: not finding type for b43legacy_radio_turn_off
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for b43legacy_is_mode
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for b43legacy_set_status
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for cancel_delayed_work_sync
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for ieee80211_stop_queues
+Type_annoter: not finding type for free_irq
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for request_irq
+Type_annoter: not finding type for b43legacy_set_status
+Type_annoter: not finding type for ieee80211_start_queues
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for b43legacy_default_baseband_attenuation
+Type_annoter: not finding type for b43legacy_default_radio_attenuation
+Type_annoter: not finding type for b43legacy_default_txctl1
+Type_annoter: not finding type for spin_lock_init
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for ssb_read32
+Type_annoter: not finding type for ssb_write32
+Type_annoter: not finding type for min
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for b43legacy_set_status
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for cancel_work_sync
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for b43legacy_rfkill_exit
+Type_annoter: not finding type for b43legacy_pio_free
+Type_annoter: not finding type for b43legacy_dma_free
+Type_annoter: not finding type for b43legacy_radio_turn_off
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for ssb_device_disable
+Type_annoter: not finding type for ssb_bus_may_powerdown
+Type_annoter: not finding type for b43legacy_default_baseband_attenuation
+Type_annoter: not finding type for b43legacy_default_radio_attenuation
+Type_annoter: not finding type for b43legacy_default_txctl1
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for ssb_bus_powerup
+Type_annoter: not finding type for ssb_device_is_enabled
+Type_annoter: not finding type for kzalloc
+Type_annoter: not finding type for b43legacy_phy_init_tssi2dbm_table
+Type_annoter: not finding type for ssb_pcicore_dev_irqvecs_enable
+Type_annoter: not finding type for b43legacy_phy_calibrate
+Type_annoter: not finding type for b43legacy_using_pio
+Type_annoter: not finding type for b43legacy_pio_init
+Type_annoter: not finding type for b43legacy_dma_init
+Type_annoter: not finding type for b43legacy_qos_init
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for b43legacy_rfkill_init
+Type_annoter: not finding type for b43legacy_set_status
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for ssb_bus_may_powerdown
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for container_of
+Type_annoter: not finding type for restart_work
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for b43legacy_bg_chantable_size
+Type_annoter: not finding type for b43legacy_b_ratetable_size
+Type_annoter: not finding type for b43legacy_b_ratetable
+Type_annoter: not finding type for ieee80211_register_hwmode
+Type_annoter: not finding type for b43legacy_g_ratetable_size
+Type_annoter: not finding type for b43legacy_g_ratetable
+Type_annoter: not finding type for ssb_bus_powerup
+Type_annoter: not finding type for ssb_read32
+Type_annoter: not finding type for b43legacy_radio_turn_off
+Type_annoter: not finding type for ssb_device_disable
+Type_annoter: not finding type for ssb_bus_may_powerdown
+Type_annoter: not finding type for ssb_get_drvdata
+Type_annoter: not finding type for cancel_work_sync
+Type_annoter: not finding type for b43legacy_debugfs_remove_device
+Type_annoter: not finding type for list_del
+Type_annoter: not finding type for ssb_set_drvdata
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for list_empty
+Type_annoter: not finding type for kzalloc
+Type_annoter: not finding type for b43legacy_set_status
+Type_annoter: not finding type for tasklet_init
+Type_annoter: not finding type for list_add
+Type_annoter: not finding type for ssb_set_drvdata
+Type_annoter: not finding type for b43legacy_debugfs_add_device
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for ssb_set_devtypedata
+Type_annoter: not finding type for ieee80211_free_hw
+Type_annoter: not finding type for ieee80211_alloc_hw
+Type_annoter: not finding type for is_valid_ether_addr
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for spin_lock_init
+Type_annoter: not finding type for mutex_init
+Type_annoter: not finding type for ssb_set_devtypedata
+Type_annoter: not finding type for ssb_get_devtypedata
+Type_annoter: not finding type for ieee80211_register_hw
+Type_annoter: not finding type for ssb_get_devtypedata
+Type_annoter: not finding type for ssb_get_drvdata
+Type_annoter: not finding type for ieee80211_unregister_hw
+Type_annoter: not finding type for list_empty
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for queue_work
+Type_annoter: not finding type for ssb_get_drvdata
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for ssb_get_drvdata
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for b43legacy_init
+Type_annoter: not finding type for b43legacy_exit
+parse error 
+ = File "main2.c.new", line 98, column 2,  charpos = 3313
+    around = '.', whole content = 		.rate	= B43legacy_RATE_TO_100KBPS(_rateid),	\
+ERROR-RECOV: found sync end of #define 102
+badcount: 13
+bad: MODULE_DEVICE_TABLE(ssb, b43legacy_ssb_tbl);
+bad: 
+bad: 
+bad: /* Channel and ratetables are shared for all devices.
+bad:  * They can't be const, because ieee80211 puts some precalculated
+bad:  * data in there. This data is the same for all devices, so we don't
+bad:  * get concurrency issues */
+bad: #define RATETAB_ENT(_rateid, _flags) \
+bad: 	{							\
+BAD:!!!!! 		.rate	= B43legacy_RATE_TO_100KBPS(_rateid),	\
+bad: 		.val	= (_rateid),				\
+bad: 		.val2	= (_rateid),				\
+bad: 		.flags	= (_flags),				\
+bad: 	}
+parse error 
+ = File "main2.c.new", line 126, column 2,  charpos = 4565
+    around = '.', whole content = 		.chan	= (_chanid),				\
+ERROR-RECOV: found sync end of #define 134
+badcount: 12
+bad: #define b43legacy_g_ratetable_size	12
+bad: 
+bad: #define CHANTAB_ENT(_chanid, _freq) \
+bad: 	{							\
+BAD:!!!!! 		.chan	= (_chanid),				\
+bad: 		.freq	= (_freq),				\
+bad: 		.val	= (_chanid),				\
+bad: 		.flag	= IEEE80211_CHAN_W_SCAN |		\
+bad: 			  IEEE80211_CHAN_W_ACTIVE_SCAN |	\
+bad: 			  IEEE80211_CHAN_W_IBSS,		\
+bad: 		.power_level	= 0x0A,				\
+bad: 		.antenna_max	= 0xFF,				\
+bad: 	}
+semantic error two or more data types
+ =File "main2.c.new", line 3755, column 18,  charpos = 102354
+    around = 'b43legacy_init', whole content = static int __init b43legacy_init(void)
+ERROR-RECOV: found sync '}' at line 3770
+badcount: 17
+bad: };
+bad: 
+BAD:!!!!! static int __init b43legacy_init(void)
+bad: {
+bad: 	int err;
+bad: 
+bad: 	b43legacy_debugfs_init();
+bad: 
+bad: 	err = ssb_driver_register(&b43legacy_ssb_driver);
+bad: 	if (err)
+bad: 		goto err_dfs_exit;
+bad: 
+bad: 	return err;
+bad: 
+bad: err_dfs_exit:
+bad: 	b43legacy_debugfs_exit();
+bad: 	return err;
+bad: }
+semantic error two or more data types
+ =File "main2.c.new", line 3772, column 19,  charpos = 102589
+    around = 'b43legacy_exit', whole content = static void __exit b43legacy_exit(void)
+ERROR-RECOV: found sync '}' at line 3776
+badcount: 6
+bad: }
+bad: 
+BAD:!!!!! static void __exit b43legacy_exit(void)
+bad: {
+bad: 	ssb_driver_unregister(&b43legacy_ssb_driver);
+bad: 	b43legacy_debugfs_exit();
+bad: }
+Type_annoter: not finding type for pio
+Type_annoter: not finding type for pio
+Type_annoter: not finding type for bad_frames_preempt
+Type_annoter: not finding type for bad_frames_preempt
+Type_annoter: not finding type for fwpostfix
+Type_annoter: not finding type for fwpostfix
+Type_annoter: not finding type for ssb
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for net_ratelimit
+Type_annoter: not finding type for va_start
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for wiphy_name
+Type_annoter: not finding type for vprintk
+Type_annoter: not finding type for va_end
+Type_annoter: not finding type for va_start
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for wiphy_name
+Type_annoter: not finding type for vprintk
+Type_annoter: not finding type for va_end
+Type_annoter: not finding type for va_start
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for wiphy_name
+Type_annoter: not finding type for vprintk
+Type_annoter: not finding type for va_end
+Type_annoter: not finding type for va_start
+Type_annoter: not finding type for printk
+Type_annoter: not finding type for wiphy_name
+Type_annoter: not finding type for vprintk
+Type_annoter: not finding type for va_end
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for swab32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for synchronize_irq
+Type_annoter: not finding type for tasklet_kill
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_radio_write16
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for udelay
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for ssb_device_enable
+Type_annoter: not finding type for msleep
+Type_annoter: not finding type for ssb_read32
+Type_annoter: not finding type for ssb_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_handle_txstatus
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for cpu_to_le32
+Type_annoter: not finding type for limit_value
+Type_annoter: not finding type for b43legacy_is_mode
+Type_annoter: not finding type for b43legacy_power_saving_ctl_bits
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_generate_plcp_hdr
+Type_annoter: not finding type for le32_to_cpu
+Type_annoter: not finding type for min
+Type_annoter: not finding type for b43legacy_generate_plcp_hdr
+Type_annoter: not finding type for ieee80211_generic_frame_duration
+Type_annoter: not finding type for le32_to_cpu
+Type_annoter: not finding type for le16_to_cpu
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for kmalloc
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for cpu_to_le16
+Type_annoter: not finding type for ieee80211_generic_frame_duration
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for min
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for min
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_is_mode
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for kfree_skb
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for b43legacy_controller_restart
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for b43legacy_using_pio
+Type_annoter: not finding type for b43legacy_pio_rx
+Type_annoter: not finding type for b43legacy_dma_rx
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for b43legacy_using_pio
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for spin_lock
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for tasklet_schedule
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for spin_unlock
+Type_annoter: not finding type for release_firmware
+Type_annoter: not finding type for snprintf
+Type_annoter: not finding type for request_firmware
+Type_annoter: not finding type for be32_to_cpu
+Type_annoter: not finding type for ssb_read32
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for be32_to_cpu
+Type_annoter: not finding type for udelay
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for be16_to_cpu
+Type_annoter: not finding type for be32_to_cpu
+Type_annoter: not finding type for get_unaligned
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for be32_to_cpu
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for ssb_write32
+Type_annoter: not finding type for ssb_read32
+Type_annoter: not finding type for ssb_write32
+Type_annoter: not finding type for irqs_disabled
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_power_saving_ctl_bits
+Type_annoter: not finding type for spin_lock_irq
+Type_annoter: not finding type for spin_unlock_irq
+Type_annoter: not finding type for might_sleep
+Type_annoter: not finding type for irqs_disabled
+Type_annoter: not finding type for spin_lock_irq
+Type_annoter: not finding type for spin_unlock_irq
+Type_annoter: not finding type for b43legacy_power_saving_ctl_bits
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for msleep
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_is_mode
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_plcp_get_ratecode_ofdm
+Type_annoter: not finding type for b43legacy_plcp_get_ratecode_cck
+Type_annoter: not finding type for b43legacy_radio_turn_off
+Type_annoter: not finding type for b43legacy_leds_exit
+Type_annoter: not finding type for b43legacy_write32
+Type_annoter: not finding type for b43legacy_leds_init
+Type_annoter: not finding type for b43legacy_radio_turn_on
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for b43legacy_phy_init
+Type_annoter: not finding type for b43legacy_radio_set_interference_mitigation
+Type_annoter: not finding type for b43legacy_phy_set_antenna_diversity
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_using_pio
+Type_annoter: not finding type for ssb_read32
+Type_annoter: not finding type for ssb_write32
+Type_annoter: not finding type for b43legacy_radio_turn_off
+Type_annoter: not finding type for b43legacy_leds_exit
+Type_annoter: not finding type for b43legacy_phy_lo_g_measure
+Type_annoter: not finding type for b43legacy_phy_lo_mark_all_unused
+Type_annoter: not finding type for b43legacy_calc_nrssi_slope
+Type_annoter: not finding type for b43legacy_phy_xmitpower
+Type_annoter: not finding type for container_of
+Type_annoter: not finding type for periodic_work
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for b43legacy_debug
+Type_annoter: not finding type for msecs_to_jiffies
+Type_annoter: not finding type for round_jiffies_relative
+Type_annoter: not finding type for queue_delayed_work
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for queue_delayed_work
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for hwrng_unregister
+Type_annoter: not finding type for snprintf
+Type_annoter: not finding type for wiphy_name
+Type_annoter: not finding type for hwrng_register
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for b43legacy_using_pio
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for b43legacy_pio_tx
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for b43legacy_dma_tx
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for likely
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for b43legacy_using_pio
+Type_annoter: not finding type for b43legacy_pio_get_tx_stats
+Type_annoter: not finding type for b43legacy_dma_get_tx_stats
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for list
+Type_annoter: not finding type for ssb_read32
+Type_annoter: not finding type for ssb_write32
+Type_annoter: not finding type for msleep
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for b43legacy_radio_selectchannel
+Type_annoter: not finding type for b43legacy_phy_xmitpower
+Type_annoter: not finding type for b43legacy_is_mode
+Type_annoter: not finding type for b43legacy_radio_turn_on
+Type_annoter: not finding type for b43legacy_radio_turn_off
+Type_annoter: not finding type for mmiowb
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for b43legacy_is_mode
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for b43legacy_read32
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for b43legacy_set_status
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for cancel_delayed_work_sync
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for ieee80211_stop_queues
+Type_annoter: not finding type for free_irq
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for request_irq
+Type_annoter: not finding type for b43legacy_set_status
+Type_annoter: not finding type for ieee80211_start_queues
+Type_annoter: not finding type for b43legacy_read16
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for b43legacy_default_baseband_attenuation
+Type_annoter: not finding type for b43legacy_default_radio_attenuation
+Type_annoter: not finding type for b43legacy_default_txctl1
+Type_annoter: not finding type for spin_lock_init
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for ssb_read32
+Type_annoter: not finding type for ssb_write32
+Type_annoter: not finding type for min
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for b43legacy_set_status
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for cancel_work_sync
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for b43legacy_rfkill_exit
+Type_annoter: not finding type for b43legacy_pio_free
+Type_annoter: not finding type for b43legacy_dma_free
+Type_annoter: not finding type for b43legacy_radio_turn_off
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for ssb_device_disable
+Type_annoter: not finding type for ssb_bus_may_powerdown
+Type_annoter: not finding type for b43legacy_default_baseband_attenuation
+Type_annoter: not finding type for b43legacy_default_radio_attenuation
+Type_annoter: not finding type for b43legacy_default_txctl1
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for ssb_bus_powerup
+Type_annoter: not finding type for ssb_device_is_enabled
+Type_annoter: not finding type for kzalloc
+Type_annoter: not finding type for b43legacy_phy_init_tssi2dbm_table
+Type_annoter: not finding type for ssb_pcicore_dev_irqvecs_enable
+Type_annoter: not finding type for b43legacy_phy_calibrate
+Type_annoter: not finding type for b43legacy_using_pio
+Type_annoter: not finding type for b43legacy_pio_init
+Type_annoter: not finding type for b43legacy_dma_init
+Type_annoter: not finding type for b43legacy_qos_init
+Type_annoter: not finding type for b43legacy_write16
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for b43legacy_rfkill_init
+Type_annoter: not finding type for b43legacy_set_status
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for ssb_bus_may_powerdown
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for memcpy
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for spin_lock_irqsave
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for spin_unlock_irqrestore
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for unlikely
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for container_of
+Type_annoter: not finding type for restart_work
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for b43legacy_bg_chantable_size
+Type_annoter: not finding type for b43legacy_b_ratetable_size
+Type_annoter: not finding type for b43legacy_b_ratetable
+Type_annoter: not finding type for ieee80211_register_hwmode
+Type_annoter: not finding type for b43legacy_g_ratetable_size
+Type_annoter: not finding type for b43legacy_g_ratetable
+Type_annoter: not finding type for ssb_bus_powerup
+Type_annoter: not finding type for ssb_read32
+Type_annoter: not finding type for b43legacy_radio_turn_off
+Type_annoter: not finding type for ssb_device_disable
+Type_annoter: not finding type for ssb_bus_may_powerdown
+Type_annoter: not finding type for ssb_get_drvdata
+Type_annoter: not finding type for cancel_work_sync
+Type_annoter: not finding type for b43legacy_debugfs_remove_device
+Type_annoter: not finding type for list_del
+Type_annoter: not finding type for ssb_set_drvdata
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for list_empty
+Type_annoter: not finding type for kzalloc
+Type_annoter: not finding type for b43legacy_set_status
+Type_annoter: not finding type for tasklet_init
+Type_annoter: not finding type for list_add
+Type_annoter: not finding type for ssb_set_drvdata
+Type_annoter: not finding type for b43legacy_debugfs_add_device
+Type_annoter: not finding type for kfree
+Type_annoter: not finding type for ssb_set_devtypedata
+Type_annoter: not finding type for ieee80211_free_hw
+Type_annoter: not finding type for ieee80211_alloc_hw
+Type_annoter: not finding type for is_valid_ether_addr
+Type_annoter: not finding type for hw_to_b43legacy_wl
+Type_annoter: not finding type for memset
+Type_annoter: not finding type for spin_lock_init
+Type_annoter: not finding type for mutex_init
+Type_annoter: not finding type for ssb_set_devtypedata
+Type_annoter: not finding type for ssb_get_devtypedata
+Type_annoter: not finding type for ieee80211_register_hw
+Type_annoter: not finding type for ssb_get_devtypedata
+Type_annoter: not finding type for ssb_get_drvdata
+Type_annoter: not finding type for ieee80211_unregister_hw
+Type_annoter: not finding type for list_empty
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for queue_work
+Type_annoter: not finding type for ssb_get_drvdata
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for b43legacy_status
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for ssb_get_drvdata
+Type_annoter: not finding type for mutex_lock
+Type_annoter: not finding type for mutex_unlock
+Type_annoter: not finding type for b43legacy_init
+Type_annoter: not finding type for b43legacy_exit
+parse error 
  = File "main.c.orig", line 107, column 2,  charpos = 3560
     around = '.', whole content = 		.rate	= B43_RATE_TO_BASE100KBPS(_rateid),	\
 ERROR-RECOV: found sync end of #define 111
