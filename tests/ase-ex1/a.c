@@ -1,5 +1,5 @@
 void foo(void) {
-	int x[10];
+	int x;
 	f(x);
 	x = g(117);
 	return x;

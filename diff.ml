@@ -73,14 +73,18 @@ let relax = ref false
 let subset_list l1 l2 =
   List.for_all (function e1 -> (List.mem e1 l2)) l1
 
+
 let rec string_of_gtree str_of_t str_of_c gt = 
   let loop' gt = string_of_gtree str_of_t str_of_c gt in
   let string_of_itype itype = (match itype with
   | A("itype", c) -> "char"
   | C("itype", [sgn;base]) ->
     (match sgn, base with
-    | A ("sgn", "signed") , A ("base", b) -> b
-    | A ("sgn", "unsigned"), A ("base", b) -> "unsigned" ^ " " ^ b)) in
+    | A ("sgn", "signed") , A (_, b) -> b
+    | A ("sgn", "unsigned"), A (_, b) -> "unsigned" ^ " " ^ b
+    | A ("meta", _), A(_, b) -> b
+    )) 
+  in
   let rec string_of_ftype fts = 
     let loc cvct = match cvct with
     | A("tqual","const") -> "const"
@@ -95,6 +99,7 @@ let rec string_of_gtree str_of_t str_of_c gt =
         (match cexpopt with
         | A("constExp", "none") -> "[]"
         | C("constExp", [e]) -> "[" ^ loop' e ^ "]"
+	| A("meta", x0) -> x0
         )
     | C("funtype", rt :: pars) -> "funTODO"
     | C("enum", [A ("enum_name", en); enumgt]) -> "enumTODO"
@@ -117,6 +122,10 @@ let rec string_of_gtree str_of_t str_of_c gt =
           "(" ^ loop e ^ ":" ^ loop t ^ ")"
       | C ("call", f :: args) -> 
           loop f ^ "(" ^ String.concat "," (List.map loop args) ^ ")"
+      | C ("binary_arith", [A("aop",op_str) ;e1;e2]) ->
+          loop e1 ^ op_str ^ loop e2
+      | C ("binary_logi", [A("logiop", op_str); e1;e2]) ->
+          loop e1 ^ op_str ^ loop e2
       | C (t, gtrees) -> 
           str_of_t t ^ "[" ^
             String.concat "," (List.map loop gtrees)
@@ -189,6 +198,12 @@ let lcs src tgt =
 	    m.(i).(j) <- max a b
     ) jarr) m;
     m
+
+let rm_dub ls =
+  (*List.rev *)
+  (List.fold_left
+      (fun acc e -> if List.mem e acc then acc else e :: acc)
+      [] ls)
 
 let lcs_shared size_f src tgt =
   let slen = List.length src in
@@ -879,7 +894,8 @@ and traverse pred work lhs rhs =
     List.fold_left pred work ups in
   let rec loop work t t' = match t, t' with
     | C(tp,ts), C(tp',ts') when tp = tp' && List.length ts = List.length ts' ->
-	List.fold_left2 loop (add_ups pred [UP(t,t')] work) ts ts'
+	(*List.fold_left2 loop (add_ups pred [UP(t,t')] work) ts ts'*)
+	List.fold_left2 loop (pred work (UP(t,t'))) ts ts'
 	  (* TODO: we should consider how to handle removals as they could also
 	     be considered "context-free", but for the time being we have no good
 	     way to handle those *)
@@ -889,7 +905,7 @@ and traverse pred work lhs rhs =
 	    removed term though so we need to be careful to find the ones
 	    that were actually removed *)
 *)
-    | _, _ -> add_ups pred [UP(t,t')] work in
+    | _, _ -> pred work (UP(t,t')) (*add_ups pred [UP(t,t')] work *) in
     loop work lhs rhs
 
 and complete_part lhs rhs w u =
@@ -1060,7 +1076,7 @@ and get_ctf_diffs_all work gt1 gt2 =
   let all_pred lhs rhs w u =
     if 
       not(List.mem u w) && 
-	match u with UP(a,b) -> not(a = b)
+      match u with UP(a,b) -> not(a = b)
 	  then u :: w
 	  else w
     in
@@ -1084,8 +1100,7 @@ let complete_changeset chgset bp_list =
   let app_f t bp = safe_apply bp t in
   List.for_all
     (function (t,t'') ->
-      List.fold_left app_f t bp_list
-	= t''
+      List.fold_left app_f t bp_list = t''
     )
     chgset
 
@@ -1528,7 +1543,7 @@ let renumber_metas_up up =
     | ADD s -> 
 	let nm, new_env = renumber_metas s [] in ADD nm
 
-let rec abs_term_imp terms_changed is_fixed should_abs up =
+let rec abs_term_imp terms_changed is_fixed up =
   let cur_depth = ref !abs_depth in
   let should_abs t = 
     !cur_depth >= 0
@@ -1636,7 +1651,7 @@ let abs_term_noenv terms_changed is_fixed should_abs up =
         string_of_int (Difftype.csize up) ^ " " ^
 		    string_of_diff up);
   (*let res, _ = abs_term_size terms_changed is_fixed should_abs up in *)
-  let res, _ = abs_term_imp terms_changed is_fixed should_abs up in 
+  let res, _ = abs_term_imp terms_changed is_fixed up in 
   let res_norm = List.map renumber_metas_up res in
     fdebug_endline !print_abs ("[Diff] resulting abstract updates: " ^ 
 		      string_of_int (List.length res));
@@ -1684,8 +1699,8 @@ let should_abs_size t = gsize t <= !abs_threshold
 (* depth based abstraction pred: only abstract "shallow" terms -- i.e. terms
  * with depth less than threshold
  *)
-let should_abs_depth t = gdepth t <= !abs_threshold
-
+(* let should_abs_depth t = gdepth t <= !abs_threshold *)
+let should_abs_depth t = gdepth t <= !abs_depth
 
 let s = A("ident","s")
 let g = A("ident","g")
@@ -1698,7 +1713,7 @@ let patch = UP(
   C( "call", [h;C ("call",[f;x])] )
 )
 
-let non_dub_cons x xs= if List.mem x xs then xs else x :: xs 
+let non_dub_cons x xs = if List.mem x xs then xs else x :: xs 
 let ($$) a b = non_dub_cons a b
 let non_dub_app ls1 ls2 = List.fold_left (fun acc l -> l $$ acc) ls1 ls2
 let (%) ls1 ls2 = non_dub_app ls1 ls2
@@ -1709,9 +1724,7 @@ let (%) ls1 ls2 = non_dub_app ls1 ls2
 let make_all_subterms t =
   let rec loop ts t =
     match t with
-      | C(_, ts_sub) -> List.fold_right (fun t' ts_acc -> 
-          loop ts_acc t'
-        ) ts_sub (t $$ ts)
+      | C(_, ts_sub) -> List.fold_left loop (t $$ ts) ts_sub
       | _ -> t $$ ts in
     loop [] t
 
@@ -1727,12 +1740,6 @@ let select_max a b =
   else b
 let union_lists unioned_list new_list =
   new_list % unioned_list
-
-let rm_dub ls =
-  (*List.rev *)
-  (List.fold_left
-      (fun acc e -> if List.mem e acc then acc else e :: acc)
-      [] ls)
 
 let unique l =
   let len = List.length l in
@@ -1776,7 +1783,7 @@ let print_additions d =
     | _ -> ()
 
 let apply_list gt1 ds = 
-  let app_nonexec s d = try apply_noenv d s with Nomatch -> s in
+  let app_nonexec s d = try apply_noenv d s with omatch -> s in
     List.fold_left app_nonexec s ds
 
 let unabstracted_sol gt1 gt2 = 
@@ -1851,12 +1858,18 @@ let make_subterms_patch ds =
 
 let inAll e ell = List.for_all (fun l -> List.mem e l) ell
 
-let filter_all ell =
+let filter_all_old ell =
   List.fold_left (fun acc l -> List.fold_left (fun acc e ->
     if inAll e ell
     then e $$ acc
     else acc
   ) acc l) [] ell
+
+let filter_all ell =
+  match ell with
+  | sublist :: lists -> 
+      List.filter (function e -> inAll e lists) sublist
+  | [] -> []
 
 (* takes a diff list (patch) and finds the subterms in the small updates;
  * we should take a flag to enable strict frequency or relaxed

@@ -5,10 +5,11 @@ let src_file     = ref ""
 let tgt_file     = ref ""
 let toprint      = ref false
 let mk_closed    = ref false
+let do_dmine     = ref false
 let abs          = ref false
 let spec         = ref false
 let mfile        = ref ""
-let our_level    = ref 0
+let our_level    = ref 0 (* not used anymore *)
 let max_level    = ref 10
 let depth        = ref 0
 let strict       = ref false
@@ -19,16 +20,19 @@ let print_close  = ref false
 let print_raw    = ref false
 let print_uniq   = ref false 
 let print_adding = ref false
+let noncompact   = ref false
 
 let speclist =
   Arg.align
     ["-src",           Arg.Set_string src_file, "str   gives the name of the src file";
      "-tgt",           Arg.Set_string tgt_file, "str   gives the name of the tgt file";
+     "-noncompact",    Arg.Set noncompact,      "bool  also return non-compact solutions";
      "-mk_closed",     Arg.Set mk_closed,       "bool  indicates that we should also produce the closed db";
+     "-dmine",         Arg.Set do_dmine,        "bool  indicate to do datamining";
      "-print",         Arg.Set toprint,         "bool  indicates printing of the (non-closed) db";
      "-abs",           Arg.Set abs,             "bool  indicates whether to perform meta-variable abstraction";
      "-specfile",      Arg.Set_string mfile,    "str   name of specification file";
-     "-level",         Arg.Set_int our_level,   "int   terms larger than this will not be abstracted";
+     "-level%",        Arg.Set_int our_level,   "int   terms larger than this will not be abstracted";
      "-top",           Arg.Set_int max_level,   "int   terms larger than this will not have subterms abstracted";
      "-depth",         Arg.Set_int depth,       "int   recursion depth at which we still abstract terms";
      "-strict",        Arg.Set strict,          "bool  strict: fv(lhs) = fv(rhs) or nonstrict(default): fv(rhs)<=fv(lhs)";
@@ -135,15 +139,29 @@ let print_patch_lists pl =
   )
   pl
 
-let get_best_itemset ndb =
+let get_best_itemset_old ndb =
+  print_endline ("[Main] getting best itemset of " ^ 
+    string_of_int (Diff.DBD.sizeOf ndb) ^ " possible");
 	let supp b = Diff.DBD.get_support_itemset ndb b in
 	let f acc_itemset itemset =
-	if supp itemset >= supp acc_itemset &&
-	   List.length itemset >= List.length acc_itemset
+    if acc_itemset = [] ||
+    (supp itemset >= supp acc_itemset &&
+    List.length itemset >= List.length acc_itemset)
 		 then itemset
-		 else acc_itemset in
-  Diff.DBD.fold_itemset ndb f [] 
+     else acc_itemset in
+  Diff.DBD.fold_itemset ndb f []
 
+let get_best_itemset ndb =
+  let items = Diff.DBD.getItems ndb in
+  print_endline ("[Main] there are " ^ string_of_int (List.length items) ^ " unique items");
+  Diff.DBD.fold_unique ndb (
+    fun item freq () ->
+      print_endline ("[Main db] " ^ 
+        Diff.string_of_diff item ^ ", " ^
+        string_of_int freq)
+  ) ();
+  items
+  
 let do_datamining abs_patches =
   let edb = Diff.DBD.makeEmpty () in
   print_endline "[Main] Constructing database...";
@@ -258,7 +276,7 @@ let filter_smaller chgset solutions =
     List.for_all
       (function bp' -> 
         Diff.subpatch_changeset chgset bp' bp &&
-        Difftype.csize bp' <= Difftype.csize bp
+        (!noncompact || Difftype.csize bp' <= Difftype.csize bp)
       )
       solutions in
     (*print_string "[Main] filter_small considering ";*)
@@ -423,7 +441,7 @@ let spec_main () =
   (* we must now find the frequent subterms; 
    * that is, the subterms that occur in all term pair LHS'es *)
   (* {{{  Common subterms printing *)
-  Diff.fdebug_string !Diff.print_abs "[Main] Common subterms: ";
+  Diff.fdebug_endline !Diff.print_abs "[Main] Common subterms: ";
   let frqnt_st = Diff.make_fixed_list term_pairs in
   List.iter (function st -> 
     print_string (Diff.string_of_gtree' st);
@@ -478,7 +496,7 @@ let spec_main () =
   (*do_datamining abs_patches*)(*}}}*)
   print_endline "[Main] filtering all safe patches."; 
   let filtered_patches = 
-    if !mk_closed
+    if !do_dmine
     then do_datamining abs_patches
     else get_all_safe term_pairs abs_patches
     in
@@ -495,24 +513,6 @@ let spec_main () =
   print_endline "[Main] generating solutions...";
   let solutions = generate_sols term_pairs filtered_patches in
   print_sols solutions
-  (*
-  let uniq_sols = filter_redundant solutions in
-    print_string "[Main] filtered ";
-    print_string (string_of_int (List.length solutions - List.length uniq_sols));
-    print_string " solutions of ";
-    print_string (string_of_int (List.length solutions));
-    print_endline " possible";
-    if !print_uniq then (
-      print_endline "[Main] printing unique solutions";
-      print_sols uniq_sols
-    );
-    print_endline "[Main] removing smaller solutions";
-    let subsumed_sols = filter_smaller term_pairs uniq_sols in
-      print_string "[Main] removed ";
-      print_string (string_of_int (List.length uniq_sols - List.length subsumed_sols));
-      print_endline " smaller patches";
-      print_sols subsumed_sols
-*)
 
 let main () =
   (* decide which mode to operate in *)

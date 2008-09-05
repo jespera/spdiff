@@ -176,7 +176,11 @@ let rec add_item items item = try
       (*then (item, n+1) :: items*)
       (*else (item', n) :: add_item items item*)
 
-(* add itemset to db *)
+(* add itemset to db; notice how we assume that there are no duplicate items in the
+ * itemset we are adding. If there are, the same item is counted for each
+ * occurrence in the itemset. We rely on users to make their itemsets into real
+ * sets themselves
+ *)
 let add_itemset db itemset = 
   let addto_items items = List.fold_left add_item items itemset in
   match db with
