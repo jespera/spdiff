@@ -286,6 +286,7 @@ let filter_smaller chgset solutions =
     (List.filter keep_sol solutions)
 
 
+
 let generate_sols chgset_orig simple_patches =
   let unwrap bp = match bp with 
     | None -> raise (Diff.Fail "unable to unwrap")
@@ -382,14 +383,14 @@ let generate_sols chgset_orig simple_patches =
     List.map list_of_bp (gen [] simple_patches None)
 
 
-
+(* a solution is a list of TU patches, not a SEQ value *)
     let print_sol sol =
-      print_endline "{{{";
-      List.iter (function bp -> 
-	print_string "\t";
-	print_endline (Diff.string_of_diff bp);
-      ) sol;
-      print_endline "}}}"
+    print_endline "{{{";
+    List.iter (function bp -> 
+      print_string "\t";
+      print_endline (Diff.string_of_diff bp);
+    ) sol;
+    print_endline "}}}"
 
     let print_sols sols =
       let cnt = ref 1 in
@@ -427,6 +428,21 @@ let get_all_safe changeset abs_patches =
      * being in a subpatch relationship. The question is now: is it always the case
      * that one could be applied before the other?
      *)
+
+let mine (chg_set, n) =
+  let (++) a b = a :: b in
+  let (<<=) a b n = a ≼n b in
+  let rec grow fu acc_gps cur_gp =
+    let next_gps = List.fold_left (fun acc_nxt gps' ->(*{{{*)
+      let pot_gps = cur_gp ++ gps' in
+      if (pot_gps <<= chg_set) n
+      then pot_gps :: acc_gps
+      else acc_gps(*}}}*)
+    ) [] fu TODO/FIXME
+  let freq_units = {p->p' | p->p'≼n C} in
+  let freq_found = [] in
+  let grown_gps  = List.fold_left (grow freq_units) freq_found freq_found in
+  filter_smaller grown_gps
 
 let spec_main () =
   Diff.abs_depth     := !depth;

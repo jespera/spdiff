@@ -68,6 +68,8 @@ let print_abs = ref false
   (* should we allow non-matching parts to be safe? 
   *)
 let relax = ref false
+(* copy of the main.ml var with the same name; initialized in main.ml *)
+let do_dmine = ref false
 
 (* check that list l1 is a sublist of l2 *)
 let subset_list l1 l2 =
@@ -1871,6 +1873,18 @@ let filter_all ell =
       List.filter (function e -> inAll e lists) sublist
   | [] -> []
 
+
+let inSome e ell = 
+  let occurs = List.length (List.filter (fun l -> List.mem e l) ell) in
+  occurs >= List.length ell - !no_exceptions
+
+let filter_some ell =
+  List.fold_left (fun acc l -> List.fold_left (fun acc e ->
+    if inSome e ell
+    then e $$ acc
+    else acc
+  ) acc l) [] ell
+
 (* takes a diff list (patch) and finds the subterms in the small updates;
  * we should take a flag to enable strict frequency or relaxed
  * with strict freq. an item, must be in all small updates in all patches
@@ -1912,7 +1926,15 @@ let make_fixed_list term_pairs =
       fdebug_string !print_abs ("[Diff] making all subterms for :\n\t");
       fdebug_endline !print_abs (string_of_gtree' gtn);
       make_all_subterms gtn) term_pairs in
-    filter_all subterms
+    (* Here we should allow frequent subterms that are not global; we could use
+     * dmine to implement it, but I think it is so simple that we need only do a
+     * simple filtering
+     *)
+    if !do_dmine
+    then
+      filter_some subterms
+    else 
+      filter_all subterms
 
 let make_fixed_list_old updates =
   let subterms_list =
