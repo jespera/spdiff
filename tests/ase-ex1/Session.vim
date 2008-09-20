@@ -80,9 +80,13 @@ set completeopt=menu,preview,longest
 set fileencodings=ucs-bom,utf-8,default,latin1,default
 set grepprg=grep\ -nH\ $*
 set guicursor=n-v-c:block,o:hor50,i-ci:hor15,r-cr:hor30,sm:block,a:blinkon0
+set guifont=Droid\ Sans\ Mono\ 10
+set guioptions=aimr
 set helplang=en
 set history=50
 set hlsearch
+set iminsert=0
+set imsearch=0
 set incsearch
 set nomodeline
 set mouse=a
@@ -96,6 +100,7 @@ set updatecount=0
 set updatetime=0
 set viminfo='20,\"500
 set wildmenu
+set window=29
 let s:so_save = &so | let s:siso_save = &siso | set so=0 siso=0
 let v:this_session=expand("<sfile>:p")
 silent only
@@ -135,22 +140,23 @@ set nosplitbelow
 set nosplitright
 wincmd t
 set winheight=1 winwidth=1
-exe '1resize ' . ((&lines * 9 + 14) / 29)
-exe 'vert 1resize ' . ((&columns * 52 + 51) / 103)
-exe '2resize ' . ((&lines * 7 + 14) / 29)
-exe 'vert 2resize ' . ((&columns * 52 + 51) / 103)
+exe '1resize ' . ((&lines * 8 + 14) / 29)
+exe 'vert 1resize ' . ((&columns * 35 + 36) / 72)
+exe '2resize ' . ((&lines * 8 + 14) / 29)
+exe 'vert 2resize ' . ((&columns * 35 + 36) / 72)
 exe '3resize ' . ((&lines * 9 + 14) / 29)
-exe 'vert 3resize ' . ((&columns * 52 + 51) / 103)
-exe '4resize ' . ((&lines * 9 + 14) / 29)
-exe 'vert 4resize ' . ((&columns * 50 + 51) / 103)
-exe '5resize ' . ((&lines * 7 + 14) / 29)
-exe 'vert 5resize ' . ((&columns * 50 + 51) / 103)
+exe 'vert 3resize ' . ((&columns * 35 + 36) / 72)
+exe '4resize ' . ((&lines * 8 + 14) / 29)
+exe 'vert 4resize ' . ((&columns * 36 + 36) / 72)
+exe '5resize ' . ((&lines * 8 + 14) / 29)
+exe 'vert 5resize ' . ((&columns * 36 + 36) / 72)
 exe '6resize ' . ((&lines * 9 + 14) / 29)
-exe 'vert 6resize ' . ((&columns * 50 + 51) / 103)
+exe 'vert 6resize ' . ((&columns * 36 + 36) / 72)
 argglobal
 setlocal keymap=
 setlocal noarabic
 setlocal autoindent
+setlocal balloonexpr=
 setlocal nobinary
 setlocal bufhidden=
 setlocal buflisted
@@ -242,7 +248,7 @@ setlocal nowinfixheight
 setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
-let s:l = 1 - ((0 * winheight(0) + 4) / 9)
+let s:l = 1 - ((0 * winheight(0) + 4) / 8)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -254,6 +260,7 @@ edit e.c
 setlocal keymap=
 setlocal noarabic
 setlocal autoindent
+setlocal balloonexpr=
 setlocal nobinary
 setlocal bufhidden=
 setlocal buflisted
@@ -345,7 +352,7 @@ setlocal nowinfixheight
 setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
-let s:l = 1 - ((0 * winheight(0) + 3) / 7)
+let s:l = 1 - ((0 * winheight(0) + 4) / 8)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -357,6 +364,7 @@ edit c.c
 setlocal keymap=
 setlocal noarabic
 setlocal autoindent
+setlocal balloonexpr=
 setlocal nobinary
 setlocal bufhidden=
 setlocal buflisted
@@ -460,6 +468,7 @@ edit b.c
 setlocal keymap=
 setlocal noarabic
 setlocal autoindent
+setlocal balloonexpr=
 setlocal nobinary
 setlocal bufhidden=
 setlocal buflisted
@@ -551,7 +560,7 @@ setlocal nowinfixheight
 setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
-let s:l = 3 - ((2 * winheight(0) + 4) / 9)
+let s:l = 3 - ((2 * winheight(0) + 4) / 8)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -563,6 +572,7 @@ edit f.c
 setlocal keymap=
 setlocal noarabic
 setlocal autoindent
+setlocal balloonexpr=
 setlocal nobinary
 setlocal bufhidden=
 setlocal buflisted
@@ -654,7 +664,7 @@ setlocal nowinfixheight
 setlocal nowinfixwidth
 setlocal wrap
 setlocal wrapmargin=0
-let s:l = 1 - ((0 * winheight(0) + 3) / 7)
+let s:l = 1 - ((0 * winheight(0) + 4) / 8)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -666,6 +676,7 @@ edit d.c
 setlocal keymap=
 setlocal noarabic
 setlocal autoindent
+setlocal balloonexpr=
 setlocal nobinary
 setlocal bufhidden=
 setlocal buflisted
@@ -765,18 +776,18 @@ normal! zt
 normal! 0
 wincmd w
 6wincmd w
-exe '1resize ' . ((&lines * 9 + 14) / 29)
-exe 'vert 1resize ' . ((&columns * 52 + 51) / 103)
-exe '2resize ' . ((&lines * 7 + 14) / 29)
-exe 'vert 2resize ' . ((&columns * 52 + 51) / 103)
+exe '1resize ' . ((&lines * 8 + 14) / 29)
+exe 'vert 1resize ' . ((&columns * 35 + 36) / 72)
+exe '2resize ' . ((&lines * 8 + 14) / 29)
+exe 'vert 2resize ' . ((&columns * 35 + 36) / 72)
 exe '3resize ' . ((&lines * 9 + 14) / 29)
-exe 'vert 3resize ' . ((&columns * 52 + 51) / 103)
-exe '4resize ' . ((&lines * 9 + 14) / 29)
-exe 'vert 4resize ' . ((&columns * 50 + 51) / 103)
-exe '5resize ' . ((&lines * 7 + 14) / 29)
-exe 'vert 5resize ' . ((&columns * 50 + 51) / 103)
+exe 'vert 3resize ' . ((&columns * 35 + 36) / 72)
+exe '4resize ' . ((&lines * 8 + 14) / 29)
+exe 'vert 4resize ' . ((&columns * 36 + 36) / 72)
+exe '5resize ' . ((&lines * 8 + 14) / 29)
+exe 'vert 5resize ' . ((&columns * 36 + 36) / 72)
 exe '6resize ' . ((&lines * 9 + 14) / 29)
-exe 'vert 6resize ' . ((&columns * 50 + 51) / 103)
+exe 'vert 6resize ' . ((&columns * 36 + 36) / 72)
 tabnext 1
 if exists('s:wipebuf')
   silent exe 'bwipe ' . s:wipebuf

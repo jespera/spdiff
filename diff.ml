@@ -62,6 +62,7 @@ let be_fixed      = ref false
    * often a patch should be found
    *)
 let no_exceptions = ref 0
+let no_occurs = ref 0
   (* should we be printing the derived abstract updates during inference
   *)
 let print_abs = ref false
@@ -77,8 +78,7 @@ let subset_list l1 l2 =
 
 
 let rec string_of_gtree str_of_t str_of_c gt = 
-  let loop' gt = string_of_gtree str_of_t str_of_c gt in
-  let string_of_itype itype = (match itype with
+  let rec string_of_itype itype = (match itype with
   | A("itype", c) -> "char"
   | C("itype", [sgn;base]) ->
     (match sgn, base with
@@ -86,8 +86,18 @@ let rec string_of_gtree str_of_t str_of_c gt =
     | A ("sgn", "unsigned"), A (_, b) -> "unsigned" ^ " " ^ b
     | A ("meta", _), A(_, b) -> b
     )) 
-  in
-  let rec string_of_ftype fts = 
+  and string_of_param param =
+    match param with
+    | C("param", [reg;name;ft]) ->
+        let r = match reg with 
+          | A("reg",r) -> r
+          | A("meta",x0) -> x0 in
+        let n = match name with
+          | A("name", n) -> n
+          | A("meta", x0) -> x0 in
+        "(" ^ r ^ " " ^ n ^ ":" ^ string_of_ftype [ft] ^ ")"
+    | gt -> loop gt
+  and string_of_ftype fts = 
     let loc cvct = match cvct with
     | A("tqual","const") -> "const"
     | A("tqual","vola")  -> "volatile"
@@ -100,17 +110,25 @@ let rec string_of_gtree str_of_t str_of_c gt =
         string_of_ftype [ft] ^ " " ^
         (match cexpopt with
         | A("constExp", "none") -> "[]"
-        | C("constExp", [e]) -> "[" ^ loop' e ^ "]"
-	| A("meta", x0) -> x0
+        | C("constExp", [e]) -> "[" ^ loop e ^ "]"
+    | A("meta", x0) -> x0
         )
-    | C("funtype", rt :: pars) -> "funTODO"
+    | C("funtype", rt :: pars) -> 
+        let ret_type_string = string_of_ftype [rt] in
+        let par_type_strings = List.map string_of_param pars in
+        "("^ 
+        String.concat "**" par_type_strings 
+        ^ ")->" ^ ret_type_string
     | C("enum", [A ("enum_name", en); enumgt]) -> "enumTODO"
-    | C("struct", [C(sname, [stype])]) -> "structTODO"
-    | _ -> "N/A"
+    | C("struct", [C(sname, [stype])]) -> 
+        "struct " ^ sname ^ "{" ^ loop stype ^"}"
+    | A ("struct", name) -> "struct " ^ name
+    | t -> loop t
+    | C(tp,ts) -> tp ^ "<" ^ String.concat ", " (List.map loop ts) ^ ">"
+    | A(tp,t) -> tp ^ ":" ^ t ^ ":"
     in
     String.concat " " (List.map loc fts)
-  in
-  let rec loop gt =
+  and loop gt =
     match gt with
       | A ("meta", c) -> c
       | A ("itype", _) -> string_of_itype gt
@@ -572,6 +590,13 @@ let mark_as_read_only t = C("RO", [t])
 
 let can_match p t = try match match_term p t with _ -> true with Nomatch -> false
 
+let rec find_match pat t =
+  let cm = can_match pat in
+  let le = List.exists cm in
+  cm t || match t with
+  | A _ -> false
+  | C(ct, ts) -> le ts
+
 (* apply up t, applies up to t and returns the new term and the environment bindings *)
 let rec apply up t =
   match up with (*
@@ -597,58 +622,59 @@ C(ct,ts), empty_env
           then t1, empty_env
           else raise Nomatch
         )
-  | UP(src, tgt) -> (match src, t with
-  | A ("meta", mvar), _ -> 
-      let env = mk_env (mvar, t) in sub env tgt, env
-  | A (sct, sat), A(ct, at) when sct = ct && sat = at ->
-      tgt, empty_env
-  | C (sct, sts), C(ct, ts) when sct = ct -> 
-      (try
-        (*print_endline *)
-        (*("trying " ^ string_of_gtree str_of_ctype str_of_catom t);*)
-        let fenv = List.fold_right2 (fun st t acc_env ->
-          let envn = match_term st t in
-          merge_envs envn acc_env
-        ) sts ts empty_env in
-        let res = sub fenv tgt in
-        (*print_endline ("result: " ^*)
-        (*string_of_gtree str_of_ctype str_of_catom res); *)
-        res, fenv
-      with _ -> 
-        (*print_endline "_";*)
-        let ft, flag = List.fold_right
-        (fun tn (acc_ts, acc_flag) -> 
-          let nt, flag = (match apply_some up tn with
-          | None -> tn, false
-          | Some t -> t, true) in
-          nt :: acc_ts, flag || acc_flag
-        ) ts ([], false) in
-        if flag 
-        then C(ct, ft), empty_env
-        else (* no matches at all *) raise Nomatch
-        (*let ft = List.fold_right (fun tn acc_ts ->*)
-        (*let nt, _ = apply up tn in*)
-        (*nt :: acc_ts) (t :: ts) [] in*)
-        (*C(ct, ft), empty_env*)
-      )
-  | _, C (ct, ts) -> 
-      (*print_endline ("dive " ^ ct);*)
-      let ft, flag = List.fold_right
-      (fun tn (acc_ts, acc_flag) -> 
-        let nt, flag = (match apply_some up tn with
-        | None -> tn, false
-        | Some t -> t, true) in
-        nt :: acc_ts, flag || acc_flag
-      ) ts ([], false) in
-      if flag 
-      then C(ct, ft), empty_env
-      else (* no matches at all *) raise Nomatch
-  | _ -> (
-          (*print_endline "nomatch of ";*)
-          (*print_endline (string_of_diff up);*)
-          (*print_endline "with";*)
-          (*print_endline (string_of_gtree str_of_ctype str_of_catom t);*)
-          raise Nomatch)
+  | UP(src, tgt) when find_match src t -> 
+      (match src, t with
+      | A ("meta", mvar), _ -> 
+          let env = mk_env (mvar, t) in sub env tgt, env
+      | A (sct, sat), A(ct, at) when sct = ct && sat = at ->
+          tgt, empty_env
+      | C (sct, sts), C(ct, ts) when sct = ct -> 
+          (try
+            (*print_endline *)
+            (*("trying " ^ string_of_gtree str_of_ctype str_of_catom t);*)
+            let fenv = List.fold_left2 (fun acc_env st t ->
+              let envn = match_term st t in
+              merge_envs envn acc_env
+            ) empty_env sts ts in
+            let res = sub fenv tgt in
+            (*print_endline ("result: " ^*)
+            (*string_of_gtree str_of_ctype str_of_catom res); *)
+            res, fenv
+          with _ -> 
+            (*print_endline "_";*)
+            let ft, flag = List.fold_left
+            (fun (acc_ts, acc_flag) tn -> 
+              let nt, flag = (match apply_some up tn with
+              | None -> tn, false
+              | Some t -> t, true) in
+              nt :: acc_ts, flag || acc_flag
+            ) ([], false) ts in
+            if flag 
+            then C(ct, List.rev ft), empty_env
+            else (* no matches at all *) raise Nomatch
+            (*let ft = List.fold_right (fun tn acc_ts ->*)
+            (*let nt, _ = apply up tn in*)
+            (*nt :: acc_ts) (t :: ts) [] in*)
+            (*C(ct, ft), empty_env*)
+          )
+      | _, C (ct, ts) -> 
+          (*print_endline ("dive " ^ ct);*)
+          let ft, flag = List.fold_left
+          (fun (acc_ts, acc_flag) tn -> 
+            let nt, flag = (match apply_some up tn with
+            | None -> tn, false
+            | Some t -> t, true) in
+            nt :: acc_ts, flag || acc_flag
+          ) ([], false) ts in
+          if flag 
+          then C(ct, List.rev ft), empty_env
+          else (* no matches at all *) raise Nomatch
+      | _ -> (
+              (*print_endline "nomatch of ";*)
+              (*print_endline (string_of_diff up);*)
+              (*print_endline "with";*)
+              (*print_endline (string_of_gtree str_of_ctype str_of_catom t);*)
+              raise Nomatch)
   )
   | _ -> raise (Fail "Not implemented application")
 
@@ -1040,7 +1066,11 @@ and relaxed_safe_part up (t, t'') =
  * *)
 and safe_part_changeset bp chgset = 
   let safe_f = if !relax then relaxed_safe_part bp else safe_part bp in
-  List.for_all safe_f chgset
+  (*
+   * List.for_all safe_f chgset
+   *)
+  let len = List.length (List.filter safe_f chgset) in
+  len >= !no_occurs
 
 (* the changeset after application of the basic patch bp; if there is a term to
  * which bp does not apply an exception is raised unless we are in relaxed mode
@@ -1574,7 +1604,12 @@ let rec abs_term_imp terms_changed is_fixed up =
       else (
         debug_msg ("[Diff] not abstracting atom: " ^ string_of_gtree' t);
         [t], env)
-  | C (ct, []) -> raise (Fail "whhaaattt")
+  | C (ct, []) -> 
+      (* raise (Fail ("whhaaattt: "^ct^"")) *)
+      (* this case has been reached we could have an empty file;
+       * this can happen, you know! we return simply an atom
+       *)
+      [A(ct, "new file")], env
   | C (ct, ts) when !abs_subterms <= gsize t -> 
       (fdebug_endline !print_abs ("[Diff] abs_subterms " ^ string_of_gtree' t);
       [t], env)
@@ -1876,7 +1911,8 @@ let filter_all ell =
 
 let inSome e ell = 
   let occurs = List.length (List.filter (fun l -> List.mem e l) ell) in
-  occurs >= List.length ell - !no_exceptions
+  (*occurs >= List.length ell - !no_exceptions*)
+  occurs >= !no_occurs
 
 let filter_some ell =
   List.fold_left (fun acc l -> List.fold_left (fun acc e ->

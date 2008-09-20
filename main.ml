@@ -16,6 +16,7 @@ let strict       = ref false
 let mvars        = ref false
 let fixed        = ref false
 let exceptions   = ref 0 
+let threshold    = ref 0
 let print_close  = ref false
 let print_raw    = ref false
 let print_uniq   = ref false 
@@ -39,6 +40,7 @@ let speclist =
      "-multiple",      Arg.Set mvars,           "bool  allow equal terms to have different metas";
      "-fixed",         Arg.Set fixed,           "bool  never abstract fixed terms";
      "-exceptions",    Arg.Set_int exceptions,  "int   the number of allowed exceptions to the rule derived";
+     "-threshold",     Arg.Set_int threshold,   "int   the minimum number of occurrences required";
      "-print_close",   Arg.Set print_close,     "bool  whether to close the resulting mined database (default: no)";
      "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing, "bool  also parse if0 blocks";
      "-print_abs",     Arg.Set Diff.print_abs,  "bool  print abstract updates for each term pair";
@@ -161,20 +163,38 @@ let get_best_itemset ndb =
         string_of_int freq)
   ) ();
   items
-  
+ 
+let list_at_least n f ls =
+  (List.fold_left (fun acc_n e -> 
+    if f e
+    then acc_n + 1
+    else acc_n
+  ) 0 ls) >= n
+
+
 let do_datamining abs_patches =
+  (*let threshold = List.length abs_patches in*)
+  print_endline ("[Main] Finding unit patches with minimum support at least: " ^
+  (*string_of_int (!threshold - !exceptions));*)
+  string_of_int !threshold);
+  Diff.filter_some abs_patches
+  
+
+let do_datamining_old abs_patches =
   let edb = Diff.DBD.makeEmpty () in
   print_endline "[Main] Constructing database...";
   let fdb = List.fold_left Diff.DBD.add_itemset edb abs_patches in
-  let threshold = List.length abs_patches in
+  (*let threshold = List.length abs_patches in*)
   print_endline ("[Main] Mining using minimum support: " ^
-  string_of_int (threshold - !exceptions));
+  (*string_of_int (threshold - !exceptions));*)
+  string_of_int !threshold);
   print_endline ("[Main] initial db size " ^ string_of_int (Diff.DBD.sizeOf fdb));
   let mfunc = if !mk_closed then 
     (print_endline "[Main] using closed sub-itemsets";
     Diff.DBD.dmine_cls)
     else Diff.DBD.dmine in
-  let cdb = mfunc fdb (threshold - !exceptions) in
+  (*let cdb = mfunc fdb (threshold - !exceptions) in*)
+  let cdb = mfunc fdb !threshold in
   (* close the database occording to command line prefs *)
   (*
   let cdb = if !close then (
@@ -268,26 +288,33 @@ let rec filter_redundant solutions =
 *)
 
 let filter_smaller chgset solutions =
-  (* turn the lists into SEQ-bps *)
-  (*let bp_sols = List.map bp_of_list solutions in*)
-    (* predicate for when to keep a solution: if all other solutions are
-       smaller *)
   let keep_sol bp = 
+    (*List.for_all*)
+      (*(function bp' -> *)
+        (*Diff.subpatch_changeset chgset bp' bp &&*)
+        (*(!noncompact || Difftype.csize bp' <= Difftype.csize bp)*)
+      (* ) *)
+      (*solutions in*)
     List.for_all
-      (function bp' -> 
-        Diff.subpatch_changeset chgset bp' bp &&
-        (!noncompact || Difftype.csize bp' <= Difftype.csize bp)
+      (function bp' ->
+        (Diff.subpatch_changeset chgset bp bp' && bp = bp') ||
+        if Diff.subpatch_changeset chgset bp' bp
+        then (!noncompact || Difftype.csize bp' <= Difftype.csize bp)
+        else true
       )
-      solutions in
+      solutions
+  in
     (*print_string "[Main] filter_small considering ";*)
     (*print_string (string_of_int (List.length solutions));*)
     (*print_endline " solutions";*)
     (*List.map list_of_bp *)
-    (List.filter keep_sol solutions)
+  (List.filter keep_sol solutions)
 
 
 
 let generate_sols chgset_orig simple_patches =
+  (*Diff.no_occurs := List.length chgset_orig - !exceptions;*)
+  print_endline ("[Main] min sup = " ^ string_of_int !Diff.no_occurs);
   let unwrap bp = match bp with 
     | None -> raise (Diff.Fail "unable to unwrap")
     | Some bp -> bp in
@@ -329,8 +356,11 @@ let generate_sols chgset_orig simple_patches =
         (*print_string "[Main] considering next w.r.t.\n\t";*)
         (*print_endline (Diff.string_of_diff cur_bp);*)
         let res = List.filter (function bp ->
-          try app_pred cur_bp bp with Diff.Nomatch -> false) 
-            (restrict_bps cur_bp bps) in
+          try app_pred cur_bp bp with Diff.Nomatch -> false
+        ) bps
+          
+            (* (restrict_bps cur_bp bps) (* this is just too slow to be worth
+             * it*) *) in
         (*print_endline "[Updates added";*)
         (*List.iter (function bp -> print_endline ("\t"^Diff.string_of_diff bp)) res;*)
         res
@@ -338,29 +368,28 @@ let generate_sols chgset_orig simple_patches =
     in
   let add_sol cur_bp sol = 
     match cur_bp with 
-    | None -> 
-        print_endline "[Main] no solutions?";
-        []
+    | None -> print_endline "[Main] no solutions?"; []
     | Some cur_bp -> (
         if !print_adding
         then (
-          print_string "[Main] trying solution... ";
+          print_string ("[Main] trying solution... (" ^
+            string_of_int (List.length sol) ^")");
           flush stdout;
-          (*print_endline (Diff.string_of_diff cur_bp)*)
+          print_endline (Diff.string_of_diff cur_bp)
         );
         let res = filter_smaller chgset_orig (filter_redundant (cur_bp :: sol))
         in
         if !print_adding
-        then print_endline "done";
+        then print_endline ("done (" ^ string_of_int (List.length res) ^ ")");
         res
       ) in
   let isComplete bp = Diff.complete_changeset 
     chgset_orig (list_of_bp bp) in
   let rec gen sol bps cur_bp =
-    if try isComplete (unwrap cur_bp) with _ -> false
-    then add_sol cur_bp sol
-    else
-      let bps' = next_bps bps cur_bp in
+    (*if try isComplete (unwrap cur_bp) with _ -> false*)
+    (*then add_sol cur_bp sol*)
+    (*else*)
+      let bps' = filter_smaller chgset_orig (next_bps bps cur_bp) in
       if bps' = []
       then add_sol cur_bp sol
       else
@@ -371,7 +400,7 @@ let generate_sols chgset_orig simple_patches =
             let nbp = extend_bp cur_bp bp in
             (* let nbps = restrict_bps (unwrap nbp) bps in *)
             (* gen sol nbps nbp *)
-            gen sol bps' nbp (* maybe s/bps/bps' for efficiency? *)
+            gen sol bps nbp
           ) sol bps'
         )
   in
@@ -380,7 +409,10 @@ let generate_sols chgset_orig simple_patches =
     print_endline "[Main] no input to work with";
     [])
   else
-    List.map list_of_bp (gen [] simple_patches None)
+    let res = gen [] simple_patches None in
+    print_endline ("[Main] found " ^
+      string_of_int (List.length res) ^ " solutions");
+    List.map list_of_bp res
 
 
 (* a solution is a list of TU patches, not a SEQ value *)
@@ -429,20 +461,32 @@ let get_all_safe changeset abs_patches =
      * that one could be applied before the other?
      *)
 
-let mine (chg_set, n) =
-  let (++) a b = a :: b in
-  let (<<=) a b n = a ≼n b in
-  let rec grow fu acc_gps cur_gp =
-    let next_gps = List.fold_left (fun acc_nxt gps' ->(*{{{*)
-      let pot_gps = cur_gp ++ gps' in
-      if (pot_gps <<= chg_set) n
-      then pot_gps :: acc_gps
-      else acc_gps(*}}}*)
-    ) [] fu TODO/FIXME
-  let freq_units = {p->p' | p->p'≼n C} in
-  let freq_found = [] in
-  let grown_gps  = List.fold_left (grow freq_units) freq_found freq_found in
-  filter_smaller grown_gps
+
+(* this function takes a list a atomic patches and partitions them into those
+ * that are equivalent and those for which that information is unknown; finally
+ * it returns the "unknown" and one from each of the equivalence classes
+ *)
+let strip term_pairs abs_patches =
+  let in_eq atomp eq_class =
+    match eq_class with
+    | [] -> raise (Diff.Fail "in_eq empty")
+    | atomp' :: _ -> 
+        Diff.subpatch_changeset term_pairs atomp atomp' &&
+        Diff.subpatch_changeset term_pairs atomp' atomp
+  in
+  let rec add_atom part atomp =
+    match part with
+    | [] -> [[atomp]]
+    | eq_class :: part ->
+        if in_eq atomp eq_class 
+        then (atomp :: eq_class) :: part
+        else eq_class :: add_atom part atomp
+  in
+  let pot_res = List.fold_left (fun part atomp ->
+    add_atom part atomp
+  ) [] abs_patches in
+  List.map (fun eq_class -> List.hd (filter_smaller term_pairs eq_class )) pot_res
+
 
 let spec_main () =
   Diff.abs_depth     := !depth;
@@ -454,8 +498,14 @@ let spec_main () =
     List.fold_left (fun acc_pairs (lfile, rfile) ->
       read_filepair lfile rfile :: acc_pairs
     ) [] !file_pairs) in
+  (* assume that a threshold of 0 means the user did not set it
+   * thus, set it to max instead 
+   *)
+  if !threshold = 0
+  then threshold := List.length term_pairs;
   (* we must now find the frequent subterms; 
    * that is, the subterms that occur in all term pair LHS'es *)
+  Diff.no_occurs := !threshold;
   (* {{{  Common subterms printing *)
   Diff.fdebug_endline !Diff.print_abs "[Main] Common subterms: ";
   let frqnt_st = Diff.make_fixed_list term_pairs in
@@ -527,7 +577,8 @@ let spec_main () =
     print_endline "}}}"
   );
   print_endline "[Main] generating solutions...";
-  let solutions = generate_sols term_pairs filtered_patches in
+  let stripped_patches = strip term_pairs filtered_patches in
+  let solutions = generate_sols term_pairs stripped_patches in
   print_sols solutions
 
 let main () =
