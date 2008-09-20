@@ -11,6 +11,7 @@ open Db
 open Difftype
 
 type term = (string, string) gtree
+type up = term diff
 
 exception Merge3
 
@@ -26,6 +27,9 @@ struct
   type t = ((string,string) gtree) diff
   let compare = Pervasives.compare
 end
+
+
+let ht = Hashtbl.create (591)
 
 (*
  *module DiffT =
@@ -590,12 +594,13 @@ let mark_as_read_only t = C("RO", [t])
 
 let can_match p t = try match match_term p t with _ -> true with Nomatch -> false
 
-let rec find_match pat t =
+let find_match pat t =
   let cm = can_match pat in
-  let le = List.exists cm in
-  cm t || match t with
-  | A _ -> false
-  | C(ct, ts) -> le ts
+  let rec loop t =
+    cm t || match t with
+    | A _ -> false
+    | C(ct, ts) -> List.exists (fun t' -> loop t') ts
+  in loop t
 
 (* apply up t, applies up to t and returns the new term and the environment bindings *)
 let rec apply up t =
@@ -622,10 +627,14 @@ C(ct,ts), empty_env
           then t1, empty_env
           else raise Nomatch
         )
-  | UP(src, tgt) when find_match src t -> 
+  | UP(src, tgt) -> 
+      try 
+        Hashtbl.find ht (up,t)
+      with Not_found ->
       (match src, t with
       | A ("meta", mvar), _ -> 
-          let env = mk_env (mvar, t) in sub env tgt, env
+          let env = mk_env (mvar, t) in 
+            Hashtbl.add ht (up, t) (sub env tgt,env)
       | A (sct, sat), A(ct, at) when sct = ct && sat = at ->
           tgt, empty_env
       | C (sct, sts), C(ct, ts) when sct = ct -> 
