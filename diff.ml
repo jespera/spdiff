@@ -29,8 +29,6 @@ struct
 end
 
 
-let ht = Hashtbl.create (591)
-
 (*
  *module DiffT =
  *  struct
@@ -604,7 +602,6 @@ let find_match pat t =
 
 
 let return_and_bind (up,t) (t',env) = (
-  (*Hashtbl.replace ht (up,t) (t',env);*)
   t',env
 )
 
@@ -634,9 +631,6 @@ C(ct,ts), empty_env
           else raise Nomatch
         )
   | UP(src, tgt) -> 
-      try 
-        Hashtbl.find ht (up,t)
-      with Not_found ->
         if not(find_match src t)
         then raise Nomatch
         else
