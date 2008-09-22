@@ -1,11 +1,57 @@
 Spec. file is: specfile
-Comment
+Parsed two: leds.c.orig, leds.c.new
 Parsed two: lo.c.orig, lo.c.new
 Parsed two: main.c.orig, main.c.new
 Parsed two: main2.c.orig, main2.c.new
 Parsed two: phy.c.orig, phy.c.new
-Comment
-Comment
+Parsed two: wa.c.orig, wa.c.new
+Parsed two: xmit.c.orig, xmit.c.new
+Reading file pair xmit.c.orig xmit.c.new
+Reading file pair wa.c.orig wa.c.new
 Reading file pair phy.c.orig phy.c.new
 Reading file pair main2.c.orig main2.c.new
 Reading file pair main.c.orig main.c.new
+Reading file pair lo.c.orig lo.c.new
+Reading file pair leds.c.orig leds.c.new
+return stmt[return] r1 sprom bus 3 3 3 2 2 2 break stmt[break] none stmt[none] TYPEDEXP[typeName[u16,unknown]] + || TYPEDEXP[int] signed int btype[int] int dev phy typeName[u16,unknown] int dev 4 4 4 < == && = no nosto storage[nosto,no] u16 typeName[u16,unknown] void void const & 1 1 1 0 0 0  unknown 
+[Main] Constructing all safe parts for 7 term pairs
+[Main] Making safe parts for pair 1
+[Main] terms that changed: 
+[Main] abstracted one pair
+[Main] Making safe parts for pair 2
+[Main] terms that changed: 
+[Main] abstracted one pair
+[Main] Making safe parts for pair 3
+[Main] terms that changed: 
+[Main] abstracted one pair
+[Main] Making safe parts for pair 4
+[Main] terms that changed: 
+[Main] abstracted one pair
+[Main] Making safe parts for pair 5
+[Main] terms that changed: 
+[Main] abstracted one pair
+[Main] Making safe parts for pair 6
+[Main] terms that changed: 
+[Main] abstracted one pair
+[Main] Making safe parts for pair 7
+[Main] terms that changed: 
+[Main] abstracted one pair
+[Main] filtering all safe patches.
+[Main] Finding unit patches with minimum support at least: 3
+[Main] generating solutions...
+[Main] min sup = 3
+[Main] found 3 solutions
+[Main] number of bindings in Hashtbl: 10661
+[Main] solution #1
+{{{
+	record_acc[record_acc[record_ptr[record_ptr[record_ptr[(dev:*struct b43_wldev),dev],bus],sprom],r1],boardflags_lo]&B43_BFL_RSSI ==> record_acc[record_ptr[record_ptr[record_ptr[(dev:*struct b43_wldev),dev],bus],sprom],boardflags_lo]&B43_BFL_RSSI
+}}}
+[Main] solution #2
+{{{
+	record_acc[record_acc[record_ptr[(bus:*struct ssb_bus),sprom],r1],boardflags_lo] ==> record_acc[record_ptr[(bus:*struct ssb_bus),sprom],boardflags_lo]
+}}}
+[Main] solution #3
+{{{
+	record_acc[record_ptr[(sprom:*struct ssb_sprom),r1],X0] ==> record_ptr[(sprom:*struct ssb_sprom),X0]
+	record_acc[record_acc[record_ptr[record_ptr[record_ptr[(dev:*struct b43_wldev),dev],bus],sprom],r1],boardflags_lo] ==> record_acc[record_ptr[record_ptr[record_ptr[(dev:*struct b43_wldev),dev],bus],sprom],boardflags_lo]
+}}}

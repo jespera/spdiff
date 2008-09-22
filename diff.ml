@@ -602,6 +602,12 @@ let find_match pat t =
     | C(ct, ts) -> List.exists (fun t' -> loop t') ts
   in loop t
 
+
+let return_and_bind (up,t) (t',env) = (
+  (*Hashtbl.replace ht (up,t) (t',env);*)
+  t',env
+)
+
 (* apply up t, applies up to t and returns the new term and the environment bindings *)
 let rec apply up t =
   match up with (*
@@ -631,12 +637,15 @@ C(ct,ts), empty_env
       try 
         Hashtbl.find ht (up,t)
       with Not_found ->
+        if not(find_match src t)
+        then raise Nomatch
+        else
       (match src, t with
       | A ("meta", mvar), _ -> 
           let env = mk_env (mvar, t) in 
-            Hashtbl.add ht (up, t) (sub env tgt,env)
+            return_and_bind  (up, t) (sub env tgt,env)
       | A (sct, sat), A(ct, at) when sct = ct && sat = at ->
-          tgt, empty_env
+          return_and_bind  (up, t) (tgt, empty_env)
       | C (sct, sts), C(ct, ts) when sct = ct -> 
           (try
             (*print_endline *)
@@ -648,7 +657,7 @@ C(ct,ts), empty_env
             let res = sub fenv tgt in
             (*print_endline ("result: " ^*)
             (*string_of_gtree str_of_ctype str_of_catom res); *)
-            res, fenv
+            return_and_bind  (up,t) (res, fenv)
           with _ -> 
             (*print_endline "_";*)
             let ft, flag = List.fold_left
@@ -659,7 +668,7 @@ C(ct,ts), empty_env
               nt :: acc_ts, flag || acc_flag
             ) ([], false) ts in
             if flag 
-            then C(ct, List.rev ft), empty_env
+            then return_and_bind  (up,t) (C(ct, List.rev ft), empty_env)
             else (* no matches at all *) raise Nomatch
             (*let ft = List.fold_right (fun tn acc_ts ->*)
             (*let nt, _ = apply up tn in*)
@@ -676,7 +685,7 @@ C(ct,ts), empty_env
             nt :: acc_ts, flag || acc_flag
           ) ([], false) ts in
           if flag 
-          then C(ct, List.rev ft), empty_env
+          then return_and_bind  (up,t) (C(ct, List.rev ft), empty_env)
           else (* no matches at all *) raise Nomatch
       | _ -> (
               (*print_endline "nomatch of ";*)

@@ -579,6 +579,8 @@ let spec_main () =
   print_endline "[Main] generating solutions...";
   let stripped_patches = strip term_pairs filtered_patches in
   let solutions = generate_sols term_pairs stripped_patches in
+  print_endline ("[Main] number of bindings in Hashtbl: " ^
+  string_of_int (Hashtbl.length Diff.ht));
   print_sols solutions
 
 let main () =
