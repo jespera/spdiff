@@ -1,0 +1,281 @@
+<html><body>
+<pre><font color="990000">(**************************************************************************)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  Copyright (C) Jean-Christophe Filliatre                               *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  This software is free software; you can redistribute it and/or        *)</font>
+<font color="990000">(*  modify it under the terms of the GNU Library General Public           *)</font>
+<font color="990000">(*  License version 2.1, with the special exception on linking            *)</font>
+<font color="990000">(*  described in file LICENSE.                                            *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  This software is distributed in the hope that it will be useful,      *)</font>
+<font color="990000">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</font>
+<font color="990000">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(**************************************************************************)</font>
+
+<font color="990000">(*s Hash tables for hash-consing. (Some code is borrowed from the ocaml</font>
+<font color="990000">    standard library, which is copyright 1996 INRIA.) *)</font>
+
+<font color="green">type</font> 'a hash_consed = { 
+  hkey : int;
+  tag : int;
+  node : 'a }
+
+<font color="green">let</font> gentag =
+  <font color="green">let</font> r = ref 0 <font color="green">in</font>
+  <font color="green">fun</font> () -> incr r; !r
+
+<font color="green">type</font> 'a t = {
+  <font color="green">mutable</font> table : 'a hash_consed <font color="0033cc">Weak</font>.t array;
+  <font color="green">mutable</font> totsize : int;             <font color="990000">(* sum of the bucket sizes *)</font>
+  <font color="green">mutable</font> limit : int;               <font color="990000">(* max ratio totsize/table length *)</font>
+}
+
+<font color="green">let</font> create sz =
+  <font color="green">let</font> sz = <font color="77aaaa">if</font> sz < 7 <font color="77aaaa">then</font> 7 <font color="77aaaa">else</font> sz <font color="green">in</font>
+  <font color="green">let</font> sz = <font color="77aaaa">if</font> sz > <font color="0033cc">Sys</font>.max_array_length <font color="77aaaa">then</font> <font color="0033cc">Sys</font>.max_array_length <font color="77aaaa">else</font> sz <font color="green">in</font>
+  <font color="green">let</font> emptybucket = <font color="0033cc">Weak</font>.create 0 <font color="green">in</font>
+  { table = <font color="0033cc">Array</font>.create sz emptybucket;
+    totsize = 0;
+    limit = 3; }
+
+<font color="green">let</font> clear t =
+  <font color="green">let</font> emptybucket = <font color="0033cc">Weak</font>.create 0 <font color="green">in</font>
+  <font color="77aaaa">for</font> i = 0 <font color="77aaaa">to</font> <font color="0033cc">Array</font>.length t.table - 1 <font color="77aaaa">do</font> t.table.(i) <- emptybucket <font color="77aaaa">done</font>;
+  t.totsize <- 0;
+  t.limit <- 3
+  
+<font color="green">let</font> fold f t init =
+  <font color="green">let</font> <font color="green">rec</font> fold_bucket i b accu =
+    <font color="77aaaa">if</font> i >= <font color="0033cc">Weak</font>.length b <font color="77aaaa">then</font> accu <font color="77aaaa">else</font>
+      <font color="77aaaa">match</font> <font color="0033cc">Weak</font>.get b i <font color="77aaaa">with</font>
+	<font color="77aaaa">|</font> <font color="0033cc">Some</font> v -> fold_bucket (i+1) b (f v accu)
+	<font color="77aaaa">|</font> <font color="0033cc">None</font> -> fold_bucket (i+1) b accu
+  <font color="green">in</font>
+  <font color="0033cc">Array</font>.fold_right (fold_bucket 0) t.table init
+
+<font color="green">let</font> iter f t =
+  <font color="green">let</font> <font color="green">rec</font> iter_bucket i b =
+    <font color="77aaaa">if</font> i >= <font color="0033cc">Weak</font>.length b <font color="77aaaa">then</font> () <font color="77aaaa">else</font>
+      <font color="77aaaa">match</font> <font color="0033cc">Weak</font>.get b i <font color="77aaaa">with</font>
+	<font color="77aaaa">|</font> <font color="0033cc">Some</font> v -> f v; iter_bucket (i+1) b
+	<font color="77aaaa">|</font> <font color="0033cc">None</font> -> iter_bucket (i+1) b
+  <font color="green">in</font>
+  <font color="0033cc">Array</font>.iter (iter_bucket 0) t.table
+
+<font color="green">let</font> count t =
+  <font color="green">let</font> <font color="green">rec</font> count_bucket i b accu =
+    <font color="77aaaa">if</font> i >= <font color="0033cc">Weak</font>.length b <font color="77aaaa">then</font> accu <font color="77aaaa">else</font>
+      count_bucket (i+1) b (accu + (<font color="77aaaa">if</font> <font color="0033cc">Weak</font>.check b i <font color="77aaaa">then</font> 1 <font color="77aaaa">else</font> 0))
+  <font color="green">in</font>
+  <font color="0033cc">Array</font>.fold_right (count_bucket 0) t.table 0
+
+<font color="green">let</font> next_sz n = min (3*n/2 + 3) (<font color="0033cc">Sys</font>.max_array_length - 1)
+
+<font color="green">let</font> <font color="green">rec</font> resize t =
+  <font color="green">let</font> oldlen = <font color="0033cc">Array</font>.length t.table <font color="green">in</font>
+  <font color="green">let</font> newlen = next_sz oldlen <font color="green">in</font>
+  <font color="77aaaa">if</font> newlen > oldlen <font color="77aaaa">then</font> <font color="990099">begin</font>
+    <font color="green">let</font> newt = create newlen <font color="green">in</font>
+    newt.limit <- t.limit + 100;          <font color="990000">(* prevent resizing of newt *)</font>
+    fold (<font color="green">fun</font> d () -> add newt d) t ();
+    t.table <- newt.table;
+    t.limit <- t.limit + 2;
+  <font color="990099">end</font>
+
+<font color="green">and</font> add t d =
+  <font color="green">let</font> index = d.hkey mod (<font color="0033cc">Array</font>.length t.table) <font color="green">in</font>
+  <font color="green">let</font> bucket = t.table.(index) <font color="green">in</font>
+  <font color="green">let</font> sz = <font color="0033cc">Weak</font>.length bucket <font color="green">in</font>
+  <font color="green">let</font> <font color="green">rec</font> loop i =
+    <font color="77aaaa">if</font> i >= sz <font color="77aaaa">then</font> <font color="990099">begin</font>
+      <font color="green">let</font> newsz = min (sz + 3) (<font color="0033cc">Sys</font>.max_array_length - 1) <font color="green">in</font>
+      <font color="77aaaa">if</font> newsz <= sz <font color="77aaaa">then</font> 
+	failwith <font color="aa4444">"Hashcons.Make: hash bucket cannot grow more"</font>;
+      <font color="green">let</font> newbucket = <font color="0033cc">Weak</font>.create newsz <font color="green">in</font>
+      <font color="0033cc">Weak</font>.blit bucket 0 newbucket 0 sz;
+      <font color="0033cc">Weak</font>.set newbucket i (<font color="0033cc">Some</font> d);
+      t.table.(index) <- newbucket;
+      t.totsize <- t.totsize + (newsz - sz);
+      <font color="77aaaa">if</font> t.totsize > t.limit * <font color="0033cc">Array</font>.length t.table <font color="77aaaa">then</font> resize t;
+    <font color="990099">end</font> <font color="77aaaa">else</font> <font color="990099">begin</font>
+      <font color="77aaaa">if</font> <font color="0033cc">Weak</font>.check bucket i
+      <font color="77aaaa">then</font> loop (i+1)
+      <font color="77aaaa">else</font> <font color="0033cc">Weak</font>.set bucket i (<font color="0033cc">Some</font> d)
+    <font color="990099">end</font>
+  <font color="green">in</font>
+  loop 0
+
+<font color="green">let</font> hashcons t d =
+  <font color="green">let</font> hkey = <font color="0033cc">Hashtbl</font>.hash d <font color="green">in</font>
+  <font color="green">let</font> index = hkey mod (<font color="0033cc">Array</font>.length t.table) <font color="green">in</font>
+  <font color="green">let</font> bucket = t.table.(index) <font color="green">in</font>
+  <font color="green">let</font> sz = <font color="0033cc">Weak</font>.length bucket <font color="green">in</font>
+  <font color="green">let</font> <font color="green">rec</font> loop i =
+    <font color="77aaaa">if</font> i >= sz <font color="77aaaa">then</font> <font color="990099">begin</font>
+      <font color="green">let</font> hnode = { hkey = hkey; tag = gentag (); node = d } <font color="green">in</font>
+      add t hnode;
+      hnode
+    <font color="990099">end</font> <font color="77aaaa">else</font> <font color="990099">begin</font>
+      <font color="77aaaa">match</font> <font color="0033cc">Weak</font>.get_copy bucket i <font color="77aaaa">with</font>
+        <font color="77aaaa">|</font> <font color="0033cc">Some</font> v <font color="77aaaa">when</font> v.node = d -> 
+	    <font color="990099">begin</font> <font color="77aaaa">match</font> <font color="0033cc">Weak</font>.get bucket i <font color="77aaaa">with</font>
+              <font color="77aaaa">|</font> <font color="0033cc">Some</font> v -> v
+              <font color="77aaaa">|</font> <font color="0033cc">None</font> -> loop (i+1)
+            <font color="990099">end</font>
+        <font color="77aaaa">|</font> _ -> loop (i+1)
+    <font color="990099">end</font>
+  <font color="green">in</font>
+  loop 0
+  
+<font color="green">let</font> stats t =
+  <font color="green">let</font> len = <font color="0033cc">Array</font>.length t.table <font color="green">in</font>
+  <font color="green">let</font> lens = <font color="0033cc">Array</font>.map <font color="0033cc">Weak</font>.length t.table <font color="green">in</font>
+  <font color="0033cc">Array</font>.sort compare lens;
+  <font color="green">let</font> totlen = <font color="0033cc">Array</font>.fold_left ( + ) 0 lens <font color="green">in</font>
+  (len, count t, totlen, lens.(0), lens.(len/2), lens.(len-1))
+
+
+<font color="990000">(* Functorial interface *)</font>
+
+<font color="green">module</font> <font color="green">type</font> <font color="0033cc">HashedType</font> =
+  <font color="990099">sig</font>
+    <font color="green">type</font> t
+    <font color="green">val</font> equal : t -> t -> bool
+    <font color="green">val</font> hash : t -> int
+  <font color="990099">end</font>
+
+<font color="green">module</font> <font color="green">type</font> <font color="0033cc">S</font> =
+  <font color="990099">sig</font>
+    <font color="green">type</font> key
+    <font color="green">type</font> t
+    <font color="green">val</font> create : int -> t
+    <font color="green">val</font> clear : t -> unit
+    <font color="green">val</font> hashcons : t -> key -> key hash_consed
+    <font color="green">val</font> iter : (key hash_consed -> unit) -> t -> unit
+    <font color="green">val</font> stats : t -> int * int * int * int * int * int
+  <font color="990099">end</font>
+
+<font color="green">module</font> <font color="0033cc">Make</font>(<font color="0033cc">H</font> : <font color="0033cc">HashedType</font>) : (<font color="0033cc">S</font> <font color="77aaaa">with</font> <font color="green">type</font> key = <font color="0033cc">H</font>.t) = <font color="990099">struct</font>
+
+  <font color="green">type</font> key = <font color="0033cc">H</font>.t
+
+  <font color="green">type</font> data = <font color="0033cc">H</font>.t hash_consed
+
+  <font color="green">type</font> t = {
+    <font color="green">mutable</font> table : data <font color="0033cc">Weak</font>.t array;
+    <font color="green">mutable</font> totsize : int;             <font color="990000">(* sum of the bucket sizes *)</font>
+    <font color="green">mutable</font> limit : int;               <font color="990000">(* max ratio totsize/table length *)</font>
+  }
+
+  <font color="green">let</font> emptybucket = <font color="0033cc">Weak</font>.create 0
+
+  <font color="green">let</font> create sz =
+    <font color="green">let</font> sz = <font color="77aaaa">if</font> sz < 7 <font color="77aaaa">then</font> 7 <font color="77aaaa">else</font> sz <font color="green">in</font>
+    <font color="green">let</font> sz = <font color="77aaaa">if</font> sz > <font color="0033cc">Sys</font>.max_array_length <font color="77aaaa">then</font> <font color="0033cc">Sys</font>.max_array_length <font color="77aaaa">else</font> sz <font color="green">in</font>
+    {
+      table = <font color="0033cc">Array</font>.create sz emptybucket;
+      totsize = 0;
+      limit = 3;
+    }
+
+  <font color="green">let</font> clear t =
+    <font color="77aaaa">for</font> i = 0 <font color="77aaaa">to</font> <font color="0033cc">Array</font>.length t.table - 1 <font color="77aaaa">do</font>
+      t.table.(i) <- emptybucket
+    <font color="77aaaa">done</font>;
+    t.totsize <- 0;
+    t.limit <- 3
+  
+  <font color="green">let</font> fold f t init =
+    <font color="green">let</font> <font color="green">rec</font> fold_bucket i b accu =
+      <font color="77aaaa">if</font> i >= <font color="0033cc">Weak</font>.length b <font color="77aaaa">then</font> accu <font color="77aaaa">else</font>
+      <font color="77aaaa">match</font> <font color="0033cc">Weak</font>.get b i <font color="77aaaa">with</font>
+      <font color="77aaaa">|</font> <font color="0033cc">Some</font> v -> fold_bucket (i+1) b (f v accu)
+      <font color="77aaaa">|</font> <font color="0033cc">None</font> -> fold_bucket (i+1) b accu
+    <font color="green">in</font>
+    <font color="0033cc">Array</font>.fold_right (fold_bucket 0) t.table init
+
+  <font color="green">let</font> iter f t =
+    <font color="green">let</font> <font color="green">rec</font> iter_bucket i b =
+      <font color="77aaaa">if</font> i >= <font color="0033cc">Weak</font>.length b <font color="77aaaa">then</font> () <font color="77aaaa">else</font>
+      <font color="77aaaa">match</font> <font color="0033cc">Weak</font>.get b i <font color="77aaaa">with</font>
+      <font color="77aaaa">|</font> <font color="0033cc">Some</font> v -> f v; iter_bucket (i+1) b
+      <font color="77aaaa">|</font> <font color="0033cc">None</font> -> iter_bucket (i+1) b
+    <font color="green">in</font>
+    <font color="0033cc">Array</font>.iter (iter_bucket 0) t.table
+
+  <font color="green">let</font> count t =
+    <font color="green">let</font> <font color="green">rec</font> count_bucket i b accu =
+      <font color="77aaaa">if</font> i >= <font color="0033cc">Weak</font>.length b <font color="77aaaa">then</font> accu <font color="77aaaa">else</font>
+      count_bucket (i+1) b (accu + (<font color="77aaaa">if</font> <font color="0033cc">Weak</font>.check b i <font color="77aaaa">then</font> 1 <font color="77aaaa">else</font> 0))
+    <font color="green">in</font>
+    <font color="0033cc">Array</font>.fold_right (count_bucket 0) t.table 0
+
+  <font color="green">let</font> next_sz n = min (3*n/2 + 3) (<font color="0033cc">Sys</font>.max_array_length - 1)
+
+  <font color="green">let</font> <font color="green">rec</font> resize t =
+    <font color="green">let</font> oldlen = <font color="0033cc">Array</font>.length t.table <font color="green">in</font>
+    <font color="green">let</font> newlen = next_sz oldlen <font color="green">in</font>
+    <font color="77aaaa">if</font> newlen > oldlen <font color="77aaaa">then</font> <font color="990099">begin</font>
+      <font color="green">let</font> newt = create newlen <font color="green">in</font>
+      newt.limit <- t.limit + 100;          <font color="990000">(* prevent resizing of newt *)</font>
+      fold (<font color="green">fun</font> d () -> add newt d) t ();
+      t.table <- newt.table;
+      t.limit <- t.limit + 2;
+    <font color="990099">end</font>
+
+  <font color="green">and</font> add t d =
+    <font color="green">let</font> index = d.hkey mod (<font color="0033cc">Array</font>.length t.table) <font color="green">in</font>
+    <font color="green">let</font> bucket = t.table.(index) <font color="green">in</font>
+    <font color="green">let</font> sz = <font color="0033cc">Weak</font>.length bucket <font color="green">in</font>
+    <font color="green">let</font> <font color="green">rec</font> loop i =
+      <font color="77aaaa">if</font> i >= sz <font color="77aaaa">then</font> <font color="990099">begin</font>
+        <font color="green">let</font> newsz = min (sz + 3) (<font color="0033cc">Sys</font>.max_array_length - 1) <font color="green">in</font>
+        <font color="77aaaa">if</font> newsz <= sz <font color="77aaaa">then</font> 
+	  failwith <font color="aa4444">"Hashcons.Make: hash bucket cannot grow more"</font>;
+        <font color="green">let</font> newbucket = <font color="0033cc">Weak</font>.create newsz <font color="green">in</font>
+        <font color="0033cc">Weak</font>.blit bucket 0 newbucket 0 sz;
+        <font color="0033cc">Weak</font>.set newbucket i (<font color="0033cc">Some</font> d);
+        t.table.(index) <- newbucket;
+        t.totsize <- t.totsize + (newsz - sz);
+        <font color="77aaaa">if</font> t.totsize > t.limit * <font color="0033cc">Array</font>.length t.table <font color="77aaaa">then</font> resize t;
+      <font color="990099">end</font> <font color="77aaaa">else</font> <font color="990099">begin</font>
+        <font color="77aaaa">if</font> <font color="0033cc">Weak</font>.check bucket i
+        <font color="77aaaa">then</font> loop (i+1)
+        <font color="77aaaa">else</font> <font color="0033cc">Weak</font>.set bucket i (<font color="0033cc">Some</font> d)
+      <font color="990099">end</font>
+    <font color="green">in</font>
+    loop 0
+
+  <font color="green">let</font> hashcons t d =
+    <font color="green">let</font> hkey = <font color="0033cc">H</font>.hash d <font color="green">in</font>
+    <font color="green">let</font> index = hkey mod (<font color="0033cc">Array</font>.length t.table) <font color="green">in</font>
+    <font color="green">let</font> bucket = t.table.(index) <font color="green">in</font>
+    <font color="green">let</font> sz = <font color="0033cc">Weak</font>.length bucket <font color="green">in</font>
+    <font color="green">let</font> <font color="green">rec</font> loop i =
+      <font color="77aaaa">if</font> i >= sz <font color="77aaaa">then</font> <font color="990099">begin</font>
+	<font color="green">let</font> hnode = { hkey = hkey; tag = gentag (); node = d } <font color="green">in</font>
+	add t hnode;
+	hnode
+      <font color="990099">end</font> <font color="77aaaa">else</font> <font color="990099">begin</font>
+        <font color="77aaaa">match</font> <font color="0033cc">Weak</font>.get_copy bucket i <font color="77aaaa">with</font>
+        <font color="77aaaa">|</font> <font color="0033cc">Some</font> v <font color="77aaaa">when</font> <font color="0033cc">H</font>.equal v.node d -> 
+	    <font color="990099">begin</font> <font color="77aaaa">match</font> <font color="0033cc">Weak</font>.get bucket i <font color="77aaaa">with</font>
+              <font color="77aaaa">|</font> <font color="0033cc">Some</font> v -> v
+              <font color="77aaaa">|</font> <font color="0033cc">None</font> -> loop (i+1)
+            <font color="990099">end</font>
+        <font color="77aaaa">|</font> _ -> loop (i+1)
+      <font color="990099">end</font>
+    <font color="green">in</font>
+    loop 0
+  
+  <font color="green">let</font> stats t =
+    <font color="green">let</font> len = <font color="0033cc">Array</font>.length t.table <font color="green">in</font>
+    <font color="green">let</font> lens = <font color="0033cc">Array</font>.map <font color="0033cc">Weak</font>.length t.table <font color="green">in</font>
+    <font color="0033cc">Array</font>.sort compare lens;
+    <font color="green">let</font> totlen = <font color="0033cc">Array</font>.fold_left ( + ) 0 lens <font color="green">in</font>
+    (len, count t, totlen, lens.(0), lens.(len/2), lens.(len-1))
+  
+<font color="990099">end</font>
+</pre></body></html>

@@ -6,25 +6,26 @@ let debug_newline () = if debug then print_newline () else ()
 
 exception Fail of string
 
+open Hashcons
 open Gtree
 open Db
 open Difftype
 
-type term = (string, string) gtree
+type term = gtree
 type up = term diff
 
 exception Merge3
 
 module GT =
 struct
-  type t = (string, string) gtree
+  type t = gtree
   let compare = Pervasives.compare
 end
 
 module DiffT =
 struct
   (*type t = (((string,string) gtree) diff) list*)
-  type t = ((string,string) gtree) diff
+  type t = gtree diff
   let compare = Pervasives.compare
 end
 
@@ -80,37 +81,37 @@ let subset_list l1 l2 =
 
 
 let rec string_of_gtree str_of_t str_of_c gt = 
-  let rec string_of_itype itype = (match itype with
+  let rec string_of_itype itype = (match view itype with
   | A("itype", c) -> "char"
   | C("itype", [sgn;base]) ->
-    (match sgn, base with
+    (match view sgn, view base with
     | A ("sgn", "signed") , A (_, b) -> b
     | A ("sgn", "unsigned"), A (_, b) -> "unsigned" ^ " " ^ b
     | A ("meta", _), A(_, b) -> b
     )) 
   and string_of_param param =
-    match param with
+    match view param with
     | C("param", [reg;name;ft]) ->
-        let r = match reg with 
+        let r = match view reg with 
           | A("reg",r) -> r
           | A("meta",x0) -> x0 in
-        let n = match name with
+        let n = match view name with
           | A("name", n) -> n
           | A("meta", x0) -> x0 in
         "(" ^ r ^ " " ^ n ^ ":" ^ string_of_ftype [ft] ^ ")"
-    | gt -> loop gt
+    | _ -> loop param
   and string_of_ftype fts = 
-    let loc cvct = match cvct with
+    let loc cvct = match view cvct with
     | A("tqual","const") -> "const"
     | A("tqual","vola")  -> "volatile"
     | A("btype","void")  -> "void"
-    | C("btype", [C("itype", _) as c])   -> string_of_itype c
-    | C("btype", [A("itype", _) as a])   -> string_of_itype a
-    | C("btype", [A("ftype", ft)]) -> ft
+    | C("btype", [{node=C("itype", _)} as c])   -> string_of_itype c
+    | C("btype", [{node=A("itype", _)} as a])   -> string_of_itype a
+    | C("btype", [{node=A("ftype", ft)}]) -> ft
     | C("pointer", [ft]) -> "*" ^ string_of_ftype [ft]
     | C("array", [cexpopt; ft]) ->
         string_of_ftype [ft] ^ " " ^
-        (match cexpopt with
+        (match view cexpopt with
         | A("constExp", "none") -> "[]"
         | C("constExp", [e]) -> "[" ^ loop e ^ "]"
     | A("meta", x0) -> x0
@@ -121,32 +122,32 @@ let rec string_of_gtree str_of_t str_of_c gt =
         "("^ 
         String.concat "**" par_type_strings 
         ^ ")->" ^ ret_type_string
-    | C("enum", [A ("enum_name", en); enumgt]) -> "enumTODO"
-    | C("struct", [C(sname, [stype])]) -> 
+    | C("enum", [{node=A ("enum_name", en)}; enumgt]) -> "enumTODO"
+    | C("struct", [{node=C(sname, [stype])}]) -> 
         "struct " ^ sname ^ "{" ^ loop stype ^"}"
     | A ("struct", name) -> "struct " ^ name
-    | t -> loop t
+    | _ -> loop cvct
     | C(tp,ts) -> tp ^ "<" ^ String.concat ", " (List.map loop ts) ^ ">"
     | A(tp,t) -> tp ^ ":" ^ t ^ ":"
     in
     String.concat " " (List.map loc fts)
   and loop gt =
-    match gt with
+    match view gt with
       | A ("meta", c) -> c
       | A ("itype", _) -> string_of_itype gt
       | A (t,c) -> c
       | C ("fulltype", ti) -> string_of_ftype ti
-      | C ("const", [A(_, c)]) -> c
+      | C ("const", [{node=A(_, c)}]) -> c
       | C ("itype", _ ) -> string_of_itype gt
       | C ("exp", [e]) -> loop e
-      | C ("exp", [A("meta", x0); e]) -> "(" ^ loop e ^ ":_)"
-      | C ("exp", [C ("TYPEDEXP", [t]) ; e]) -> 
+      | C ("exp", [{node=A("meta", x0)}; e]) -> "(" ^ loop e ^ ":_)"
+      | C ("exp", [{node=C ("TYPEDEXP", [t])} ; e]) -> 
           "(" ^ loop e ^ ":" ^ loop t ^ ")"
       | C ("call", f :: args) -> 
           loop f ^ "(" ^ String.concat "," (List.map loop args) ^ ")"
-      | C ("binary_arith", [A("aop",op_str) ;e1;e2]) ->
+      | C ("binary_arith", [{node=A("aop",op_str)} ;e1;e2]) ->
           loop e1 ^ op_str ^ loop e2
-      | C ("binary_logi", [A("logiop", op_str); e1;e2]) ->
+      | C ("binary_logi", [{node=A("logiop", op_str)}; e1;e2]) ->
           loop e1 ^ op_str ^ loop e2
       | C (t, gtrees) -> 
           str_of_t t ^ "[" ^
@@ -267,11 +268,11 @@ let rec shared_gtree t1 t2 =
 	  (* below: only do shallow comparison *)
 	  (*| x :: xs, y :: ys -> localeq x y + comp xs ys in*)
       | x :: xs, y :: ys -> shared_gtree x y + comp xs ys in
-    match t1, t2 with
+    match view t1, view t2 with
       | A (ct1, at1), A (ct2, at2) -> 
-	  localeq ct1 ct2 + localeq at1 at2
+	        localeq ct1 ct2 + localeq at1 at2
       | C(ct1, ts1), C(ct2, ts2) ->
-	  localeq ct1 ct2 + comp ts1 ts2
+	        localeq ct1 ct2 + comp ts1 ts2
       | _, _ -> 0
 
 let rec get_diff_nonshared src tgt =
@@ -388,141 +389,6 @@ let correlate_diffs d =
     n @ o
 
 
-(*
-  Either there is a conflict and we return the super-tree (this is the
-  overapproximation we take atm) as the result of the make_diff or there is not
-  a conflict in which case we must identify the change in the list of changes,
-  return that as the result of make_diff. If there was no change, the identity
-  update is returned. Two updates (s,t) (s',t') does NOT conflict iff
-  (s,t) = (s',t') OR
-  make_diff (s,t) = make_diff (s',t')
-*)
-
-  (* occurs s l checks whether s occurs as a subterm of l; it is used to check for
-   * conflicting updates; TODO extened to also handle meta variables
-   *)
-let rec occurs small large =
-  small = large ||
-  (match large with
-    | C(ct, ts) -> List.exists (function t -> occurs small t) ts
-    | _ -> false
-  )
-
-let (<==) a b = occurs a b
-
-(* this function is too coarse; it fails to realise some cases when there is
- * no_conflict TODO
- *)
-
-
-let rec no_conflict up1 up2 =(*{{{*)
-  (up1 = up2) ||
-    match up1, up2 with
-      | ID s, ID s' -> true
-      | UP(s,t), UP(s',t') ->
-          let diff1, diff2 = make_diff s t, make_diff s' t' in
-            if diff1 = diff2
-            then true
-            else (
-              print_endline "diff1:"
-              ; print_endline (string_of_diff diff1)
-              ; print_endline "diff2:"
-              ; print_endline (string_of_diff diff2)
-              ; print_endline "conflict1:"
-              ; print_endline (string_of_diff up1)
-              ; print_endline "and"
-              ; print_endline (string_of_diff up2)
-              ; false)
-      | UP(s,t), ID s' | ID s', UP(s,t) -> (match make_diff s t with
-	  | UP(w,p) when w <== s' -> (
-              print_endline "conflict2:"
-              ; print_endline (string_of_diff up1)
-              ; print_endline "and"
-              ; print_endline (string_of_diff up2)
-              ; false)
-	  | RM w when w <== s' -> (
-              print_endline "conflict3:"
-              ; print_endline (string_of_diff up1)
-              ; print_endline "and"
-              ; print_endline (string_of_diff up2)
-              ; false)
-	  | ADD w when w <== s' -> (
-              print_endline "conflict4:"
-              ; print_endline (string_of_diff up1)
-              ; print_endline "and"
-              ; print_endline (string_of_diff up2)
-              ; false)
-	  | _ -> true) 
-      | _, _ -> false (* there IS an conflict *)(*}}}*)
-
-and unsafe up1 up2 =
-  match up1, up2 with
-    | UP(s,t), ID s' | ID s', UP(s,t) when s = s' -> (debug_msg "##" ; true)
-    | UP(s,t), UP(s',t') when s = s' -> (debug_msg "$$"; not(t = t'))
-    | _ -> (debug_msg "%%"; false)
-
-
-and no_conflicts diff dlist =(*{{{*)
-  match dlist with
-    | [] -> true
-    | (d :: ds) -> no_conflict diff d && no_conflicts diff ds (*}}}*)
-
-and make_diff s t =
-  let rec all_id diffs =(*{{{*)
-    match diffs with 
-      | [] -> true
-      | d :: ds -> (match d with 
-	  | ID _ -> all_id ds
-	  | _ -> false) in(*}}}*)
-    match s, t with
-      | s, t when s = t -> ID s
-      | A (_,_), C (_,_) | C (_,_), A(_,_) | A(_,_) , A(_,_) -> UP (s, t)
-      | C (st, slist), C (tt, tlist) 
-          when not(st = tt) -> 
-          debug_msg "when not";
-            UP(s, t)
-      | C (st, slist), C (tt, tlist)
-          when st = tt -> 
-          debug_msg "when";
-            let diff_list = get_diff slist tlist in
-            let cor_diffs = correlate_diffs diff_list in
-            let (no_c, _) = List.fold_left 
-              (fun (flag, rest) diff -> no_conflicts diff rest && flag, List.tl rest) 
-              (true,cor_diffs) cor_diffs in
-              if no_c && not(all_id cor_diffs)
-              then 
-		(* there was no conflict, so we have the complicated task of finding(*{{{*)
-		 * the change in the cor_diffs list; we can make use of the fact
-		 * that since there was no conflict and not_all_ids then there must
-		 * be at least ONE change to find in cor_list; and since none were
-		 * in conflict, it does not matter which we select as they will all
-		 * be the same.
-		 *)(*}}}*)
-		let l = List.filter 
-		  (function d -> match d with ID s -> false | _ -> true) 
-		  cor_diffs in
-		  match l with
-		    | [] -> raise (Fail "no diffs?")
-		    | d :: _ -> 
-			(*
-			 * At this point, we have found out that there was an/*{{{*/
-			 * non-conflicting update in a sub-part of a C(t,ts),C(t,ts')
-			 * pair. That is, there is one a=>b in (ts, ts'); however, when
-			 * 'd' is an UP(a,b) then we should actually recurse make_diff
-			 * with a and b as parameters since UP(a,b) may not be minimal/*}}}*/
-			 *)
-			(match d with
-			  | UP(a,b) -> (debug_msg "diving..."; make_diff a b)
-			  | _ -> d
-			)
-              else
-		(* there was a conflict (if there is a conflict we can trivially not(*{{{*)
-		 * have all_id in cor_diffs; this is the easy case as we simply
-		 * return the super-tree update
-		 *)(*}}}*)
-		UP(s,t)
-      | _ -> raise (Fail "Some weird matching")
-
 exception Nomatch
 
 (* Take an env and new binding for m = t; if m is already bound to t then we
@@ -545,18 +411,18 @@ let merge_envs env1 env2 =
   List.fold_left (fun env (m,t) -> merge_update env (m,t)) env2 env1
 
 let mk_env (m, t) = [(m, t)]
-let empty_env = ([] : (string * (string, string) gtree) list)
+let empty_env = ([] : ((string * gtree) list))
 
 let rec sub env t =
   if env = [] then t else
-    let rec loop t' = match t' with
+    let rec loop t' = match view t' with
     | C (ct, ts) ->
-        C(ct, List.rev (
+        mkC(ct, List.rev (
           List.fold_left (fun b a -> (loop a) :: b) [] ts
         ))
     | A ("meta", mvar) -> (try 
       List.assoc mvar env with (Fail _) ->
-        (print_endline "sub?"; A ("meta", mvar)))
+        (print_endline "sub?"; mkA ("meta", mvar)))
     | _ -> t'
     in
     loop t
@@ -566,7 +432,7 @@ let rec sub env t =
  * be any inherint reason local to the match_term function
  *)
 let rec match_term st t =
-  match st, t with
+  match view st, view t with
     | A("meta",mvar), _ -> mk_env (mvar, t)
     | A(sct,sat), A(ct,at) when sct = ct && sat = at -> empty_env
 	(* notice that the below lists s :: sts and t :: ts will always match due to
@@ -574,31 +440,56 @@ let rec match_term st t =
 	 * at least ONE argument in args 
 	 *)
     | C(sct,s :: sts), C(ct, t :: ts) when 
-	  sct = ct && List.length sts = List.length ts -> 
-	List.rev (
-          List.fold_left2 (fun acc_env st t ->
-            merge_envs (match_term st t) acc_env
-          ) (match_term s t) sts ts)
+	      sct = ct && List.length sts = List.length ts -> 
+          List.rev (
+              List.fold_left2 (fun acc_env st t ->
+                merge_envs (match_term st t) acc_env
+              ) (match_term s t) sts ts)
     | _ -> raise Nomatch
 
-let is_read_only t = match t with 
+let is_read_only t = match view t with 
   | C("RO", [t']) -> true
   | _ -> false
-let get_read_only_val t = match t with
+let get_read_only_val t = match view t with
   | C("RO", [t']) -> t'
   | _ -> raise Nomatch
 
-let mark_as_read_only t = C("RO", [t])
+let mark_as_read_only t = mkC("RO", [t])
 
 let can_match p t = try match match_term p t with _ -> true with Nomatch -> false
+
+
+(* 
+ * occursht is a hashtable indexed by a pair of a pattern and term 
+ * the idea is that each (p,t) maps to a boolean which gives the result of
+ * previous computations of "occurs p t"; if no previous result exists, one is
+ * computed
+ *)
+
+module PatternTerm = struct
+  type t = gtree * gtree
+  let equal (p1,t1) (p2,t2) =
+    p1 == p2 && t1 == t2
+  let hash (p,t) = abs (19 * (19 * p.hkey + t.hkey) + 2)
+end
+
+module PT = Hashtbl.Make(PatternTerm)
+
+let occursht = PT.create 591
 
 let find_match pat t =
   let cm = can_match pat in
   let rec loop t =
-    cm t || match t with
-    | A _ -> false
-    | C(ct, ts) -> List.exists (fun t' -> loop t') ts
-  in loop t
+    cm t || match view t with
+      | A _ -> false
+      | C(ct, ts) -> List.exists (fun t' -> loop t') ts
+  in 
+    try 
+      PT.find occursht (pat,t) 
+    with Not_found -> 
+      let res = loop t in
+        (PT.replace occursht (pat,t) res; 
+         res)
 
 
 let return_and_bind (up,t) (t',env) = (
@@ -608,87 +499,97 @@ let return_and_bind (up,t) (t',env) = (
 (* apply up t, applies up to t and returns the new term and the environment bindings *)
 let rec apply up t =
   match up with (*
-  | RM p -> (match t with 
-  | C(ct, ts) -> 
-      let ts' = List.rev (List.fold_left (fun acc_ts t ->
-        if can_match p t
-        then acc_ts
-        else 
-          let t1 = fst(try apply up t with Nomatch -> (t, empty_env)) 
-in t1 :: acc_ts
-) [] ts) in
-C(ct,ts), empty_env
-  | _ -> raise Nomatch
-) *)
-  | SEQ(d1, d2) -> 
+                 | RM p -> (match t with 
+                 | C(ct, ts) -> 
+                 let ts' = List.rev (List.fold_left (fun acc_ts t ->
+                 if can_match p t
+                 then acc_ts
+                 else 
+                 let t1 = fst(try apply up t with Nomatch -> (t, empty_env)) 
+                 in t1 :: acc_ts
+                 ) [] ts) in
+                 C(ct,ts), empty_env
+                 | _ -> raise Nomatch
+                 ) *)
+    | SEQ(d1, d2) -> 
+        (* For a sequence, we must actually apply all embedded rules in parallel
+         * so that the result of applying rule1 is never used for rule2 otherwise
+         * the presence of p->p' and p'->p would cause the inference to never
+         * terminate! At the moment we silently ignore such cases!
+         *)
+        (* ---> this is old code <--- *)
         let t1, env1 = (try 
-          apply d1 t with Nomatch -> 
-            if !relax then t, empty_env else raise Nomatch)
+                          apply d1 t with Nomatch -> 
+                            if !relax then t, empty_env else raise Nomatch)
         in
-        (try apply d2 t1 with Nomatch ->
-          if !relax 
-          then t1, empty_env
-          else raise Nomatch
-        )
-  | UP(src, tgt) -> 
+          (try apply d2 t1 with Nomatch ->
+             if !relax 
+             then t1, empty_env
+             else raise Nomatch
+          )
+    | UP(src, tgt) -> 
+        (*
+         * This is where we now wish to introduce the occurs check using
+         * a hashtable to memoize previous calls to "find_match"
+         *)
         if not(find_match src t)
         then raise Nomatch
         else
-      (match src, t with
-      | A ("meta", mvar), _ -> 
-          let env = mk_env (mvar, t) in 
-            return_and_bind  (up, t) (sub env tgt,env)
-      | A (sct, sat), A(ct, at) when sct = ct && sat = at ->
-          return_and_bind  (up, t) (tgt, empty_env)
-      | C (sct, sts), C(ct, ts) when sct = ct -> 
-          (try
-            (*print_endline *)
-            (*("trying " ^ string_of_gtree str_of_ctype str_of_catom t);*)
-            let fenv = List.fold_left2 (fun acc_env st t ->
-              let envn = match_term st t in
-              merge_envs envn acc_env
-            ) empty_env sts ts in
-            let res = sub fenv tgt in
-            (*print_endline ("result: " ^*)
-            (*string_of_gtree str_of_ctype str_of_catom res); *)
-            return_and_bind  (up,t) (res, fenv)
-          with _ -> 
-            (*print_endline "_";*)
-            let ft, flag = List.fold_left
-            (fun (acc_ts, acc_flag) tn -> 
-              let nt, flag = (match apply_some up tn with
-              | None -> tn, false
-              | Some t -> t, true) in
-              nt :: acc_ts, flag || acc_flag
-            ) ([], false) ts in
-            if flag 
-            then return_and_bind  (up,t) (C(ct, List.rev ft), empty_env)
-            else (* no matches at all *) raise Nomatch
-            (*let ft = List.fold_right (fun tn acc_ts ->*)
-            (*let nt, _ = apply up tn in*)
-            (*nt :: acc_ts) (t :: ts) [] in*)
-            (*C(ct, ft), empty_env*)
+          (match view src, view t with
+             | A ("meta", mvar), _ -> 
+                 let env = mk_env (mvar, t) in 
+                   return_and_bind  (up, t) (sub env tgt,env)
+             | A (sct, sat), A(ct, at) when sct = ct && sat = at ->
+                 return_and_bind  (up, t) (tgt, empty_env)
+             | C (sct, sts), C(ct, ts) when sct = ct -> 
+                 (try
+                    (*print_endline *)
+                    (*("trying " ^ string_of_gtree str_of_ctype str_of_catom t);*)
+                    let fenv = List.fold_left2 (fun acc_env st t ->
+                                                  let envn = match_term st t in
+                                                    merge_envs envn acc_env
+                    ) empty_env sts ts in
+                    let res = sub fenv tgt in
+                      (*print_endline ("result: " ^*)
+                      (*string_of_gtree str_of_ctype str_of_catom res); *)
+                      return_and_bind  (up,t) (res, fenv)
+                  with _ -> 
+                    (*print_endline "_";*)
+                    let ft, flag = List.fold_left
+                                     (fun (acc_ts, acc_flag) tn -> 
+                                        let nt, flag = (match apply_some up tn with
+                                                          | None -> tn, false
+                                                          | Some t -> t, true) in
+                                          nt :: acc_ts, flag || acc_flag
+                                     ) ([], false) ts in
+                      if flag 
+                      then return_and_bind  (up,t) (mkC(ct, List.rev ft), empty_env)
+                      else (* no matches at all *) raise Nomatch
+                 (*let ft = List.fold_right (fun tn acc_ts ->*)
+                 (*let nt, _ = apply up tn in*)
+                 (*nt :: acc_ts) (t :: ts) [] in*)
+                 (*C(ct, ft), empty_env*)
+                 )
+             | _, C (ct, ts) -> 
+                 (*print_endline ("dive " ^ ct);*)
+                 let ft, flag = List.fold_left
+                                  (fun (acc_ts, acc_flag) tn -> 
+                                     let nt, flag = (match apply_some up tn with
+                                                       | None -> tn, false
+                                                       | Some t -> t, true) in
+                                       nt :: acc_ts, flag || acc_flag
+                                  ) ([], false) ts in
+                   if flag 
+                   then return_and_bind  (up,t) (mkC(ct, List.rev ft), empty_env)
+                   else (* no matches at all *) raise Nomatch
+             | _ -> (
+                 (*print_endline "nomatch of ";*)
+                 (*print_endline (string_of_diff up);*)
+                 (*print_endline "with";*)
+                 (*print_endline (string_of_gtree str_of_ctype str_of_catom t);*)
+                 raise Nomatch)
           )
-      | _, C (ct, ts) -> 
-          (*print_endline ("dive " ^ ct);*)
-          let ft, flag = List.fold_left
-          (fun (acc_ts, acc_flag) tn -> 
-            let nt, flag = (match apply_some up tn with
-            | None -> tn, false
-            | Some t -> t, true) in
-            nt :: acc_ts, flag || acc_flag
-          ) ([], false) ts in
-          if flag 
-          then return_and_bind  (up,t) (C(ct, List.rev ft), empty_env)
-          else (* no matches at all *) raise Nomatch
-      | _ -> (
-              (*print_endline "nomatch of ";*)
-              (*print_endline (string_of_diff up);*)
-              (*print_endline "with";*)
-              (*print_endline (string_of_gtree str_of_ctype str_of_catom t);*)
-              raise Nomatch)
-  )
-  | _ -> raise (Fail "Not implemented application")
+    | _ -> raise (Fail "Not implemented application")
 
 and apply_noenv up t =
   let newterm, _ = apply up t in newterm
@@ -696,14 +597,14 @@ and apply_noenv up t =
 
 and eq_term t bp1 bp2 =
   (try
-    let t1 = apply_noenv bp1 t in 
-      (try
+     let t1 = apply_noenv bp1 t in 
+       (try
           t1 = apply_noenv bp2 t
         with Nomatch -> false)
-    with Nomatch -> 
-      try let _ = apply_noenv bp2 t in 
-	  false 
-    with Nomatch -> true)
+   with Nomatch -> 
+     try let _ = apply_noenv bp2 t in 
+       false 
+     with Nomatch -> true)
 
 and eq_changeset chgset bp1 bp2 =
   List.for_all (function (t,_) -> eq_term t bp1 bp2) chgset
@@ -726,21 +627,21 @@ and occurs_meta small large =
     (match ts with
       | [] -> raise Nomatch
       | t :: ts -> try loop env s t with Nomatch -> loc_loop env s ts)
-  and loop env s l = match s, l with
-    | _, _ when s = l -> [] 
+  and loop env s l = match view s, view l with
+    | _, _ when s == l -> [] 
     | A ("meta", mvar), _ -> merge_update env (mvar, l)
     | C (lt, lts), C(rt, rts) ->
 	(* first try to match eagerly *)
-	(try
+        (try
             (if lt = rt && List.length lts = List.length rts
             then 
               (* each term from lts must match one from rts *)
               List.fold_left2 (fun acc_env s l -> loop acc_env s l) env lts rts
               else raise Nomatch)
-	  with Nomatch ->
+        with Nomatch ->
 	    (* since that failed try to find a matching of the smaller terms of the
 	     * large term*)
-	    loc_loop env s rts)
+          loc_loop env s rts)
     | _, _ -> raise Nomatch
   in
     (try (loop [] small large; true) with Nomatch -> false)
@@ -749,6 +650,7 @@ and occurs_meta small large =
  * match; the returned result is a list of all the subterms of t2 that were
  * matched
  *)
+(*
 and matched_terms t t' =
   match t, t' with
     | A _, A _ -> (try let env = match_term t t' in [t', env] with Nomatch -> [])
@@ -796,7 +698,7 @@ and safe_update_old gt1 gt2 up =
 	with Nomatch -> true 
       )
     | _ -> raise (Fail "unsup safe_up")
-
+*)
 and invert_up up = 
   match up with
     | UP(l,r) -> UP(r, l)
@@ -844,95 +746,11 @@ and sort_safe_before_pairs term_pairs upds =
     | d :: ds -> insert_before d (sort ds) in
     sort upds
 
-and add_update up up_list =
-  match up_list with
-    | [] -> [up]
-    | up' :: _ when up = up' -> 
-	(*print_endline "equal"; *)
-	up_list
-    | up' :: up_list ->
-	(match up, up' with
-	  | UP(lhs,rhs), UP(lhs',rhs') when lhs = lhs' ->
-              (*print_endline ("conflict \n" ^ string_of_diff up);*)
-              (* this is a conflict because we know the the rhs' are not equal at
-               * this point in the function and consequently we remove BOTH the up
-               * and the old up' from the returned list and rely on larger updates
-               * to be present in the (final) uplist *)
-              up_list
-	  | UP(lhs,rhs), UP(lhs',rhs') when lhs <== lhs' ->
-              (* we are attempting to add an update which applies to the same (and
-               * possibly more) lhs's as the old (lhs'); we then need to check that
-               * the new update is compatible with the existing because otherwise
-               * they can not both be in the resulting up_list and we should be
-               * removing the smallest ???
-               *)
-              let tgt = apply_noenv up lhs' in
-		if tgt = rhs'
-		then
-		  (* equal, but smaller update *)
-		  up' :: add_update up up_list
-		else 
-		  (* non-equal *)
-		  if not(lhs <== rhs')
-		  then
-		    (* smaller and seemingly part of *)
-		    up' :: add_update up up_list 
-		else (
-		  (*print_endline "\ntgt::::";*)
-		  (*print_endline (string_of_gtree' tgt);*)
-		  (*print_endline ":::: not adding:";*)
-		  (*print_endline (string_of_diff up);*)
-		  (*print_endline ":::: because of:";*)
-		  (*print_endline (string_of_diff up');*)
-		  up' :: up_list)
-	  | UP(lhs, rhs), (ID s | RM s | ADD s) when lhs = s ->
-              (*print_endline ("adding\n" ^ string_of_diff up);*)
-              (*add_update up up_list*)
-              (* we do not add updates that we have already discovered should either
-               * not change differently RM, ADD *)
-              up' :: up_list
-	  | (ID s | RM s | ADD s), UP(lhs, rhs) when lhs = s ->
-              (*print_endline "?";*)
-              (*add_update up up_list*)
-              (* we override (old) updates in case we discover something that tells
-               * us that the old update was ambiguous; e.i. we have found a place,
-               * where the old update would do "the wrong thing"
-               *)
-              up :: up_list
-	  | _, _ -> up' :: add_update up up_list
-	)
-
-and add_diffs diving_pred diff_list up_list =
-  let local_add up_list d =
-    match d with 
-      | ID s -> get_ctf_diffs diving_pred up_list s s
-      | RM _ | ADD _ -> add_update d up_list
-      | UP(lhs, rhs) -> get_ctf_diffs diving_pred up_list lhs rhs
-
-  in
-    List.rev (List.fold_left local_add up_list diff_list)
-and get_up lhs rhs = if lhs = rhs then ID lhs else UP(lhs, rhs)
-and get_ctf_diffs diving_pred start_acc lhs rhs =
-  let rec loop acc_diffs lhs rhs =
-    match lhs, rhs with
-      | A _, A _ -> add_update (get_up lhs rhs) acc_diffs
-      | C(lct, lts), C(rct, rts) when diving_pred lhs rhs ->
-          let top_up    = get_up lhs rhs in
-          let acc_diffs = add_update top_up acc_diffs in
-          let diffs     = get_diff lts rts in
-          let c_diffs   = correlate_diffs diffs in
-            add_diffs diving_pred c_diffs acc_diffs 
-      | _, _  ->
-          (*print_endline "other case";*)
-          (*print_endline (string_of_diff (UP(lhs, rhs)));*)
-          add_update (get_up lhs rhs) acc_diffs
-  in
-    loop start_acc lhs rhs
 
 and traverse pred work lhs rhs =
   let rec add_ups pred ups work = 
     List.fold_left pred work ups in
-  let rec loop work t t' = match t, t' with
+  let rec loop work t t' = match view t, view t' with
     | C(tp,ts), C(tp',ts') when tp = tp' && List.length ts = List.length ts' ->
 	(*List.fold_left2 loop (add_ups pred [UP(t,t')] work) ts ts'*)
 	List.fold_left2 loop (pred work (UP(t,t'))) ts ts'
@@ -1043,7 +861,7 @@ and merge3 t1 t2 t3 =
   let m3 acc t1 t2 t3 = merge3 t1 t2 t3 && acc in
     t2 = t3 ||
       t1 = t2 ||
-      match t1, t2, t3 with
+      match view t1, view t2, view t3 with
 	| C(ct1, ts1), C(ct2, ts2), C(ct3, ts3) when ct1 = ct2 || ct2 = ct3
 	    -> fold_left3 m3 true ts1 ts2 ts3
 	| _, _, _ -> false
@@ -1056,7 +874,7 @@ and safe_part up (t, t'') =
   try 
     let t' = apply_noenv up t in
       merge3 t t' t''
-  with (Nomatch | Merge3) -> (
+    with (Nomatch | Merge3) -> (
     if !print_abs
     then (
       print_string "[Diff] rejecting:\n\t";
@@ -1128,13 +946,11 @@ and get_ctf_diffs_all work gt1 gt2 =
 
   and get_ctf_diffs_safe work gt1 gt2 =
     let all_pred lhs rhs w u =
-      if 
-	not(List.mem u w) && 
-	  (match u with 
-	    | UP(a,b) -> not(a = b)
-	    | RM a -> true )
-	&&
-	  safe_part u (gt1, gt2)
+      if not(List.mem u w) && 
+	       (match u with 
+      	    | UP(a,b) -> not(a = b)
+	          | RM a -> true )
+         && safe_part u (gt1, gt2)
       then u :: w
       else w
       in
@@ -1273,23 +1089,13 @@ let safe up tup =
 
 exception No_abs
 
-let filter_conflicts orgs news =
-  if news = [] then raise No_abs
-  else
-    let cands = List.filter 
-      (fun nup -> List.for_all (fun org -> not(unsafe nup org)) orgs) 
-      news in
-      match cands with
-	| [] -> raise No_abs
-	|  x -> x
-
 
 let rec free_vars t =
   let no_dub_app l1 l2 = List.rev_append 
     (List.filter (fun x -> not(List.mem x l2)) l1)
     l2 
   in
-    match t with
+    match view t with
       | A ("meta", mvar) -> [mvar]
       | C (_, ts) -> List.fold_left
 	  (fun fvs_acc t -> no_dub_app (free_vars t) fvs_acc)
@@ -1297,10 +1103,10 @@ let rec free_vars t =
       | _ -> []
 
 let rec count_vars t =
-  match t with
+  match view t with
     | A("meta", _) -> 1
     | C(_, ts) -> List.fold_left
-	(fun var_count t -> count_vars t + var_count) 0 ts
+	      (fun var_count t -> count_vars t + var_count) 0 ts
     | _ -> 0
 
 (* assume only RELATED terms are given as arguments; this should hold a the
@@ -1330,7 +1136,7 @@ let make_compat_pairs lhs rhs_list acc =
     else pairs
   ) acc rhs_list
 
-let make_gmeta name = A ("meta", name)
+let make_gmeta name = mkA ("meta", name)
 
 let metactx = ref 0
 let reset_meta () = metactx := 0
@@ -1352,7 +1158,7 @@ let get_metas build_mode org_env t =
           debug_msg (">>>>>>>>>>> with size: " ^ string_of_int (gsize t));
           new_meta org_env t)
       | [] -> [], []
-      | (m, t') :: env when (t = t') ->
+      | (m, t') :: env when (t == t') ->
           (* below we assume that equal terms need not be abstracted by equal
            * meta-variables
            *)
@@ -1548,26 +1354,27 @@ let rec abs_term_size terms_changed is_fixed should_abs up =
 *)
 
 let renumber_metas t metas =
-  match t with
+  match view t with
     | A ("meta", mvar) -> (try 
-	  let v = List.assoc mvar metas in
-	    A ("meta", v), metas
-      with _ -> let nm = "X" ^ string_of_int (ref_meta ()) in
-		  A ("meta", nm), (mvar, nm) :: metas)
-    | t -> t, metas
+    	    let v = List.assoc mvar metas in
+  	      mkA ("meta", v), metas
+        with _ -> 
+          let nm = "X" ^ string_of_int (ref_meta ()) in
+		      mkA ("meta", nm), (mvar, nm) :: metas)
+    | _ -> t, metas
 
 let fold_botup term upfun initial_result =
   let rec loop t acc_result =
-    match t with
+    match view t with
       | A _ -> upfun t acc_result
       | C (ct, ts) -> 
           let new_terms, new_acc_result = List.fold_left
             (fun (ts, acc_res) t ->
               let new_t, new_acc = loop t acc_res in
-		new_t :: ts, new_acc
+          		new_t :: ts, new_acc
             ) ([], acc_result) ts
           in
-            upfun (C(ct, List.rev new_terms)) new_acc_result
+            upfun (mkC(ct, List.rev new_terms)) new_acc_result
   in
     loop term initial_result
 
@@ -1576,16 +1383,16 @@ let renumber_metas_up up =
   reset_meta ();
   match up with
     | UP(lhs, rhs) -> 
-	let lhs_re, lhs_env = fold_botup lhs renumber_metas [] in
-	let rhs_re, rhs_env = fold_botup rhs renumber_metas lhs_env in
-	  assert(lhs_env = rhs_env);
-	  UP(lhs_re, rhs_re)
+	      let lhs_re, lhs_env = fold_botup lhs renumber_metas [] in
+      	let rhs_re, rhs_env = fold_botup rhs renumber_metas lhs_env in
+	    assert(lhs_env = rhs_env);
+	    UP(lhs_re, rhs_re)
     | ID s -> 
-	let nm, new_env = renumber_metas s [] in ID nm
+	      let nm, new_env = renumber_metas s [] in ID nm
     | RM s -> 
-	let nm, new_env = renumber_metas s [] in RM nm
+      	let nm, new_env = renumber_metas s [] in RM nm
     | ADD s -> 
-	let nm, new_env = renumber_metas s [] in ADD nm
+      	let nm, new_env = renumber_metas s [] in ADD nm
 
 let rec abs_term_imp terms_changed is_fixed up =
   let cur_depth = ref !abs_depth in
@@ -1597,7 +1404,7 @@ let rec abs_term_imp terms_changed is_fixed up =
     (*then (print_endline ("[Diff] allowing " ^ string_of_gtree' t); true)*)
     (*else (print_endline ("[Diff] current depth " ^ string_of_int !cur_depth); false)*)
   in
-  let rec loop build_mode env t = match t with
+  let rec loop build_mode env t = match view t with
   | A (ct, at) -> 
       if should_abs t
       then
@@ -1621,7 +1428,7 @@ let rec abs_term_imp terms_changed is_fixed up =
       (* this case has been reached we could have an empty file;
        * this can happen, you know! we return simply an atom
        *)
-      [A(ct, "new file")], env
+      [mkA(ct, "new file")], env
   | C (ct, ts) when !abs_subterms <= gsize t -> 
       (fdebug_endline !print_abs ("[Diff] abs_subterms " ^ string_of_gtree' t);
       [t], env)
@@ -1643,7 +1450,7 @@ let rec abs_term_imp terms_changed is_fixed up =
       cur_depth := !cur_depth + 1;
       let perms = gen_perms ts_lists in
       let rs = List.rev (List.fold_left (fun acc_t args -> 
-          C(ct, args) :: acc_t) [] perms) 
+          mkC(ct, args) :: acc_t) [] perms) 
       in
         metas @ rs, env_ts in(*}}}*)
   match up with 
@@ -1665,8 +1472,10 @@ let rec abs_term_imp terms_changed is_fixed up =
              * up transforming everything into whatever rhs
              *)
 let abs_lhss = (match abs_lhss with
-| [A ("meta", _) ] -> (debug_msg 
-("contextless lhs: " ^ string_of_diff up); [lhs])
+| [{node=A ("meta", _)}] -> 
+      (debug_msg 
+        ("contextless lhs: " ^ string_of_diff up); [lhs]
+      )
   | _ -> abs_lhss)
 (* now use the environment to abstract the rhs term
  *) in
@@ -1751,16 +1560,6 @@ let should_abs_size t = gsize t <= !abs_threshold
 (* let should_abs_depth t = gdepth t <= !abs_threshold *)
 let should_abs_depth t = gdepth t <= !abs_depth
 
-let s = A("ident","s")
-let g = A("ident","g")
-let h = A("ident","h")
-let f = A("ident","f")
-let w = A("ident","w")
-let x = A("ident","x")
-let patch = UP( 
-  C( "call", [h;C ("call",[f;s])] ) , 
-  C( "call", [h;C ("call",[f;x])] )
-)
 
 let non_dub_cons x xs = if List.mem x xs then xs else x :: xs 
 let ($$) a b = non_dub_cons a b
@@ -1772,7 +1571,7 @@ let (%) ls1 ls2 = non_dub_app ls1 ls2
  *)
 let make_all_subterms t =
   let rec loop ts t =
-    match t with
+    match view t with
       | C(_, ts_sub) -> List.fold_left loop (t $$ ts) ts_sub
       | _ -> t $$ ts in
     loop [] t
@@ -1831,9 +1630,9 @@ let print_additions d =
     | ID d -> () (* print_endline ("\n= " ^ string_of_gtree' d)*)
     | _ -> ()
 
-let apply_list gt1 ds = 
-  let app_nonexec s d = try apply_noenv d s with omatch -> s in
-    List.fold_left app_nonexec s ds
+(*let apply_list gt1 ds = *)
+  (*let app_nonexec s d = try apply_noenv d s with omatch -> s in*)
+    (*List.fold_left app_nonexec s ds*)
 
 let unabstracted_sol gt1 gt2 = 
   get_ctf_diffs_safe [] gt1 gt2

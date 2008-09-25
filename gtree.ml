@@ -2,13 +2,41 @@
    is a node of type 't with arguments "alist"
 *)
 
-type ('t, 'c) gtree = 
-    | A of 't * 'c
-    | C of 't * (('t, 'c) gtree list)
+open Hashcons
+
+type gtree = gtree_node hash_consed
+and gtree_node =
+    | A of string * string
+    | C of string * gtree list
+
+module Gtree_node = struct
+  type t = gtree_node
+  let equal t1 t2 = match t1, t2 with
+  | A (t1,v1), A (t2,v2) -> t1 = t2 && v1 = v2
+  | C (t1,ts1), C (t2,ts2) when 
+      List.length ts1 = List.length ts2 -> t1 = t2 &&
+      List.for_all2 (fun t t' -> t == t') ts1 ts2
+  | _ -> false
+  let hash = function
+    | A (t, v) -> abs(19 * (Hashtbl.hash t + Hashtbl.hash v))
+    | C (t,ts) -> abs (List.fold_left (fun acc_k t' -> 
+        19 * (t'.hkey + acc_k)
+        ) 1 ts)
+end
+
+module HGtree = Make(Gtree_node)
+
+let termht = HGtree.create 251
+
+let view t = t.node
+let hcons t = HGtree.hashcons termht t
+
+let mkA (a,b) = hcons (A(a,b))
+let mkC (a,ts) = hcons (C(a,ts))
 
 let rec occurs_loc small large =
-  small = large ||
-  (match large with
+  small == large ||
+  (match view large with
     | C(ct, ts) -> List.exists (function t -> occurs_loc small t) ts
     | _ -> false
   )
@@ -17,7 +45,7 @@ let embedded a b =
   occurs_loc a b || occurs_loc b a
 
 let rec gsize t =
-  match t with
+  match view t with
   | A ("meta", _) -> 0
   | A _ -> 1
   | C ("TYPEDEXP", _) -> 0
@@ -25,7 +53,7 @@ let rec gsize t =
       (fun a b -> a + gsize b) 1 ts
 
 let rec zsize t =
-  match t with
+  match view t with
   | A ("meta", _) -> 0
   | A (at, ac) -> String.length ac
   | C ("TYPEDEXP", _) -> 0
@@ -33,7 +61,7 @@ let rec zsize t =
       (fun a b -> a + zsize b) 1 ts
 
 let rec gdepth t =
-  match t with
+  match view t with
   | A _ -> 0
   | C(ct, ts) -> List.fold_left
       (fun a b -> max a (gdepth b)) 1 ts

@@ -1,0 +1,78 @@
+<html><body>
+<pre><font color="990000">(**************************************************************************)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  Copyright (C) Jean-Christophe Filliatre                               *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  This software is free software; you can redistribute it and/or        *)</font>
+<font color="990000">(*  modify it under the terms of the GNU Library General Public           *)</font>
+<font color="990000">(*  License version 2.1, with the special exception on linking            *)</font>
+<font color="990000">(*  described in file LICENSE.                                            *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(*  This software is distributed in the hope that it will be useful,      *)</font>
+<font color="990000">(*  but WITHOUT ANY WARRANTY; without even the implied warranty of        *)</font>
+<font color="990000">(*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                  *)</font>
+<font color="990000">(*                                                                        *)</font>
+<font color="990000">(**************************************************************************)</font>
+
+<font color="990000">(*s Hash tables for hash consing. </font>
+<font color="990000"></font>
+<font color="990000">    Hash consed values are of the</font>
+<font color="990000">    following type [hash_consed]. The field [tag] contains a unique</font>
+<font color="990000">    integer (for values hash consed with the same table). The field</font>
+<font color="990000">    [hkey] contains the hash key of the value (without modulo) for</font>
+<font color="990000">    possible use in other hash tables (and internally when hash</font>
+<font color="990000">    consing tables are resized). The field [node] contains the value</font>
+<font color="990000">    itself. </font>
+<font color="990000"></font>
+<font color="990000">    Hash consing tables are using weak pointers, so that values that are no</font>
+<font color="990000">    more referenced from anywhere else can be erased by the GC. *)</font>
+
+<font color="green">type</font> 'a hash_consed = <font color="green">private</font> { 
+  hkey : int;
+  tag : int;
+  node : 'a }
+
+<font color="990000">(*s Generic part, using ocaml generic equality and hash function. *)</font>
+
+<font color="green">type</font> 'a t
+
+<font color="green">val</font> create : int -> 'a t
+  <font color="990000">(** [create n] creates an empty table of initial size [n]. The table</font>
+<font color="990000">      will grow as needed. *)</font>  
+<font color="green">val</font> clear : 'a t -> unit
+  <font color="990000">(** Removes all elements from the table. *)</font>
+<font color="green">val</font> hashcons : 'a t -> 'a -> 'a hash_consed
+  <font color="990000">(** [hashcons t n] hash-cons the value [n] using table [t] i.e. returns</font>
+<font color="990000">      any existing value in [t] equal to [n], if any; otherwise, allocates</font>
+<font color="990000">      a new one hash-consed value of node [n] and returns it. </font>
+<font color="990000">      As a consequence the returned value is physically equal to</font>
+<font color="990000">      any equal value already hash-consed using table [t]. *)</font>
+<font color="green">val</font> iter : ('a hash_consed -> unit) -> 'a t -> unit
+  <font color="990000">(** [iter f t] iterates [f] over all elements of [t]. *)</font>
+<font color="green">val</font> stats : 'a t -> int * int * int * int * int * int
+  <font color="990000">(** Return statistics on the table.  The numbers are, in order:</font>
+<font color="990000">      table length, number of entries, sum of bucket lengths,</font>
+<font color="990000">      smallest bucket length, median bucket length, biggest bucket length. *)</font>
+
+<font color="990000">(*s Functorial interface. *)</font> 
+
+<font color="green">module</font> <font color="green">type</font> <font color="0033cc">HashedType</font> =
+  <font color="990099">sig</font>
+    <font color="green">type</font> t
+    <font color="green">val</font> equal : t -> t -> bool
+    <font color="green">val</font> hash : t -> int
+  <font color="990099">end</font>
+
+<font color="green">module</font> <font color="green">type</font> <font color="0033cc">S</font> =
+  <font color="990099">sig</font>
+    <font color="green">type</font> key
+    <font color="green">type</font> t
+    <font color="green">val</font> create : int -> t
+    <font color="green">val</font> clear : t -> unit
+    <font color="green">val</font> hashcons : t -> key -> key hash_consed
+    <font color="green">val</font> iter : (key hash_consed -> unit) -> t -> unit
+    <font color="green">val</font> stats : t -> int * int * int * int * int * int
+  <font color="990099">end</font>
+
+<font color="green">module</font> <font color="0033cc">Make</font>(<font color="0033cc">H</font> : <font color="0033cc">HashedType</font>) : (<font color="0033cc">S</font> <font color="77aaaa">with</font> <font color="green">type</font> key = <font color="0033cc">H</font>.t)
+</pre></body></html>

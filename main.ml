@@ -389,7 +389,8 @@ let generate_sols chgset_orig simple_patches =
     (*if try isComplete (unwrap cur_bp) with _ -> false*)
     (*then add_sol cur_bp sol*)
     (*else*)
-      let bps' = filter_smaller chgset_orig (next_bps bps cur_bp) in
+      (*let bps' = filter_smaller chgset_orig (next_bps bps cur_bp) in*)
+      let bps' = next_bps bps cur_bp in
       if bps' = []
       then add_sol cur_bp sol
       else
@@ -400,7 +401,12 @@ let generate_sols chgset_orig simple_patches =
             let nbp = extend_bp cur_bp bp in
             (* let nbps = restrict_bps (unwrap nbp) bps in *)
             (* gen sol nbps nbp *)
-            gen sol bps nbp
+
+            (* remove bp from the list of next bps to select since we know that
+             * the same bp can not be applied twice
+             *)
+            let bps' = List.filter (fun bp' -> not(bp = bp')) bps in
+            gen sol bps' nbp
           ) sol bps'
         )
   in

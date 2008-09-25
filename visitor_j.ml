@@ -10,18 +10,18 @@ let (+>) o f = f o
 
 exception Fail of string
 
-let type_c_term ty te = C(ty, [te])
-let type_a_term ty a  = A(ty, a)
-let make_type_expl t  = A("grammar",t)
+let type_c_term ty te = mkC(ty, [te])
+let type_a_term ty a  = mkA(ty, a)
+let make_type_expl t  = mkA("grammar",t)
 let (<<) a b = make_type_expl a :: b
-let (@@) a b' = match b' with
+let (@@) a b' = match view b' with
   (*| C(b,l) -> C(a^":"^b,l)*)
   (*| C(b,l) -> C(a, b << l)*)
-  | C(b,l) -> C(a, [b'])
-  | A(b,l) -> C(a, [b'])
-let (@@@) a b = C(a, b)
+  | C(b,l) -> mkC(a, [b'])
+  | A(b,l) -> mkC(a, [b'])
+let (@@@) a b = mkC(a, b)
 let (%%) a b = type_a_term a b
-let (!!) a = A(a, "N/H")
+let (!!) a = mkA(a, "N/H")
 
 
 let rec trans_expr exp = 
@@ -147,20 +147,20 @@ and trans_lop lop =
   | OrLog  -> "||"
 and trans_assi op = (*{{{*)
   match op with
-  | SimpleAssign -> A("simple_assi", "=")
-  | OpAssign Plus -> A("op_assi", "+=")
-  | OpAssign Minus -> A("op_assi", "-=")
-  | OpAssign Mul -> A("op_assi", "*=")
-  | OpAssign Mod -> A("op_assi", "%=")
-  | OpAssign Div -> A("op_assi", "/=")
-  | OpAssign And -> A("op_assi", "&=")
-  | OpAssign Or  -> A("op_assi", "|=")
-  | OpAssign Xor -> A("op_assi", "x=")
-  | _ -> A("op_assi", "N/H")(*}}}*)
+  | SimpleAssign -> mkA("simple_assi", "=")
+  | OpAssign Plus -> mkA("op_assi", "+=")
+  | OpAssign Minus -> mkA("op_assi", "-=")
+  | OpAssign Mul -> mkA("op_assi", "*=")
+  | OpAssign Mod -> mkA("op_assi", "%=")
+  | OpAssign Div -> mkA("op_assi", "/=")
+  | OpAssign And -> mkA("op_assi", "&=")
+  | OpAssign Or  -> mkA("op_assi", "|=")
+  | OpAssign Xor -> mkA("op_assi", "x=")
+  | _ -> mkA("op_assi", "N/H")(*}}}*)
 and trans_arg arg = match arg with
   | Common.Left e -> trans_expr e
-  | Common.Right (ArgType p) -> A("argtype", "N/H")
-  | Common.Right (ArgAction amac) -> A("argact", "N/H")
+  | Common.Right (ArgType p) -> mkA("argtype", "N/H")
+  | Common.Right (ArgAction amac) -> mkA("argact", "N/H")
 and trans_statement sta = 
   let unwrap_st, ii = sta in
   match unwrap_st with
@@ -187,7 +187,7 @@ and trans_statement sta =
       (*C("for",[gt_es1;gt_es2;gt_es3;gt_st])*)
   | Decl de -> "stmt" @@ trans_decl de
   | Labeled lab -> "stmt" @@ trans_labeled lab
-  | _ -> A ("statem", "N/H")
+  | _ -> mkA ("statem", "N/H")
 and trans_labeled lab = match lab with
 | Label (s, stat) -> "labeled" @@@ ["lname" %% s; trans_statement stat]
 | Case (e, stat) -> "case" @@@ [trans_expr e; trans_statement stat]
@@ -315,7 +315,7 @@ and trans_enum_type (((enum_val, cExpOpt), _), _) =
   "enum_entry" @@@ [enum_val_name; enum_val_val]
 and trans_basetype bt =
   match bt with
-  | Void -> A("btype","void")
+  | Void -> mkA("btype","void")
   | IntType it -> "btype" @@ trans_inttype it
   | FloatType ft -> "btype" @@ trans_floattype ft
 and trans_inttype it = 
@@ -333,8 +333,8 @@ and trans_signed (s, b) =
     | CInt   -> "int"
     | CLong  -> "long"
     | CLongLong -> "long long" in
-  let gt1 = A("sgn", gt_sign) in
-  let gt2 = A("base", gt_base) in
+  let gt1 = mkA("sgn", gt_sign) in
+  let gt2 = mkA("base", gt_base) in
   [gt1; gt2]
 and trans_floattype ft = 
   let gt_ft = match ft with
@@ -393,7 +393,7 @@ and trans_def def =
   let gt_comp  = List.map trans_statement body in
   let gt_body  = "stmt" @@ "comp{}" @@@ gt_comp in
   let gt_name  = "fname" %% name in
-  C("def", [gt_name; gt_funty; gt_body])(*}}}*)
+  mkC("def", [gt_name; gt_funty; gt_body])(*}}}*)
 and trans_funtype (rettype, (params, hasdots)) =
   let gt_ret = trans_type rettype in
   let par_types = List.map trans_param params in
@@ -401,30 +401,30 @@ and trans_funtype (rettype, (params, hasdots)) =
 and trans_param p = 
   match unwrap (unwrap p) with
   | (reg, name, ft) ->
-      let reg  = A("reg", if reg then "register" else "") in
-      let name = A("name", match name with Some n -> n | _ -> "") in
+      let reg  = mkA("reg", if reg then "register" else "") in
+      let name = mkA("name", match name with Some n -> n | _ -> "") in
       let ft = trans_type ft in
-      C("param",[reg;name;ft])
-and trans_define_val = A("def_val", "N/H")
+      mkC("param",[reg;name;ft])
+and trans_define_val = mkA("def_val", "N/H")
 and trans_top top = 
   match top with
   | Definition def -> trans_def def
   | Declaration decl -> trans_decl decl
   | Include i -> trans_include i
-  | Define _ -> A("define", "N/H")
+  | Define _ -> mkA("define", "N/H")
   | MacroTop (str, args2, _) ->
       "macrotop" @@ str @@@
       List.map (function a2 -> trans_arg (unwrap a2)) args2
-  | EmptyDef _ -> A("edef", "N/H")
-  | NotParsedCorrectly _ -> A("NCP","N/H")
-  | FinalDef _ -> A("fdef", "N/H")
-  | _ -> A("top", "N/H")
+  | EmptyDef _ -> mkA("edef", "N/H")
+  | NotParsedCorrectly _ -> mkA("NCP","N/H")
+  | FinalDef _ -> mkA("fdef", "N/H")
+  | _ -> mkA("top", "N/H")
 and trans_include (inc_f, inc_pos) =
-  let ie s = A("inc_elem", s) in
+  let ie s = mkA("inc_elem", s) in
   match unwrap inc_f with
-  | Local ies -> C("includeL", List.map ie ies)
-  | NonLocal ies -> C("includeN", List.map ie ies)
-  | Wierd s -> C("include", [A("winc", s)])
+  | Local ies -> mkC("includeL", List.map ie ies)
+  | NonLocal ies -> mkC("includeN", List.map ie ies)
+  | Wierd s -> mkC("include", [mkA("winc", s)])
 let trans_prg prg = 
   let tops = List.map trans_top prg in
   C ("prg", tops)
