@@ -2039,13 +2039,60 @@ let make_abs terms_changed fixf (gt1, gt2) =
   all_perms
 *)
 
-let print_sol_lists sol_lists =
-  List.iter 
-    (fun sl -> 
-      print_endline "<<<<<<< sol list >>>>>>>";
-      if sl = []
-      then
-	print_endline "[]"
-      else
-	print_sols sl
-    ) sol_lists
+(* This function returns a boolean value according to whether it can
+ * syntactically* determine two atomic patches to have disjoint
+ * domains.  The domains are disjoint if neither p1 is embedded in p2
+ * nor vice versa. One caveat is that since patterns contains
+ * metavariables, we can not simply use a simple syntactic criterion
+ * for deciding whether a pattern is embedded in anther. For this
+ * reason, we (mis)use the "apply" function instead.
+ *)
+
+let disjoint_domains (bp1, bp2) =
+  match bp1, bp2 with
+    | UP(p1,_), UP(p2,_) ->
+        let a1 = try 
+          apply_noenv bp1 p2; false with Nomatch -> true
+        and a2 = try 
+          apply_noenv bp2 p1; false with Nomatch -> true
+        in
+          a1 && a2
+
+
+  let print_sol_lists sol_lists =
+    List.iter 
+      (fun sl -> 
+	print_endline "<<<<<<< sol list >>>>>>>";
+	if sl = []
+	then
+	  print_endline "[]"
+	else
+	  print_sols sl
+      ) sol_lists
+
+
+
+(* The merge_patterns function tries to merge two patterns into one which match
+ * both of the patterns, but which abstracts only those subterms which NEED to
+ * be abstracted
+ *)
+let rec merge_patterns p1 p2 =
+  let rec loop p1 p2 =
+    match view p1, view p2 with
+      | _, _ when p1 == p2 -> p1
+      | _, A("meta", v2) -> p2
+      | A("meta",_), _ -> p1
+      | C(t1,ts1), C(t2,ts2) when 
+          t1 = t2 && List.length ts1 = List.lenth ts2 -> 
+          mkC (t1, List.fold_left2 (fun acc_ts t1 t2 ->
+                                      loop t1 t2 :: acc_ts
+          ) [] ts1 ts2)
+      | _, _ -> let m = "X" ^ string_of_int (ref_meta()) in
+          make_gmeta m
+  in
+    match view p1, view p2 with
+      | _, _ when p1 == p2 -> Some p1
+      | C(t1,ts1), C(t2,ts2) when
+          t1 = t2 && List.length ts1 = List.length ts2 -> 
+          Some (loop p1 p2)
+      | _, _ -> None

@@ -22,6 +22,9 @@ let print_raw    = ref false
 let print_uniq   = ref false 
 let print_adding = ref false
 let noncompact   = ref false
+let prune        = ref false
+let strip_eq     = ref false
+let patterns     = ref false
 
 let speclist =
   Arg.align
@@ -47,24 +50,12 @@ let speclist =
      "-relax_safe",    Arg.Set Diff.relax,      "bool  consider non-application safe";
      "-print_raw",     Arg.Set print_raw,       "bool  print the raw list of generated simple updates";
      "-print_uniq",    Arg.Set print_uniq,      "bool  print the unique solutions before removing smaller ones";
-     "-print_add",     Arg.Set print_adding,    "bool  print statement when adding a new solution in generate_sol"
+     "-print_add",     Arg.Set print_adding,    "bool  print statement when adding a new solution in generate_sol";
+     "-prune",   Arg.Set prune,     "bool  try to prune search space by various means";
+     "-strip_eq",      Arg.Set strip_eq,        "bool  use eq_classes for initial atomic patches";
+     "-patterns",      Arg.Set patterns,        "bool  look for common patterns in LHS files"
   ]
 
-let old_main () =
-  (* read the sources *)
-  print_string "Reading and parsing and converting files...";
-  flush stdout;
-  let gt1, gt2 = Diff.read_src_tgt !src_file !tgt_file in
-  print_endline "done.";
-  print_endline "gt1:";
-  print_endline (Diff.string_of_gtree Diff.str_of_ctype Diff.str_of_catom gt1);
-  print_endline "gt2:";
-  print_endline (Diff.string_of_gtree Diff.str_of_ctype Diff.str_of_catom gt2);
-  (* produce the list of solutions *)
-  print_endline "Making (unabs) solutions...";
-  let sols = Diff.unabstracted_sol gt1 gt2 in
-  print_endline "done.";
-  Diff.print_sols sols
 
 let filesep = Str.regexp " +"
 let file_pairs = ref []
@@ -274,18 +265,6 @@ let rec filter_redundant solutions =
 	not(redundant_sol (list_of_bp s) (list_of_bp s'))) 
 	(filter_redundant sols)
 
-(* there may be solutions that are smaller than others as illustrated
-   by the following update:
-
-   (f(1)+a)+a) -> (f(2)+b)+b
-
-   here we would have both f(1)->f(2) and f(1)+a -> f(2)+b in the
-   generated results; we notice that neither can be applied together,
-   so we need to separate them in two solutions. Thus, we have
-   f(1)->f(2) <= f(1)+a -> f(2)+b.
-
-   Clearly, we should remove the smaller solutions from the list.
-*)
 
 let filter_smaller chgset solutions =
   let keep_sol bp = 
@@ -310,7 +289,10 @@ let filter_smaller chgset solutions =
     (*List.map list_of_bp *)
   (List.filter keep_sol solutions)
 
-
+let remove_disj found_nxt bp =
+  if List.exists (fun bp' -> Diff.disjoint_domains (bp,bp')) found_nxt
+  then found_nxt
+  else bp :: found_nxt
 
 let generate_sols chgset_orig simple_patches =
   (*Diff.no_occurs := List.length chgset_orig - !exceptions;*)
@@ -377,7 +359,9 @@ let generate_sols chgset_orig simple_patches =
           flush stdout;
           print_endline (Diff.string_of_diff cur_bp)
         );
-        let res = filter_smaller chgset_orig (filter_redundant (cur_bp :: sol))
+(*        let res = filter_smaller chgset_orig (filter_redundant (cur_bp ::
+ *        sol)) *)
+        let res = filter_smaller chgset_orig (cur_bp :: sol)
         in
         if !print_adding
         then print_endline ("done (" ^ string_of_int (List.length res) ^ ")");
@@ -385,12 +369,12 @@ let generate_sols chgset_orig simple_patches =
       ) in
   let isComplete bp = Diff.complete_changeset 
     chgset_orig (list_of_bp bp) in
-  let rec gen sol bps cur_bp =
+  let rec gen sol bps_pool cur_bp =
     (*if try isComplete (unwrap cur_bp) with _ -> false*)
     (*then add_sol cur_bp sol*)
     (*else*)
       (*let bps' = filter_smaller chgset_orig (next_bps bps cur_bp) in*)
-      let bps' = next_bps bps cur_bp in
+      let bps' = next_bps bps_pool cur_bp in
       if bps' = []
       then add_sol cur_bp sol
       else
@@ -398,15 +382,23 @@ let generate_sols chgset_orig simple_patches =
           (*print_endline ("[Main] bps'.length " ^*)
             (*string_of_int (List.length bps'));*)
           List.fold_left (fun sol bp ->
-            let nbp = extend_bp cur_bp bp in
-            (* let nbps = restrict_bps (unwrap nbp) bps in *)
-            (* gen sol nbps nbp *)
+                            let nbp = extend_bp cur_bp bp in
+                              (* let nbps = restrict_bps (unwrap nbp) bps_pool in *)
+                              (* gen sol nbps nbp *)
 
-            (* remove bp from the list of next bps to select since we know that
-             * the same bp can not be applied twice
-             *)
-            let bps' = List.filter (fun bp' -> not(bp = bp')) bps in
-            gen sol bps' nbp
+                              (* remove bp from the list of next bps to select since we know that
+                               * the same bp can not be applied twice
+                               *)
+                              if !prune
+                              then 
+                                if List.exists (function bp' -> 
+                                                  Diff.subpatch_changeset chgset_orig (unwrap nbp) bp'
+                                ) sol
+                                then sol
+                                else let bps_new_pool = List.filter (fun bp' -> not(bp = bp')) bps_pool in
+                                  gen sol bps_new_pool nbp
+                                else let bps_new_pool = List.filter (fun bp' -> not(bp = bp')) bps_pool in
+                                  gen sol bps_new_pool nbp
           ) sol bps'
         )
   in
@@ -485,13 +477,17 @@ let strip term_pairs abs_patches =
     | [] -> [[atomp]]
     | eq_class :: part ->
         if in_eq atomp eq_class 
-        then (atomp :: eq_class) :: part
+        then 
+          if !noncompact
+          then (atomp :: eq_class) :: part
+          else filter_smaller term_pairs (atomp :: eq_class) :: part
         else eq_class :: add_atom part atomp
   in
   let pot_res = List.fold_left (fun part atomp ->
     add_atom part atomp
   ) [] abs_patches in
-  List.map (fun eq_class -> List.hd (filter_smaller term_pairs eq_class )) pot_res
+  (*List.map (fun eq_class -> List.hd (filter_smaller term_pairs eq_class )) pot_res*)
+  List.map (fun eq_class -> List.hd eq_class) pot_res
 
 
 let spec_main () =
@@ -583,9 +579,65 @@ let spec_main () =
     print_endline "}}}"
   );
   print_endline "[Main] generating solutions...";
-  let stripped_patches = strip term_pairs filtered_patches in
+  let stripped_patches = 
+    if !strip_eq
+    then strip term_pairs filtered_patches 
+    else filtered_patches
+  in
   let solutions = generate_sols term_pairs stripped_patches in
   print_sols solutions
+
+
+let find_patterns_term term =
+  let add_pattern pats p = match p with
+    | None -> pats 
+    | Some p -> match Gtree.view p with
+        | Gtree.A("meta", _) -> pats
+        | _ -> p :: pats in
+  let subterms = Diff.make_all_subterms term in
+    print_endline ("[Main] #no subterms " ^ string_of_int (List.length subterms));
+    let res = List.fold_left (fun acc_pats t -> 
+                                List.fold_left (fun acc_pats p ->
+                                                  add_pattern acc_pats p
+                                ) acc_pats (List.map (Diff.merge_patterns t) acc_pats)
+    ) subterms subterms in
+      Diff.reset_meta ();
+      let norm_res = List.map (fun p -> fst(Diff.fold_botup p Diff.renumber_metas [])) res in 
+                                                                                               List.iter (fun p -> 
+                                                                                               print_endline (Diff.string_of_gtree' p)) norm_res;
+                                                                                               
+        norm_res
+
+let find_common_patterns () =
+  print_endline "[Main] looking for common patterns";
+  read_spec(); (* gets names to process in file_pairs *)
+  let term_pairs = List.rev (
+    List.fold_left (fun acc_pairs (lfile, rfile) ->
+      read_filepair lfile rfile :: acc_pairs
+    ) [] !file_pairs) in
+  print_endline ("[Main] read " ^ string_of_int (List.length term_pairs) ^ " files");
+  let subterms_lists = List.map (fun (t,t') -> Diff.make_all_subterms t) term_pairs 
+  in 
+    print_endline ("[Main] number of subterms " ^ string_of_int (List.fold_left (+) 0 (List.map List.length subterms_lists)));
+  let common_patterns = List.fold_left (fun acc_patterns subterms ->
+                                          List.fold_left (fun acc_pats t -> List.rev_append (
+                                                            List.map (fun (Some v) -> (Diff.reset_meta(); 
+                                                                                       fst(Diff.fold_botup v Diff.renumber_metas [])
+                                                                                      )
+                                                            ) (
+                                                            List.filter (fun t' -> match t' with
+                                                                           | None -> false
+                                                                           | _ -> true
+                                                            ) (List.map (fun t' -> Diff.merge_patterns t t') acc_patterns)))
+                                                            acc_pats
+                                          ) [] subterms
+  ) (List.hd subterms_lists) subterms_lists
+  in
+    List.iter (fun p ->
+      print_endline (Diff.string_of_gtree' p)
+    ) common_patterns
+      
+
 
 let main () =
   (* decide which mode to operate in *)
@@ -595,7 +647,9 @@ let main () =
   Diff.be_fixed      := !fixed;
   Diff.no_exceptions := !exceptions;
   if !mfile = ""
-  then old_main ()
+  then raise (Diff.Fail "No specfile given")
+  else if !patterns 
+  then find_common_patterns ()
   else spec_main ()
 
 
