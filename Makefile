@@ -65,7 +65,8 @@ $(EXEC): $(LIBS) $(OBJS)
 	$(OCAMLC) -o $@ $(SYSLIBS) $^
 
 $(EXEC).opt: $(LIBS:.cma=.cmxa) $(OPTOBJS) 
-	$(OCAMLOPT) -o $@ $(SYSLIBS:.cma=.cmxa) $^
+#	$(OCAMLOPT) -o $@ $(SYSLIBS:.cma=.cmxa) -ccopt -static $^
+	$(OCAMLOPT) -o $@ $(SYSLIBS:.cma=.cmxa)  $^
 
 $(EXEC).top: $(LIBS) $(OBJS) 
 	$(OCAMLMKTOP) -o $@ $(SYSLIBS) $^

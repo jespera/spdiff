@@ -29,8 +29,8 @@ let rec trans_expr exp =
   match unwrap_e with
   | Ident s ->
       (match !typ with
-        | None -> "exp" @@ "ident" %% s
-        | Some ft -> "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% s])
+        | None, _ -> "exp" @@ "ident" %% s
+        | Some (ft, _), _ -> "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% s])
   | Constant (String (s, _)) -> 
       "exp" @@ "const" @@ "string" %% s
   | Constant (Int s) -> 
@@ -347,7 +347,7 @@ and trans_decl decl = match decl with
   List.map trans_odecl odecls
 | MacroDecl ((s, args), _) -> 
     "mdecl" @@ s @@@ List.map (function a -> trans_arg (unwrap a)) args
-and trans_odecl ((fopt, ftype, stor), _) = match fopt with
+and trans_odecl ((fopt, ftype, stor, _), _) = match fopt with
   | None -> "onedecl" %% "()"
       (*raise (Fail "decl_spec with no init_decl")*)
   | Some ((var, initOpt), _) -> 
@@ -438,6 +438,7 @@ let trans_prg2 prg =
   let tops_envs = 
     Type_annoter_c.annotate_program 
       Type_annoter_c.initial_env
+      true
       tops in
   "prg2" @@@
   List.map (function (top, (tenvb, tenv)) -> 

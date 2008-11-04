@@ -1,23 +1,17 @@
 (* this is the main file for the spfind CFU program
  *)
 
-let src_file     = ref ""
-let tgt_file     = ref ""
-let toprint      = ref false
-let mk_closed    = ref false
 let do_dmine     = ref false
 let abs          = ref false
 let spec         = ref false
 let mfile        = ref ""
-let our_level    = ref 0 (* not used anymore *)
 let max_level    = ref 10
-let depth        = ref 0
+let depth        = ref 4
 let strict       = ref false
 let mvars        = ref false
 let fixed        = ref false
 let exceptions   = ref 0 
 let threshold    = ref 0
-let print_close  = ref false
 let print_raw    = ref false
 let print_uniq   = ref false 
 let print_adding = ref false
@@ -28,32 +22,26 @@ let patterns     = ref false
 
 let speclist =
   Arg.align
-    ["-src",           Arg.Set_string src_file, "str   gives the name of the src file";
-     "-tgt",           Arg.Set_string tgt_file, "str   gives the name of the tgt file";
-     "-noncompact",    Arg.Set noncompact,      "bool  also return non-compact solutions";
-     "-mk_closed",     Arg.Set mk_closed,       "bool  indicates that we should also produce the closed db";
-     "-dmine",         Arg.Set do_dmine,        "bool  indicate to do datamining";
-     "-print",         Arg.Set toprint,         "bool  indicates printing of the (non-closed) db";
-     "-abs",           Arg.Set abs,             "bool  indicates whether to perform meta-variable abstraction";
-     "-specfile",      Arg.Set_string mfile,    "str   name of specification file";
-     "-level%",        Arg.Set_int our_level,   "int   terms larger than this will not be abstracted";
-     "-top",           Arg.Set_int max_level,   "int   terms larger than this will not have subterms abstracted";
-     "-depth",         Arg.Set_int depth,       "int   recursion depth at which we still abstract terms";
-     "-strict",        Arg.Set strict,          "bool  strict: fv(lhs) = fv(rhs) or nonstrict(default): fv(rhs)<=fv(lhs)";
-     "-multiple",      Arg.Set mvars,           "bool  allow equal terms to have different metas";
-     "-fixed",         Arg.Set fixed,           "bool  never abstract fixed terms";
-     "-exceptions",    Arg.Set_int exceptions,  "int   the number of allowed exceptions to the rule derived";
-     "-threshold",     Arg.Set_int threshold,   "int   the minimum number of occurrences required";
-     "-print_close",   Arg.Set print_close,     "bool  whether to close the resulting mined database (default: no)";
-     "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing, "bool  also parse if0 blocks";
-     "-print_abs",     Arg.Set Diff.print_abs,  "bool  print abstract updates for each term pair";
-     "-relax_safe",    Arg.Set Diff.relax,      "bool  consider non-application safe";
-     "-print_raw",     Arg.Set print_raw,       "bool  print the raw list of generated simple updates";
-     "-print_uniq",    Arg.Set print_uniq,      "bool  print the unique solutions before removing smaller ones";
-     "-print_add",     Arg.Set print_adding,    "bool  print statement when adding a new solution in generate_sol";
-     "-prune",   Arg.Set prune,     "bool  try to prune search space by various means";
-     "-strip_eq",      Arg.Set strip_eq,        "bool  use eq_classes for initial atomic patches";
-     "-patterns",      Arg.Set patterns,        "bool  look for common patterns in LHS files"
+    [
+      "-noncompact",    Arg.Set noncompact,      "bool  also return non-compact solutions";
+      "-dmine",         Arg.Set do_dmine,        "bool  indicate to do datamining";
+      "-specfile",      Arg.Set_string mfile,    "str   name of specification file";
+      "-top",           Arg.Set_int max_level,   "int   terms larger than this will not have subterms abstracted";
+      "-depth",         Arg.Set_int depth,       "int   recursion depth at which we still abstract terms";
+      "-strict",        Arg.Set strict,          "bool  strict: fv(lhs) = fv(rhs) or nonstrict(default): fv(rhs)<=fv(lhs)";
+      "-multiple",      Arg.Set mvars,           "bool  allow equal terms to have different metas";
+      "-fixed",         Arg.Set fixed,           "bool  never abstract fixed terms";
+      "-exceptions",    Arg.Set_int exceptions,  "int   the number of allowed exceptions to the rule derived";
+      "-threshold",     Arg.Set_int threshold,   "int   the minimum number of occurrences required";
+      "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing, "bool  also parse if0 blocks";
+      "-print_abs",     Arg.Set Diff.print_abs,  "bool  print abstract updates for each term pair";
+      "-relax_safe",    Arg.Set Diff.relax,      "bool  consider non-application safe [experimental]";
+      "-print_raw",     Arg.Set print_raw,       "bool  print the raw list of generated simple updates";
+      "-print_uniq",    Arg.Set print_uniq,      "bool  print the unique solutions before removing smaller ones";
+      "-print_add",     Arg.Set print_adding,    "bool  print statement when adding a new solution in generate_sol";
+      "-prune",         Arg.Set prune,           "bool  try to prune search space by various means";
+      "-strip_eq",      Arg.Set strip_eq,        "bool  use eq_classes for initial atomic patches";
+      "-patterns",      Arg.Set patterns,        "bool  look for common patterns in LHS files"
   ]
 
 
@@ -169,46 +157,6 @@ let do_datamining abs_patches =
   (*string_of_int (!threshold - !exceptions));*)
   string_of_int !threshold);
   Diff.filter_some abs_patches
-  
-
-let do_datamining_old abs_patches =
-  let edb = Diff.DBD.makeEmpty () in
-  print_endline "[Main] Constructing database...";
-  let fdb = List.fold_left Diff.DBD.add_itemset edb abs_patches in
-  (*let threshold = List.length abs_patches in*)
-  print_endline ("[Main] Mining using minimum support: " ^
-  (*string_of_int (threshold - !exceptions));*)
-  string_of_int !threshold);
-  print_endline ("[Main] initial db size " ^ string_of_int (Diff.DBD.sizeOf fdb));
-  let mfunc = if !mk_closed then 
-    (print_endline "[Main] using closed sub-itemsets";
-    Diff.DBD.dmine_cls)
-    else Diff.DBD.dmine in
-  (*let cdb = mfunc fdb (threshold - !exceptions) in*)
-  let cdb = mfunc fdb !threshold in
-  (* close the database occording to command line prefs *)
-  (*
-  let cdb = if !close then (
-    print_endline "[Mine] closing";
-    Diff.DBD.close_db fdb rdb)
-    else rdb in
-  (*print_endline "[Main] resulting database";*)
-  (*Diff.DBD.print_db*)
-    (*Diff.string_of_diff*)
-    (*cdb;*)
-  *)
-(*
-  print_endline "[Main] resulting database";
-  Diff.DBD.print_db
-   Diff.string_of_diff
-    cdb;
-*)
-	get_best_itemset cdb
-(*
-  print_endline "[Main] done mining; merging...";
-  let f = fun acc itemset -> Diff.non_dub_app itemset  acc in
-  Diff.DBD.fold_itemset cdb f []
-*)
   
 
 let bp_of_list ls = 
@@ -492,7 +440,6 @@ let strip term_pairs abs_patches =
 
 let spec_main () =
   Diff.abs_depth     := !depth;
-  Diff.abs_threshold := !our_level;
   Diff.abs_subterms  := !max_level;
   read_spec(); (* gets names to process in file_pairs *)
   (* now make diff-pairs is a list of abs-term pairs *)

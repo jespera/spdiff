@@ -44,9 +44,6 @@ module DBD = Db(DiffT)
 (* user definable references here ! *)
 (* terms are only abstracted until we reach this depth in the term *)
 let abs_depth     = ref 0 
-  (* (sub)terms of a term are only abstracted if they are smaller than this number
-  *)
-let abs_threshold = ref 0
   (* only allow abstraction of subterms of terms that are smaller than this number
   *)
 let abs_subterms  = ref 0
@@ -1549,15 +1546,10 @@ let list_fixed flist t =
  *)
 
 let should_abs_always t = true
-  (* size-based abstraction predicate; only terms smaller than a certain threshold
-   * are abstracted 
-   *)
-let should_abs_size t = gsize t <= !abs_threshold
 
 (* depth based abstraction pred: only abstract "shallow" terms -- i.e. terms
  * with depth less than threshold
  *)
-(* let should_abs_depth t = gdepth t <= !abs_threshold *)
 let should_abs_depth t = gdepth t <= !abs_depth
 
 
@@ -2083,7 +2075,7 @@ let rec merge_patterns p1 p2 =
       | _, A("meta", v2) -> p2
       | A("meta",_), _ -> p1
       | C(t1,ts1), C(t2,ts2) when 
-          t1 = t2 && List.length ts1 = List.lenth ts2 -> 
+          t1 = t2 && List.length ts1 = List.length ts2 -> 
           mkC (t1, List.fold_left2 (fun acc_ts t1 t2 ->
                                       loop t1 t2 :: acc_ts
           ) [] ts1 ts2)
