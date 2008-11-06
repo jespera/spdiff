@@ -54,6 +54,11 @@ let read_filepair old_file new_file =
     old_file ^ " " ^ new_file);
   Diff.read_src_tgt old_file new_file
 
+let read_filepair_cfg old_file new_file =
+  print_endline 
+    ("Reading file pair " ^
+    old_file ^ " " ^ new_file);
+  Diff.read_src_tgt_cfg old_file new_file
 
 let read_spec () =
   print_endline ("Spec. file is: " ^ !mfile);
@@ -534,56 +539,53 @@ let spec_main () =
   let solutions = generate_sols term_pairs stripped_patches in
   print_sols solutions
 
-
-let find_patterns_term term =
-  let add_pattern pats p = match p with
-    | None -> pats 
-    | Some p -> match Gtree.view p with
-        | Gtree.A("meta", _) -> pats
-        | _ -> p :: pats in
-  let subterms = Diff.make_all_subterms term in
-    print_endline ("[Main] #no subterms " ^ string_of_int (List.length subterms));
-    let res = List.fold_left (fun acc_pats t -> 
-                                List.fold_left (fun acc_pats p ->
-                                                  add_pattern acc_pats p
-                                ) acc_pats (List.map (Diff.merge_patterns t) acc_pats)
-    ) subterms subterms in
-      Diff.reset_meta ();
-      let norm_res = List.map (fun p -> fst(Diff.fold_botup p Diff.renumber_metas [])) res in 
-                                                                                               List.iter (fun p -> 
-                                                                                               print_endline (Diff.string_of_gtree' p)) norm_res;
-                                                                                               
-        norm_res
-
+let test_spec gs = (* f x ... return y *)
+  let f = 
+    Gtree.mkC("CM", [
+      Gtree.mkC("stmt", [
+        Gtree.mkC("exprstmt", [
+          Gtree.mkC("exp", [
+            Gtree.mkC("call", [
+              Gtree.mkC("exp", [Gtree.mkA ("ident","f")]);
+              Gtree.mkC("exp", [Gtree.mkA ("meta","X")]);
+            ])
+          ])
+        ])
+      ])
+    ]) in
+  let r = 
+    Gtree.mkC("CM", [
+      Gtree.mkC("stmt", [
+        Gtree.mkC("return", [
+          Gtree.mkC("exp", [
+            Gtree.mkA("meta","Y")
+          ])
+        ])
+      ])
+    ]) 
+  in
+  let spec = [f;Diff.ddd;r] in
+    List.exists (function g ->
+                   List.exists (function (n, gt) ->
+                                  Diff.cont_match g spec n
+                   ) g#nodes#tolist
+    ) gs
+ 
 let find_common_patterns () =
   print_endline "[Main] looking for common patterns";
   read_spec(); (* gets names to process in file_pairs *)
   let term_pairs = List.rev (
     List.fold_left (fun acc_pairs (lfile, rfile) ->
-      read_filepair lfile rfile :: acc_pairs
+      read_filepair_cfg lfile rfile :: acc_pairs
     ) [] !file_pairs) in
   print_endline ("[Main] read " ^ string_of_int (List.length term_pairs) ^ " files");
-  let subterms_lists = List.map (fun (t,t') -> Diff.make_all_subterms t) term_pairs 
-  in 
-    print_endline ("[Main] number of subterms " ^ string_of_int (List.fold_left (+) 0 (List.map List.length subterms_lists)));
-  let common_patterns = List.fold_left (fun acc_patterns subterms ->
-                                          List.fold_left (fun acc_pats t -> List.rev_append (
-                                                            List.map (fun (Some v) -> (Diff.reset_meta(); 
-                                                                                       fst(Diff.fold_botup v Diff.renumber_metas [])
-                                                                                      )
-                                                            ) (
-                                                            List.filter (fun t' -> match t' with
-                                                                           | None -> false
-                                                                           | _ -> true
-                                                            ) (List.map (fun t' -> Diff.merge_patterns t t') acc_patterns)))
-                                                            acc_pats
-                                          ) [] subterms
-  ) (List.hd subterms_lists) subterms_lists
-  in
-    List.iter (fun p ->
-      print_endline (Diff.string_of_gtree' p)
-    ) common_patterns
-      
+  print_endline "[Main] test_spec";
+  List.iter (fun ((gt,flows), _) -> 
+               print_endline "[Main] looking";
+               if test_spec flows
+               then print_endline "[Main] \tMATCH"
+               else print_endline "[Main] \tFAIL"
+  ) term_pairs
 
 
 let main () =

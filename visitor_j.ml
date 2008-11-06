@@ -101,7 +101,8 @@ let rec trans_expr exp =
       ]
   | Cast (ftype, e) -> "exp" @@ "cast" @@@ [trans_type ftype; trans_expr e] 
   | StatementExpr (comp, _)  -> 
-      "exp" @@ "stmtexp" @@@ List.map trans_statement comp
+      let comp' = stmt_elems_of_sequencable comp in
+      "exp" @@ "stmtexp" @@@ List.map trans_statement comp'
   | Constructor (ft, initw2) -> "exp" %% "constr"
 and trans_binary e1 bop e2 = 
   let gt_e1 = trans_expr e1 in
@@ -161,14 +162,15 @@ and trans_arg arg = match arg with
   | Common.Left e -> trans_expr e
   | Common.Right (ArgType p) -> mkA("argtype", "N/H")
   | Common.Right (ArgAction amac) -> mkA("argact", "N/H")
-and trans_statement sta = 
+and trans_statement (sta : statement) = 
   let unwrap_st, ii = sta in
   match unwrap_st with
   | ExprStatement None -> "stmt" @@ "exprstmt" %% "none"
   | ExprStatement (Some e) -> "stmt" @@ "exprstmt" @@ trans_expr e
   | Compound sts ->
-      let gt_sts = List.map trans_statement sts in(*{{{*)
-      if sts = []
+      let sts' = stmt_elems_of_sequencable sts in
+      let gt_sts = List.map trans_statement sts' in(*{{{*)
+      if sts' = []
       then "stmt" @@ "comp{}" %% "NOP"
       else "stmt" @@ "comp{}" @@@ gt_sts
   | Jump j -> "stmt" @@ trans_jump j 
@@ -228,9 +230,10 @@ and trans_select s =
       "switch" @@@ [
         trans_expr e;
         trans_statement s]
-  | Ifdef (ss1, ss2) -> "ifdef" @@@ [
+(*  | Ifdef (ss1, ss2) -> "ifdef" @@@ [
       "ifdef1" @@@ List.map trans_statement ss1;
       "ifdef2" @@@ List.map trans_statement ss2]
+ *)
 and trans_jump j =
   match j with
   | Goto s -> "goto" %% s
@@ -284,23 +287,24 @@ and trans_typec tc =
 and trans_struct_type st = "fields" @@@
   List.map trans_field_type st
 and trans_field_type f = match unwrap f with
-| FieldDeclList fkinds -> "fdecls" @@@ List.map (function fkwrap -> 
-    (match unwrap (unwrap fkwrap) with
-    | Simple (varOpt, ftype) -> 
-        (match varOpt with 
-        | None -> "field" @@@ 
-          ["fieldname" %% "anon"; "fieldtype" @@ trans_type ftype]
-        | Some v -> "field" @@@
-          ["fieldname" %% v; "fieldtype" @@ trans_type ftype])
-    | BitField (varOpt, ftype, cExp) -> 
-        let fn = (match varOpt with 
-        | None -> "fieldname" %% "anon"
-        | Some v -> "fieldname" %% v) in
-        let ft_gt = trans_type ftype in
-        let bits  = trans_expr cExp in
-        "bitfield" @@@ [fn; ft_gt; bits])
-    ) fkinds
-| EmptyField -> "field" %% "empty"
+  | DeclarationField (FieldDeclList (fkinds, _)) -> "fdecls" @@@ List.map (function fkwrap -> 
+      (match unwrap (unwrap fkwrap) with
+      | Simple (varOpt, ftype) -> 
+          (match varOpt with 
+          | None -> "field" @@@ 
+            ["fieldname" %% "anon"; "fieldtype" @@ trans_type ftype]
+          | Some v -> "field" @@@
+            ["fieldname" %% v; "fieldtype" @@ trans_type ftype])
+      | BitField (varOpt, ftype, cExp) -> 
+          let fn = (match varOpt with 
+          | None -> "fieldname" %% "anon"
+          | Some v -> "fieldname" %% v) in
+          let ft_gt = trans_type ftype in
+          let bits  = trans_expr cExp in
+          "bitfield" @@@ [fn; ft_gt; bits])
+      ) fkinds
+  | EmptyField -> "field" %% "empty"
+  | _ -> "field_type" %% "N/A"
 and string_of_structunion su = match su with
 | Struct -> "struct"
 | Union  -> "union"
@@ -347,7 +351,8 @@ and trans_decl decl = match decl with
   List.map trans_odecl odecls
 | MacroDecl ((s, args), _) -> 
     "mdecl" @@ s @@@ List.map (function a -> trans_arg (unwrap a)) args
-and trans_odecl ((fopt, ftype, stor, _), _) = match fopt with
+(*and trans_odecl ((fopt, ftype, stor, _), _) = match fopt with *)
+and trans_odecl ({v_namei = fopt; v_type = ftype; v_storage = stor}, _) = match fopt with
   | None -> "onedecl" %% "()"
       (*raise (Fail "decl_spec with no init_decl")*)
   | Some ((var, initOpt), _) -> 
@@ -387,10 +392,16 @@ and trans_ini (ini, _) = match ini with
       | DesignatorRange (from, tgt) -> 
           "drange" @@@ [trans_expr from; trans_expr tgt])
     ) deslist))
-and trans_def def = 
-  let (name, ty, (sto, _), body) = unwrap def in(*{{{*)
+(* and trans_def def =  *)
+and trans_def ({
+  f_name = name;
+  f_type = ty;
+  f_storage = sto;
+  f_body = body;
+}, _) = 
+(*  let (name, ty, (sto, _), body) = unwrap def in(*{{{*) *)
   let gt_funty = trans_funtype ty in
-  let gt_comp  = List.map trans_statement body in
+  let gt_comp  = List.map trans_statement (stmt_elems_of_sequencable body) in
   let gt_body  = "stmt" @@ "comp{}" @@@ gt_comp in
   let gt_name  = "fname" %% name in
   mkC("def", [gt_name; gt_funty; gt_body])(*}}}*)
@@ -405,13 +416,18 @@ and trans_param p =
       let name = mkA("name", match name with Some n -> n | _ -> "") in
       let ft = trans_type ft in
       mkC("param",[reg;name;ft])
-and trans_define_val = mkA("def_val", "N/H")
+and trans_define def = mkA("define", "N/H")
+and trans_ccp cpp_dir =
+  match cpp_dir with
+    | Include inc -> trans_include inc
+    | Define def -> trans_define def
+    | _ -> "cpp_dir" %% "N/A"
 and trans_top top = 
   match top with
   | Definition def -> trans_def def
   | Declaration decl -> trans_decl decl
-  | Include i -> trans_include i
-  | Define _ -> mkA("define", "N/H")
+  | CppTop cpp_dir -> trans_ccp cpp_dir
+  | IfdefTop ifdef_dir -> "ifdeftop" %% "N/A"
   | MacroTop (str, args2, _) ->
       "macrotop" @@ str @@@
       List.map (function a2 -> trans_arg (unwrap a2)) args2
@@ -419,7 +435,8 @@ and trans_top top =
   | NotParsedCorrectly _ -> mkA("NCP","N/H")
   | FinalDef _ -> mkA("fdef", "N/H")
   | _ -> mkA("top", "N/H")
-and trans_include (inc_f, inc_pos) =
+(* and trans_include (inc_f, inc_pos) = *)
+and trans_include { i_include = inc_f} =
   let ie s = mkA("inc_elem", s) in
   match unwrap inc_f with
   | Local ies -> mkC("includeL", List.map ie ies)

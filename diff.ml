@@ -14,6 +14,11 @@ open Difftype
 type term = gtree
 type up = term diff
 
+type node = gtree
+type edge = Control_flow_c.edge
+
+type gflow = (node, edge) Ograph_extended.ograph_mutable
+
 exception Merge3
 
 module GT =
@@ -425,8 +430,6 @@ let rec sub env t =
     loop t
 
 (* try to see if a term st matches another term t
- * st may contain metas while t may not; TODO: why? there does not seem to
- * be any inherint reason local to the match_term function
  *)
 let rec match_term st t =
   match view st, view t with
@@ -1061,12 +1064,226 @@ let get_applicable chgset bp bps =
 
 let gtree_of_ast_c parsed = Visitor_j.trans_prg2 parsed
 
+let do_option f a =
+  match a with 
+    | None -> ()
+    | Some v -> f v
+
 (* first, let's try to parse a C program with Yoann's parser *)
 let read_ast file =
   let (pgm2, parse_stats) = 
     Parse_c.parse_print_error_heuristic file in
     pgm2
-      
+let i2s i = string_of_int i
+
+let translate_node (n2, ninfo) = match n2 with
+  | Control_flow_c.TopNode -> mkA("phony","TopNode")
+  | Control_flow_c.EndNode -> mkA("phony","EndNode")
+  | Control_flow_c.FunHeader def -> Visitor_j.trans_def def
+  | Control_flow_c.Decl decl -> Visitor_j.trans_decl decl
+  | Control_flow_c.SeqStart (s,i,info) -> mkA("phony", "{" ^ i2s i)
+  | Control_flow_c.SeqEnd (i, info) -> mkA("phony", "}" ^ i2s i)
+  | Control_flow_c.ExprStatement (st, (eopt, info)) -> Visitor_j.trans_statement st
+  | Control_flow_c.IfHeader (st, (cond,info)) -> mkC("ifhead", [Visitor_j.trans_expr cond])
+  | Control_flow_c.Else info -> mkA("phony", "Else")
+  | Control_flow_c.WhileHeader (st, (cond, info)) -> mkC("whilehead", [Visitor_j.trans_expr cond])
+  | Control_flow_c.DoHeader (st, info) -> mkA("dohead", "do")
+  | Control_flow_c.DoWhileTail (expr, info) -> mkC("dotail", [Visitor_j.trans_expr expr])
+  | Control_flow_c.ForHeader (st, (((e1opt, _), 
+                                   (e2opt, _),
+                                   (e3opt, _)),info)) -> mkC("forheader",
+      let handle_empty x = match x with
+      | None -> mkA("expr", "empty")
+      | Some e -> Visitor_j.trans_expr e in
+      [
+        handle_empty e1opt;
+        handle_empty e2opt;
+        handle_empty e3opt;
+      ]) 
+  | Control_flow_c.SwitchHeader (st, (expr, info)) -> mkC("switchhead", [Visitor_j.trans_expr expr])
+  | Control_flow_c.MacroIterHeader (st, 
+                                   ((mname, aw2s), info)) ->
+      mkC(mname, List.map (fun (a,i) -> Visitor_j.trans_arg a) aw2s)
+  | Control_flow_c.EndStatement info -> mkA("phony", "[endstatement]")
+
+  | Control_flow_c.Return (st, _) 
+  | Control_flow_c.ReturnExpr (st, _) -> Visitor_j.trans_statement st
+   (* BEGIN of TODO
+
+  (* ------------------------ *)
+  | Control_flow_c.IfdefHeader of ifdef_directive
+  | Control_flow_c.IfdefElse of ifdef_directive
+  | Control_flow_c.IfdefEndif of ifdef_directive
+                                                  
+
+  (* ------------------------ *)
+  | Control_flow_c.DefineHeader of string wrap * define_kind
+
+  | Control_flow_c.DefineExpr of expression 
+  | Control_flow_c.DefineType of fullType
+  | Control_flow_c.DefineDoWhileZeroHeader of unit wrap
+
+  | Control_flow_c.Include of includ
+
+  (* obsolete? *)
+  | Control_flow_c.MacroTop of string * argument wrap2 list * il 
+
+  (* ------------------------ *)
+  | Control_flow_c.Case  of statement * expression wrap
+  | Control_flow_c.Default of statement * unit wrap
+
+  | Control_flow_c.Continue of statement * unit wrap
+  | Control_flow_c.Break    of statement * unit wrap
+
+  (* no counter part in cocci *)
+  | Control_flow_c.CaseRange of statement * (expression * expression) wrap
+  | Control_flow_c.Label of statement * string wrap
+  | Control_flow_c.Goto of statement * string wrap
+
+
+  | Control_flow_c.Asm of statement * asmbody wrap
+  | Control_flow_c.MacroStmt of statement * unit wrap
+
+  (* ------------------------ *)
+  (* some control nodes *)
+
+    END of TODO *)
+
+  | Control_flow_c.Enter -> mkA("phony", "[enter]")
+  | Control_flow_c.Exit -> mkA("phony", "[exit]")
+  | Control_flow_c.Fake -> mkA("phony", "[fake]")
+
+  (* flow_to_ast: In this case, I need to know the  order between the children
+   * of the switch in the graph. 
+   *)
+  | Control_flow_c.CaseNode i -> mkA("phony", "[case" ^ i2s i ^"]")
+
+  (* ------------------------ *)
+  (* for ctl:  *)
+  | Control_flow_c.TrueNode -> mkA("phony", "[then]")
+  | Control_flow_c.FalseNode -> mkA("phony", "[else]")
+  | Control_flow_c.InLoopNode (* almost equivalent to TrueNode but just for loops *) -> mkA("phony", "InLoop")
+
+  | Control_flow_c.AfterNode -> mkA("phony", "[after]")
+  | Control_flow_c.FallThroughNode -> mkA("phony", "[fallthrough]")
+
+  | Control_flow_c.ErrorExit -> mkA("phony", "[errorexit]")
+  | _ -> mkA("NODE", "N/A")
+
+let print_gflow g =
+  let pr = print_string in
+    pr "digraph misc {\n" ;
+    pr "size = \"10,10\";\n" ;
+
+    let nodes = g#nodes in
+    nodes#iter (fun (k,gtree) -> 
+     (* so can see if nodes without arcs were created *) 
+      let s = string_of_gtree' gtree in
+      pr (Printf.sprintf "%d [label=\"%s   [%d]\"];\n" k s k)
+    );
+
+    nodes#iter (fun (k,node) -> 
+      let succ = g#successors k in
+      succ#iter (fun (j,edge) ->
+        pr (Printf.sprintf "%d -> %d;\n" k j);
+      );
+    );
+    pr "}\n" ;
+    ()
+
+let add_node i node g = g#add_nodei i node
+let (+>) o f = f o
+
+(* convert a graph produced by ast_to_flow into a graph where all nodes in the
+ * flow have been translated to their gtree counterparts
+ *)
+let flow_to_gflow flow =
+  let gflow = ref (new Ograph_extended.ograph_mutable) in
+  let nodes = flow#nodes in
+    nodes#iter (fun (index, (node1, s)) ->
+      !gflow +> add_node index (translate_node node1);
+    );
+    nodes#iter (fun (index, node) ->
+      let succ = flow#successors index in
+      succ#iter (fun (j, edge_val) -> 
+                   !gflow#add_arc ((index,j), edge_val)
+      )
+    );
+    !gflow
+
+let read_ast_cfg file =
+  let (pgm2, parse_stats) = 
+    Parse_c.parse_print_error_heuristic file in
+  let flows = List.map (function (c,info) -> Ast_to_flow.ast_to_control_flow c) pgm2 in
+  let  gflows = ref [] in
+    List.iter (do_option (fun f -> 
+                            gflows := (flow_to_gflow f) 
+                            :: !gflows)) flows;
+    (pgm2, !gflows)
+
+type environment = (string * gtree) list
+type res = {skip : int list ; env : environment}
+
+let bind env (x, v) = 
+  try match List.assoc x env with
+  | v' when not(v=v') -> raise (Match_failure ("bind: " ^
+                                               x ^ " => " ^
+                                               string_of_gtree' v ^ " != " ^
+                                               string_of_gtree' v' , 224, 0))
+  | _ -> env
+  with Not_found -> (x,v) :: env
+
+let string_of_bind string_of_val (x, v) = 
+  "(" ^ x ^ "->" ^ string_of_val v ^ ")"
+
+let string_of_env env = 
+  String.concat "; " (List.map (string_of_bind string_of_gtree') env)
+
+let extend_env env1 env2 =
+  List.fold_left bind env1 env2
+let ddd = mkA("SKIP", "...")
+let ($$) e1 e2 = extend_env e1 e2
+let (=>) (k,v) env = bind env (k,v)
+let get_val n g = g#nodes#find n
+let get_succ n g = (g#successors n)#tolist
+let get_next_vp'' g vp n =
+  let ns = get_succ n g in
+  List.fold_left (fun acc_n (n',_) -> 
+                    if not(List.mem n' vp.skip)
+                    then n' :: acc_n
+                    else acc_n) [] ns
+let cont_match g cp n =
+  let init_vp = {skip = []; env = []} in 
+  let matched_vp vp n env = 
+    (* let f, env' = try true, env $$ vp.env with Bind_error -> false, [] in *)
+    (* in this semantic, we never allow visiting the same node twice *)
+    let f, env' = try not(List.mem n vp.skip), env $$ vp.env with Match_failure _ -> false, [] in
+    f, {skip = n :: vp.skip; env = env'} in
+  let skipped_vp vp n = {skip = n :: vp.skip; env = vp.env} in
+  let check_vp vp n  = not(List.mem n vp.skip) && 
+                       not(List.exists 
+                             (fun n' -> get_val n g = get_val n' g) vp.skip) in
+  let rec trans_cp cp c = match cp with
+  | [] -> c
+  | bp :: cp -> trans_bp bp (trans_cp cp c)
+  and trans_bp bp c vp n = match view bp with
+  | C("CM", [gt]) ->
+      (try 
+        let env = match_term gt (get_val n g) in
+        let f,vp' = matched_vp vp n env in
+          f && List.for_all (function (n',_) -> c vp' n') (get_succ n g)
+      with Nomatch -> false)
+  | _ when bp == ddd ->
+      c vp n || (
+        check_vp vp n &&
+        let ns = get_next_vp'' g vp n in
+        not(ns = []) &&
+        let vp' = skipped_vp vp n in
+        List.for_all (trans_bp ddd c vp') ns
+      )
+  in
+  trans_cp cp (fun vp x -> true
+  ) init_vp n
 
 let valOf x = match x with
   | None -> raise (Fail "valOf: None")
@@ -1814,6 +2031,12 @@ let read_src_tgt src tgt =
   let gt1 = gtree_of_ast_c (read_ast src) in
   let gt2 = gtree_of_ast_c (read_ast tgt) in
     gt1, gt2
+
+let read_src_tgt_cfg src tgt =
+  let (ast1, flows1) = read_ast_cfg src in
+  let (ast2, flows2) = read_ast_cfg tgt in
+    (gtree_of_ast_c ast1, flows1),
+    (gtree_of_ast_c ast2, flows2)
 
 (* this function takes a list of patches (diff list list) and looks for the
  * smallest size of any update; the size of an update is determined by the gsize
