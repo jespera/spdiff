@@ -33,7 +33,7 @@ OCAMLCFLAGS=-g -dtypes -custom # -w A
 # for profiling add  -p -inline 0
 # but 'make forprofiling' below does that for you.
 # This flag is also used in subdirectories so don't change its name here.
-OPTFLAGS=
+OPTFLAGS=-g
 
 # the OPTBIN variable is here to allow to use ocamlc.opt instead of 
 # ocaml, when it is available, which speeds up compilation. So

@@ -1,6 +1,9 @@
 (* this is the main file for the spfind CFU program
  *)
 
+open Gtree
+let ddd = Diff.ddd
+
 let do_dmine     = ref false
 let abs          = ref false
 let spec         = ref false
@@ -539,38 +542,254 @@ let spec_main () =
   let solutions = generate_sols term_pairs stripped_patches in
   print_sols solutions
 
-let test_spec gs = (* f x ... return y *)
-  let f = 
-    Gtree.mkC("CM", [
-      Gtree.mkC("stmt", [
-        Gtree.mkC("exprstmt", [
-          Gtree.mkC("exp", [
-            Gtree.mkC("call", [
-              Gtree.mkC("exp", [Gtree.mkA ("ident","f")]);
-              Gtree.mkC("exp", [Gtree.mkA ("meta","X")]);
-            ])
-          ])
-        ])
-      ])
-    ]) in
-  let r = 
-    Gtree.mkC("CM", [
-      Gtree.mkC("stmt", [
-        Gtree.mkC("return", [
-          Gtree.mkC("exp", [
-            Gtree.mkA("meta","Y")
-          ])
-        ])
-      ])
-    ]) 
+(* ---------------------------------------------------------- *
+ * imported from graph.ml                                     *
+ *                                                            *
+ * In the end, this could do well with being put in its own   *
+ * module.                                                    *
+ * ---------------------------------------------------------- *)
+let (+>) o f = f o
+let meta_counter = ref 0
+let reset_meta () = meta_counter := 0
+let inc_meta () = meta_counter := !meta_counter + 1
+let new_meta_id () =
+  let v = !meta_counter in (
+    inc_meta();
+    let mid = "X" ^ string_of_int v in
+    Gtree.mkA("meta", mid), mid
+  )
+
+let new_meta () = 
+  let v = !meta_counter in (
+    inc_meta();
+    Gtree.mkA("meta", "X" ^ string_of_int v)
+  )
+
+let nodes_of_graph g = 
+  g#nodes#tolist +> List.map (fun (i, v) -> i)
+
+let renumber_metas t metas =
+  match view t with
+    | Gtree.A("meta", mvar) -> (try 
+    	    let v = List.assoc mvar metas in
+  	      Gtree.mkA ("meta", v), metas
+        with _ -> 
+          let nm, mid = new_meta_id () in
+		      nm, (mvar, mid) :: metas)
+    | _ -> t, metas
+
+(* generic folding on gterms; produces new term and some accumulated result
+ * which is useful when one wants to modify a gterm and return some env
+ * computed as part of the transformation
+ *)
+let fold_botup term upfun initial_result =
+  let rec loop t acc_result =
+    match view t with
+      | A _ -> upfun t acc_result
+      | C (ct, ts) -> 
+          let new_terms, new_acc_result = List.fold_left
+            (fun (ts, acc_res) t ->
+              let new_t, new_acc = loop t acc_res in
+          		new_t :: ts, new_acc
+            ) ([], acc_result) ts
+          in
+            upfun (mkC(ct, List.rev new_terms)) new_acc_result
   in
-  let spec = [f;Diff.ddd;r] in
-    List.exists (function g ->
-                   List.exists (function (n, gt) ->
-                                  Diff.cont_match g spec n
-                   ) g#nodes#tolist
-    ) gs
- 
+    loop term initial_result
+
+let string_of_pattern p =
+  let loc p = match view p with
+    | C("CM", [t]) -> Diff.string_of_gtree' t 
+    | skip when skip == view ddd -> "..."
+    | _ -> "" in
+  String.concat " " (List.map loc p)
+
+let renumber_metas_pattern pat =
+  let old_meta = !meta_counter in
+  reset_meta ();
+  let loop (acc_pat, env) p  =
+    match view p with
+      | C("CM", [p]) -> 
+          let p', env' = fold_botup p renumber_metas env in
+            (mkC("CM", [p'])) :: acc_pat, env'
+      | skip when skip == view ddd -> ddd :: acc_pat, env
+      | _ -> raise (Match_failure (string_of_pattern [p], 613,0))
+  in
+  let (rev_pat, env) = List.fold_left loop ([], []) pat in
+    (meta_counter := old_meta; List.rev rev_pat)
+
+let default_depth = 4
+
+let rev_assoc e a_list =
+  Gtree.mkA("meta", fst (List.find (function (k,v) -> v == e) a_list))
+
+(* given element "a" and lists, prefix all lists with "a" *)
+let rec prefix a lists =
+  match lists with
+    | [] -> []
+    | l :: ls -> (a :: l) :: prefix a ls
+
+(* given list "l" and lists "ls" prefix each element of list "l" to each list in
+ * "ls"
+ *)
+let rec prefix_all l ls =
+  match l with
+    | [] -> []
+    | e :: l -> (prefix e ls) @ prefix_all l ls
+
+let rec gen_perms lists =
+  match lists with
+    | [] -> [[]]
+    | l :: ls -> prefix_all l (gen_perms ls)
+
+let is_meta m = match view m with 
+  | A("meta", _) -> true
+  | _ -> false
+
+let is_match m = match view m with
+  | C("CM", [p]) -> true
+  | _ -> false
+
+let rec num_metas p =
+  if is_meta p then 1
+  else match view p with
+    | A _ -> 0
+    | C (_,ts) -> List.fold_left (fun acc_sum p -> num_metas p + acc_sum) 0 ts
+
+let rec num_subterms p =
+  match view p with
+    | A _ -> 1
+    | C (_, ts) -> List.fold_left (fun acc_sum p -> num_subterms p + acc_sum) 1 ts
+
+(* a higher value allows a term to be more abstract, while a lower value forces
+ * more concrete patterns 
+ *)
+let default_abstractness = 0.5
+let abstractness p =
+  let mv = num_metas p in
+  let st = num_subterms p in
+    float mv /. float st
+
+(* The following function is used to decide when an abstraction is infeasible.
+ * Either because it simply a meta-variable X or if it is too abstract
+ *)
+let infeasible p = is_meta p || abstractness p > default_abstractness
+
+let (=>) = Diff.(=>)
+let cont_match = Diff.cont_match
+
+let abstract_term depth env t =
+  let rec loop depth env t =
+    try [rev_assoc t env], env
+    with Not_found ->
+      let meta, id = new_meta_id ()
+      in
+        if depth = 0
+        then [meta], (id, t) => env
+        else (match view t with
+          | C(ty, ts) ->
+              (* generate abstract versions for each t ∈ ts *)
+              let meta_lists, env_acc =
+                List.fold_left (fun (acc_lists, env') t -> 
+                                  let meta', env'' = loop (depth - 1) env' t
+                                  in (meta' :: acc_lists), env''
+                ) ([], env) ts in
+              (* generate all permutations of the list of lists *)
+              let meta_perm = gen_perms (List.rev meta_lists) in
+              (* construct new term from lists *)
+              t :: List.rev (List.fold_left (fun acc_meta meta_list ->
+                                          mkC(ty, meta_list) :: acc_meta
+              ) [] meta_perm), env_acc
+          | _ -> [meta;t], (id, t) => env)
+  in
+  let metas, env = loop depth env t in
+    List.filter (function p -> not(infeasible p)) metas, env
+
+let find_seq_patterns pa g =
+  reset_meta();
+  let nodes = nodes_of_graph g in
+  let (|-) g p = List.exists (cont_match g p) nodes in
+  let (+++) x xs = if List.mem x xs then xs else x :: xs in
+  let (++) ps p = (renumber_metas_pattern p) +++ ps
+  in
+  let rec valid p =
+    match p with 
+      | [] -> true
+      | p :: seq when valid seq && is_match p -> not(List.mem p seq)
+      | skip :: seq when skip == ddd -> valid seq
+      | _ -> false
+  in
+  let rec grow' ext p ps (p', env') =
+    let pp' = ext p p' in
+      if g |- pp' &&
+         valid pp'
+      then ( (*
+        print_endline "adding ";
+        print_endline (string_of_pattern pp'); 
+              *)
+        grow (ps ++ pp') (pp', env')
+      )
+      else ps
+  and grow ps (p, env) =
+    let ext1 p1 p2 = p1 @ [Gtree.mkC("CM", [p2])] in
+    let ext2 p1 p2 = p1 @ (ddd :: [Gtree.mkC("CM", [p2])]) in
+      (* produce (meta list * env) list *)
+    let abs_P_env = List.map (abstract_term default_depth env) pa in
+    let nextP1 = List.fold_left (fun acc_p_env (ps, env) -> 
+                                   let valid_ps = List.filter (function p' -> g |- (ext1 p p')) ps 
+                                   in
+                                     if valid_ps = []
+                                     then acc_p_env
+                                     else List.map (function p -> (p, env)) valid_ps 
+                                     :: acc_p_env
+    ) [] abs_P_env in
+    let nextP2 = List.fold_left (fun acc_p_env (ps, env) -> 
+                                   let valid_ps = List.filter (function p' -> g |- (ext2 p p')) ps 
+                                   in
+                                     if valid_ps = []
+                                     then acc_p_env
+                                     else List.map (function p -> (p, env)) valid_ps 
+                                     :: acc_p_env
+    ) [] abs_P_env in
+    let ps' = 
+      List.fold_left (fun acc_ps next_pairs -> List.fold_left (grow' ext1 p) acc_ps next_pairs) ps nextP1 in
+      List.fold_left (fun acc_ps next_pairs -> List.fold_left (grow' ext2 p) acc_ps next_pairs) ps' nextP2
+  in
+  let pairs = List.fold_left (fun acc_p_env (ps, env) -> 
+                                     List.map (function p -> ([mkC("CM", [p])], env)) ps
+                                     :: acc_p_env) 
+                [] (List.map (reset_meta(); abstract_term default_depth []) pa) in
+    List.fold_left (fun acc_ps next_pairs -> 
+                      print_endline ("Trying from fresh pattern.");
+                      List.fold_left grow acc_ps next_pairs) [] pairs
+
+let non_phony p = match view p with
+  | A("phony", _) | C("phony", _) -> false
+  | _ -> true
+
+let concrete_of_graph g =
+  g#nodes#tolist +> List.map snd +> List.filter non_phony
+
+let print_patterns ps =
+      List.iter (function p -> print_endline (string_of_pattern p)) ps
+
+let patterns_of_graph g =
+  let pa = concrete_of_graph g in
+  let ps = find_seq_patterns pa g in
+    print_endline "[Main] found patterns:";
+    print_patterns ps;
+    ps
+
+
+let common_patterns_graphs gss =
+  let pss = gss +> 
+              List.map (function flows ->
+                          flows +> List.map patterns_of_graph +>
+                            List.flatten
+              ) in
+    print_endline "[Main] looking for common patterns";
+    Diff.filter_all pss
+
 let find_common_patterns () =
   print_endline "[Main] looking for common patterns";
   read_spec(); (* gets names to process in file_pairs *)
@@ -579,14 +798,10 @@ let find_common_patterns () =
       read_filepair_cfg lfile rfile :: acc_pairs
     ) [] !file_pairs) in
   print_endline ("[Main] read " ^ string_of_int (List.length term_pairs) ^ " files");
-  print_endline "[Main] test_spec";
-  List.iter (fun ((gt,flows), _) -> 
-               print_endline "[Main] looking";
-               if test_spec flows
-               then print_endline "[Main] \tMATCH"
-               else print_endline "[Main] \tFAIL"
-  ) term_pairs
-
+  let gss = List.map (fun ((gt,flows), _) -> flows) term_pairs in
+  let gpats = common_patterns_graphs gss in
+    print_endline "[Main] *Common* patterns found:";
+    print_patterns gpats
 
 let main () =
   (* decide which mode to operate in *)

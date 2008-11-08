@@ -1229,7 +1229,7 @@ let bind env (x, v) =
   | v' when not(v=v') -> raise (Match_failure ("bind: " ^
                                                x ^ " => " ^
                                                string_of_gtree' v ^ " != " ^
-                                               string_of_gtree' v' , 224, 0))
+                                               string_of_gtree' v' , 1232, 0))
   | _ -> env
   with Not_found -> (x,v) :: env
 
