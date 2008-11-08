@@ -682,7 +682,7 @@ let abstractness p =
 (* The following function is used to decide when an abstraction is infeasible.
  * Either because it simply a meta-variable X or if it is too abstract
  *)
-let infeasible p = is_meta p  (* || abstractness p > !default_abstractness *)
+let infeasible p = is_meta p  || abstractness p > !default_abstractness
 
 let (=>) = Diff.(=>)
 let cont_match = Diff.cont_match
@@ -836,6 +836,7 @@ let common_node_patterns gss =
   Diff.filter_all npss +> List.filter non_phony
 
 let common_patterns_graphs gss =
+  print_endline "[Main] looking for common node patterns";
   let common_np = common_node_patterns gss in
   print_endline "[Main] common node patterns";
   common_np +> List.iter (function np -> 
@@ -845,11 +846,10 @@ let common_patterns_graphs gss =
                           flows +> List.map (patterns_of_graph common_np) +>
                             List.flatten
               ) in
-    print_endline "[Main] looking for common patterns";
+    print_endline "[Main] patterns that occur in all graphs";
     Diff.filter_all pss
 
 let find_common_patterns () =
-  print_endline "[Main] looking for common patterns";
   read_spec(); (* gets names to process in file_pairs *)
   let term_pairs = List.rev (
     List.fold_left (fun acc_pairs (lfile, rfile) ->
