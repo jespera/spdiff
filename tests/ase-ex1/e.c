@@ -1,6 +1,6 @@
 void smoz(int y) {
 	  int z;
-	  z = f(z)*10;
+	  z = f(z);
 	  return z;
 	}
 

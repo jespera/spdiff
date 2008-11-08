@@ -1,6 +1,6 @@
 void bar(int y) {
 	  int a;
-	  a = f(a,GFP)+g(y,y);
+	  a = f(a,GFP);
 	  return a+a;
 	}
 

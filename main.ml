@@ -22,6 +22,7 @@ let noncompact   = ref false
 let prune        = ref false
 let strip_eq     = ref false
 let patterns     = ref false
+let default_abstractness = ref 0.5
 
 let speclist =
   Arg.align
@@ -44,7 +45,9 @@ let speclist =
       "-print_add",     Arg.Set print_adding,    "bool  print statement when adding a new solution in generate_sol";
       "-prune",         Arg.Set prune,           "bool  try to prune search space by various means";
       "-strip_eq",      Arg.Set strip_eq,        "bool  use eq_classes for initial atomic patches";
-      "-patterns",      Arg.Set patterns,        "bool  look for common patterns in LHS files"
+      "-patterns",      Arg.Set patterns,        "bool  look for common patterns in LHS files";
+      "-abstractness",  Arg.Set_float default_abstractness,
+                                                 "float abstractness(explain)"
   ]
 
 
@@ -556,13 +559,13 @@ let new_meta_id () =
   let v = !meta_counter in (
     inc_meta();
     let mid = "X" ^ string_of_int v in
-    Gtree.mkA("meta", mid), mid
+    mkA("meta", mid), mid
   )
 
 let new_meta () = 
   let v = !meta_counter in (
     inc_meta();
-    Gtree.mkA("meta", "X" ^ string_of_int v)
+    mkA("meta", "X" ^ string_of_int v)
   )
 
 let nodes_of_graph g = 
@@ -570,9 +573,9 @@ let nodes_of_graph g =
 
 let renumber_metas t metas =
   match view t with
-    | Gtree.A("meta", mvar) -> (try 
+    | A("meta", mvar) -> (try 
     	    let v = List.assoc mvar metas in
-  	      Gtree.mkA ("meta", v), metas
+  	      mkA ("meta", v), metas
         with _ -> 
           let nm, mid = new_meta_id () in
 		      nm, (mvar, mid) :: metas)
@@ -601,7 +604,7 @@ let string_of_pattern p =
   let loc p = match view p with
     | C("CM", [t]) -> Diff.string_of_gtree' t 
     | skip when skip == view ddd -> "..."
-    | _ -> "" in
+    | gt -> raise (Match_failure (Diff.string_of_gtree' p, 604,0)) in
   String.concat " " (List.map loc p)
 
 let renumber_metas_pattern pat =
@@ -618,10 +621,14 @@ let renumber_metas_pattern pat =
   let (rev_pat, env) = List.fold_left loop ([], []) pat in
     (meta_counter := old_meta; List.rev rev_pat)
 
-let default_depth = 4
+let renumber_metas_gtree gt = 
+  let old_meta = !meta_counter in
+  reset_meta ();
+  let gt', env = fold_botup gt renumber_metas [] in
+    meta_counter := old_meta; gt'
 
 let rev_assoc e a_list =
-  Gtree.mkA("meta", fst (List.find (function (k,v) -> v == e) a_list))
+  mkA("meta", fst (List.find (function (k,v) -> v == e) a_list))
 
 (* given element "a" and lists, prefix all lists with "a" *)
 let rec prefix a lists =
@@ -664,16 +671,18 @@ let rec num_subterms p =
 (* a higher value allows a term to be more abstract, while a lower value forces
  * more concrete patterns 
  *)
-let default_abstractness = 0.5
+
 let abstractness p =
   let mv = num_metas p in
   let st = num_subterms p in
     float mv /. float st
 
+
+
 (* The following function is used to decide when an abstraction is infeasible.
  * Either because it simply a meta-variable X or if it is too abstract
  *)
-let infeasible p = is_meta p || abstractness p > default_abstractness
+let infeasible p = is_meta p  (* || abstractness p > !default_abstractness *)
 
 let (=>) = Diff.(=>)
 let cont_match = Diff.cont_match
@@ -686,6 +695,8 @@ let abstract_term depth env t =
       in
         if depth = 0
         then [meta], (id, t) => env
+        else if is_meta t
+        then [t],env 
         else (match view t with
           | C(ty, ts) ->
               (* generate abstract versions for each t ∈ ts *)
@@ -705,36 +716,62 @@ let abstract_term depth env t =
   let metas, env = loop depth env t in
     List.filter (function p -> not(infeasible p)) metas, env
 
-let find_seq_patterns pa g =
+let print_patterns ps =
+      List.iter (function p -> print_endline (string_of_pattern p)) ps
+
+let (+++) x xs = if List.mem x xs then xs else x :: xs
+
+let non_phony p = match view p with
+  | A("phony", _) | C("phony", _) -> false
+  | _ -> true
+
+let concrete_of_graph g =
+  g#nodes#tolist +> List.map snd +> List.filter non_phony
+
+let find_seq_patterns common_np g =
   reset_meta();
+  let pa = (concrete_of_graph g) +> List.filter 
+              (function t -> common_np +> List.exists 
+              (function np -> Diff.can_match np t)) in
   let nodes = nodes_of_graph g in
   let (|-) g p = List.exists (cont_match g p) nodes in
-  let (+++) x xs = if List.mem x xs then xs else x :: xs in
+  let (+++) x xs = if List.mem x xs then xs else (
+    if !print_adding then (
+      print_string "[Main] adding ";
+      print_endline (string_of_pattern x);
+    );
+    x :: xs) in
   let (++) ps p = (renumber_metas_pattern p) +++ ps
   in
-  let rec valid p =
-    match p with 
-      | [] -> true
-      | p :: seq when valid seq && is_match p -> not(List.mem p seq)
-      | skip :: seq when skip == ddd -> valid seq
-      | _ -> false
+  let valid p =
+    let rec loop p =
+      match p with 
+        | [] -> true
+        | p :: seq when loop seq && is_match p -> not(List.mem p seq)
+        | skip :: seq when skip == ddd -> loop seq
+        | _ -> false
+    in
+      match p with
+        | skip :: _ when skip == ddd -> false
+        | _ -> loop p                     
   in
   let rec grow' ext p ps (p', env') =
     let pp' = ext p p' in
       if g |- pp' &&
          valid pp'
-      then ( (*
-        print_endline "adding ";
+      then ( 
+        (*
+        print_string "adding ";
         print_endline (string_of_pattern pp'); 
-              *)
+        *)
         grow (ps ++ pp') (pp', env')
       )
       else ps
   and grow ps (p, env) =
-    let ext1 p1 p2 = p1 @ [Gtree.mkC("CM", [p2])] in
-    let ext2 p1 p2 = p1 @ (ddd :: [Gtree.mkC("CM", [p2])]) in
+    let ext1 p1 p2 = p1 @ [mkC("CM", [p2])] in
+    let ext2 p1 p2 = p1 @ (ddd :: [mkC("CM", [p2])]) in
       (* produce (meta list * env) list *)
-    let abs_P_env = List.map (abstract_term default_depth env) pa in
+    let abs_P_env = List.map (abstract_term !depth env) pa in
     let nextP1 = List.fold_left (fun acc_p_env (ps, env) -> 
                                    let valid_ps = List.filter (function p' -> g |- (ext1 p p')) ps 
                                    in
@@ -755,36 +792,57 @@ let find_seq_patterns pa g =
       List.fold_left (fun acc_ps next_pairs -> List.fold_left (grow' ext1 p) acc_ps next_pairs) ps nextP1 in
       List.fold_left (fun acc_ps next_pairs -> List.fold_left (grow' ext2 p) acc_ps next_pairs) ps' nextP2
   in
+    grow [] ([], [])
+      (*
   let pairs = List.fold_left (fun acc_p_env (ps, env) -> 
                                      List.map (function p -> ([mkC("CM", [p])], env)) ps
                                      :: acc_p_env) 
-                [] (List.map (reset_meta(); abstract_term default_depth []) pa) in
+                [] (List.map (reset_meta(); abstract_term depth []) pa) in
     List.fold_left (fun acc_ps next_pairs -> 
-                      print_endline ("Trying from fresh pattern.");
-                      List.fold_left grow acc_ps next_pairs) [] pairs
+                      print_endline ("Trying from fresh patterns.");
+                      next_pairs +> List.iter (function (ps,env) -> 
+                        string_of_pattern ps +> print_endline);
+                      List.fold_left grow acc_ps next_pairs) 
+      [] pairs
+       *)
 
-let non_phony p = match view p with
-  | A("phony", _) | C("phony", _) -> false
-  | _ -> true
-
-let concrete_of_graph g =
-  g#nodes#tolist +> List.map snd +> List.filter non_phony
-
-let print_patterns ps =
-      List.iter (function p -> print_endline (string_of_pattern p)) ps
-
-let patterns_of_graph g =
+let patterns_of_graph common_np g =
+  (*
   let pa = concrete_of_graph g in
-  let ps = find_seq_patterns pa g in
+   *)
+  let ps = find_seq_patterns common_np g in
     print_endline "[Main] found patterns:";
     print_patterns ps;
     ps
 
+let (@@) l1 l2 = List.fold_left (fun acc_l e -> e +++ acc_l) (List.rev l1) l2
+
+let common_node_patterns gss =
+  (* ---- contruct the abstract node terms which are common ---- *)
+  (* given a list of graphs add all node-patterns to a common list *)
+  let npss = gss +> List.rev_map 
+               (function flows -> 
+                  flows +> List.fold_left 
+                    (fun acc_ps flow -> 
+                       (concrete_of_graph flow) +> List.fold_left 
+                         (fun acc_ps t ->
+                            let aps, env = abstract_term !depth [] t in
+                              aps @@ acc_ps
+                         ) acc_ps
+                    ) []
+               ) in
+  let npss = npss +> List.map (List.map renumber_metas_gtree) in
+  (* for a list of lists of node patterns, find the common node patterns *)
+  Diff.filter_all npss +> List.filter non_phony
 
 let common_patterns_graphs gss =
+  let common_np = common_node_patterns gss in
+  print_endline "[Main] common node patterns";
+  common_np +> List.iter (function np -> 
+                            Diff.string_of_gtree' np +> print_endline);
   let pss = gss +> 
               List.map (function flows ->
-                          flows +> List.map patterns_of_graph +>
+                          flows +> List.map (patterns_of_graph common_np) +>
                             List.flatten
               ) in
     print_endline "[Main] looking for common patterns";

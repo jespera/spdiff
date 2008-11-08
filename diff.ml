@@ -1079,7 +1079,7 @@ let i2s i = string_of_int i
 let translate_node (n2, ninfo) = match n2 with
   | Control_flow_c.TopNode -> mkA("phony","TopNode")
   | Control_flow_c.EndNode -> mkA("phony","EndNode")
-  | Control_flow_c.FunHeader def -> Visitor_j.trans_def def
+  | Control_flow_c.FunHeader def -> mkC("phony", [Visitor_j.trans_def def])
   | Control_flow_c.Decl decl -> Visitor_j.trans_decl decl
   | Control_flow_c.SeqStart (s,i,info) -> mkA("phony", "{" ^ i2s i)
   | Control_flow_c.SeqEnd (i, info) -> mkA("phony", "}" ^ i2s i)
@@ -1226,7 +1226,7 @@ type res = {skip : int list ; env : environment}
 
 let bind env (x, v) = 
   try match List.assoc x env with
-  | v' when not(v=v') -> raise (Match_failure ("bind: " ^
+  | v' when not(v=v') -> raise (Match_failure ("Diff.bind: " ^
                                                x ^ " => " ^
                                                string_of_gtree' v ^ " != " ^
                                                string_of_gtree' v' , 1232, 0))
