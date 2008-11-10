@@ -23,6 +23,7 @@ let prune        = ref false
 let strip_eq     = ref false
 let patterns     = ref false
 let default_abstractness = ref 0.5
+let verbose      = ref false
 
 let speclist =
   Arg.align
@@ -47,7 +48,8 @@ let speclist =
       "-strip_eq",      Arg.Set strip_eq,        "bool  use eq_classes for initial atomic patches";
       "-patterns",      Arg.Set patterns,        "bool  look for common patterns in LHS files";
       "-abstractness",  Arg.Set_float default_abstractness,
-                                                 "float abstractness(explain)"
+                                                 "float abstractness(explain)";
+      "-verbose",       Arg.Set verbose,         "bool  print more intermediate results"
   ]
 
 
@@ -446,7 +448,7 @@ let strip term_pairs abs_patches =
     add_atom part atomp
   ) [] abs_patches in
   (*List.map (fun eq_class -> List.hd (filter_smaller term_pairs eq_class )) pot_res*)
-  List.map (fun eq_class -> List.hd eq_class) pot_res
+  List.rev_map (fun eq_class -> List.hd eq_class) pot_res
 
 
 let spec_main () =
@@ -487,7 +489,7 @@ let spec_main () =
     "[Main] Constructing all safe parts for " ^ 
     string_of_int (List.length term_pairs) ^ " term pairs");
   let tcount = ref 1 in
-  let abs_patches = List.map (function (t, t'') ->
+  let abs_patches = List.rev_map (function (t, t'') ->
     print_endline ("[Main] Making safe parts for pair " ^ string_of_int !tcount);
     tcount := !tcount + 1;
     (* print_endline (Diff.string_of_diff (Difftype.UP(t,t'')));  *)
@@ -569,7 +571,7 @@ let new_meta () =
   )
 
 let nodes_of_graph g = 
-  g#nodes#tolist +> List.map (fun (i, v) -> i)
+  g#nodes#tolist +> List.rev_map (fun (i, v) -> i)
 
 let renumber_metas t metas =
   match view t with
@@ -639,10 +641,13 @@ let rec prefix a lists =
 (* given list "l" and lists "ls" prefix each element of list "l" to each list in
  * "ls"
  *)
+let (@@@) l1 l2 = List.rev l1 +> List.fold_left 
+                    (fun acc_l e1 -> e1 :: acc_l) l2
+
 let rec prefix_all l ls =
   match l with
     | [] -> []
-    | e :: l -> (prefix e ls) @ prefix_all l ls
+    | e :: l -> (prefix e ls) @@@ prefix_all l ls
 
 let rec gen_perms lists =
   match lists with
@@ -698,6 +703,8 @@ let abstract_term depth env t =
         else if is_meta t
         then [t],env 
         else (match view t with
+          | A _ -> (* always abstract atoms *)
+              [meta], (id, t) => env
           | C(ty, ts) ->
               (* generate abstract versions for each t ∈ ts *)
               let meta_lists, env_acc =
@@ -726,21 +733,40 @@ let non_phony p = match view p with
   | _ -> true
 
 let concrete_of_graph g =
-  g#nodes#tolist +> List.map snd +> List.filter non_phony
+  let nodes = g#nodes#tolist in
+  let ns = nodes +> List.filter (function (i,t) -> non_phony t) in
+  let ns' = ns +> List.filter (function (i,t) -> 
+                          (g#successors i)#length <= 1
+    ) in
+  ns' +> List.rev_map snd 
 
 let find_seq_patterns common_np g =
   reset_meta();
+  let rec (<=) p p' = p = [] || match p, p' with
+    | x :: xs, y :: ys when x = y -> xs <= ys
+    | _, _ -> false in
+  let (==>) a b = not(a) || b in
+  let filter_shorter pss =
+    (* only keep around the longest possible patterns*)
+    let keep_fun p = pss +> List.for_all 
+                       (function p' ->
+                          (not(p <= p') || p = p') &&
+                          List.length p > 1
+                       ) 
+    in
+      List.filter keep_fun pss in
   let pa = (concrete_of_graph g) +> List.filter 
               (function t -> common_np +> List.exists 
               (function np -> Diff.can_match np t)) in
   let nodes = nodes_of_graph g in
+  let (<==) p ps = List.exists (function p' -> p <= p') ps in
   let (|-) g p = List.exists (cont_match g p) nodes in
   let (+++) x xs = if List.mem x xs then xs else (
     if !print_adding then (
       print_string "[Main] adding ";
       print_endline (string_of_pattern x);
     );
-    x :: xs) in
+    filter_shorter (x :: xs)) in
   let (++) ps p = (renumber_metas_pattern p) +++ ps
   in
   let valid p =
@@ -758,7 +784,8 @@ let find_seq_patterns common_np g =
   let rec grow' ext p ps (p', env') =
     let pp' = ext p p' in
       if g |- pp' &&
-         valid pp'
+         valid pp' &&
+         not(pp' <== ps)
       then ( 
         (*
         print_string "adding ";
@@ -771,13 +798,13 @@ let find_seq_patterns common_np g =
     let ext1 p1 p2 = p1 @ [mkC("CM", [p2])] in
     let ext2 p1 p2 = p1 @ (ddd :: [mkC("CM", [p2])]) in
       (* produce (meta list * env) list *)
-    let abs_P_env = List.map (abstract_term !depth env) pa in
+    let abs_P_env = List.rev_map (abstract_term !depth env) pa in
     let nextP1 = List.fold_left (fun acc_p_env (ps, env) -> 
                                    let valid_ps = List.filter (function p' -> g |- (ext1 p p')) ps 
                                    in
                                      if valid_ps = []
                                      then acc_p_env
-                                     else List.map (function p -> (p, env)) valid_ps 
+                                     else List.rev_map (function p -> (p, env)) valid_ps 
                                      :: acc_p_env
     ) [] abs_P_env in
     let nextP2 = List.fold_left (fun acc_p_env (ps, env) -> 
@@ -785,7 +812,7 @@ let find_seq_patterns common_np g =
                                    in
                                      if valid_ps = []
                                      then acc_p_env
-                                     else List.map (function p -> (p, env)) valid_ps 
+                                     else List.rev_map (function p -> (p, env)) valid_ps 
                                      :: acc_p_env
     ) [] abs_P_env in
     let ps' = 
@@ -811,8 +838,10 @@ let patterns_of_graph common_np g =
   let pa = concrete_of_graph g in
    *)
   let ps = find_seq_patterns common_np g in
-    print_endline "[Main] found patterns:";
-    print_patterns ps;
+    if !verbose
+    then (
+      print_endline "[Main] found patterns:";    
+      print_patterns ps);
     ps
 
 let (@@) l1 l2 = List.fold_left (fun acc_l e -> e +++ acc_l) (List.rev l1) l2
@@ -820,6 +849,7 @@ let (@@) l1 l2 = List.fold_left (fun acc_l e -> e +++ acc_l) (List.rev l1) l2
 let common_node_patterns gss =
   (* ---- contruct the abstract node terms which are common ---- *)
   (* given a list of graphs add all node-patterns to a common list *)
+  let rec rm_dups xs = List.fold_left (fun acc_xs x -> x +++ acc_xs) [] xs in
   let npss = gss +> List.rev_map 
                (function flows -> 
                   flows +> List.fold_left 
@@ -827,27 +857,38 @@ let common_node_patterns gss =
                        (concrete_of_graph flow) +> List.fold_left 
                          (fun acc_ps t ->
                             let aps, env = abstract_term !depth [] t in
-                              aps @@ acc_ps
+                            let norm_aps = List.rev_map renumber_metas_gtree aps in
+                              norm_aps @@ acc_ps
                          ) acc_ps
                     ) []
                ) in
-  let npss = npss +> List.map (List.map renumber_metas_gtree) in
   (* for a list of lists of node patterns, find the common node patterns *)
-  Diff.filter_all npss +> List.filter non_phony
+  rm_dups (Diff.filter_all npss)
+
+(* tail recursive version of flatten; does *not* preserve order of elements in
+ * the lists 
+ *)
+let tail_flatten lss =
+  lss +> List.fold_left List.rev_append []
 
 let common_patterns_graphs gss =
+  let (|-) g p = List.exists (cont_match g p) (nodes_of_graph g) in
   print_endline "[Main] looking for common node patterns";
   let common_np = common_node_patterns gss in
   print_endline "[Main] common node patterns";
   common_np +> List.iter (function np -> 
                             Diff.string_of_gtree' np +> print_endline);
+  let pss_first = tail_flatten (List.rev_map (patterns_of_graph common_np) (List.hd gss)) in
+    List.filter (function sp -> List.for_all (function fs -> List.exists (function f -> f |- sp) fs) gss) pss_first
+      (*
   let pss = gss +> 
-              List.map (function flows ->
-                          flows +> List.map (patterns_of_graph common_np) +>
+              List.rev_map (function flows ->
+                          flows +> List.rev_map (patterns_of_graph common_np) +>
                             List.flatten
               ) in
     print_endline "[Main] patterns that occur in all graphs";
     Diff.filter_all pss
+       *)
 
 let find_common_patterns () =
   read_spec(); (* gets names to process in file_pairs *)
@@ -856,7 +897,7 @@ let find_common_patterns () =
       read_filepair_cfg lfile rfile :: acc_pairs
     ) [] !file_pairs) in
   print_endline ("[Main] read " ^ string_of_int (List.length term_pairs) ^ " files");
-  let gss = List.map (fun ((gt,flows), _) -> flows) term_pairs in
+  let gss = List.rev_map (fun ((gt,flows), _) -> flows) term_pairs in
   let gpats = common_patterns_graphs gss in
     print_endline "[Main] *Common* patterns found:";
     print_patterns gpats

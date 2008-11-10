@@ -1,2 +1,2 @@
 #!/bin/bash
-time ../../spdiff.opt -specfile specfile -patterns
+time ../../spdiff.opt -specfile specfile -patterns -depth 5
