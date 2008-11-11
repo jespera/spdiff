@@ -70,7 +70,7 @@ let count t =
   in
   Array.fold_right (count_bucket 0) t.table 0
 
-let next_sz n = min (3*n/2 + 3) (Sys.max_array_length - 1)
+let next_sz n = min (5*n/2 + 3) (Sys.max_array_length - 1)
 
 let rec resize t =
   let oldlen = Array.length t.table in
@@ -78,7 +78,7 @@ let rec resize t =
   if newlen > oldlen then begin
     let newt = create newlen in
     newt.limit <- t.limit + 100;          (* prevent resizing of newt *)
-    fold (fun d () -> add newt d) t ();
+    fold (fun d () -> print_endline ("."); add newt d) t ();
     t.table <- newt.table;
     t.limit <- t.limit + 2;
   end

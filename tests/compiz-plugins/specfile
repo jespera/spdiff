@@ -1,3 +1,6 @@
 scale.c     scale.c
 switcher.c  switcher.c
 minimize.c  minimize.c
+screenshot.c screenshot.c
+zoom.c zoom.c
+clone.c clone.c

@@ -1222,7 +1222,7 @@ let read_ast_cfg file =
     (pgm2, !gflows)
 
 type environment = (string * gtree) list
-type res = {skip : int list ; env : environment}
+type res = {last : gtree option; skip : int list ; env : environment}
 
 let bind env (x, v) = 
   try match List.assoc x env with
@@ -1239,6 +1239,7 @@ let string_of_bind string_of_val (x, v) =
 let string_of_env env = 
   String.concat "; " (List.map (string_of_bind string_of_gtree') env)
 
+let (+++) x xs = if List.mem x xs then xs else x :: xs
 let extend_env env1 env2 =
   List.fold_left bind env1 env2
 let ddd = mkA("SKIP", "...")
@@ -1252,17 +1253,89 @@ let get_next_vp'' g vp n =
                     if not(List.mem n' vp.skip)
                     then n' :: acc_n
                     else acc_n) [] ns
-let cont_match g cp n =
-  let init_vp = {skip = []; env = []} in 
+
+type skip_action = SKIP | LOOP | FALSE
+
+let string_of_pattern p =
+  let loc p = match view p with
+    | C("CM", [t]) -> string_of_gtree' t
+    | skip when skip == view ddd -> "..."
+    | gt -> raise (Match_failure (string_of_gtree' p, 1263,0)) in
+  String.concat " " (List.map loc p)
+
+let cont_match g cp n = 
+ (*
+  print_endline ("[Diff] checking pattern : " ^ 
+  string_of_pattern cp);
+  *)
+  let init_vp = {skip = []; env = []; last = None;} in 
   let matched_vp vp n env = 
     (* let f, env' = try true, env $$ vp.env with Bind_error -> false, [] in *)
     (* in this semantic, we never allow visiting the same node twice *)
     let f, env' = try not(List.mem n vp.skip), env $$ vp.env with Match_failure _ -> false, [] in
-    f, {skip = n :: vp.skip; env = env'} in
-  let skipped_vp vp n = {skip = n :: vp.skip; env = vp.env} in
+    f, {last = Some (get_val n g); skip = n :: vp.skip; env = env'} in
+  let skipped_vp vp n = {
+    last = vp.last;
+    skip = n :: vp.skip; 
+    env = vp.env} in
+  let check_vp vp n  = if Some (get_val n g) = vp.last
+                       then FALSE 
+                       else if List.mem n vp.skip
+                       then (
+                         print_endline ("[Diff] LOOP on " ^ 
+                         string_of_int n);
+                         LOOP)
+                       else SKIP
+  in
+  let rec trans_cp cp c = match cp with
+  | [] -> c
+  | bp :: cp -> trans_bp bp (trans_cp cp c)
+  and trans_bp bp c vp n = match view bp with
+  | C("CM", [gt]) ->
+      (try 
+        let env = match_term gt (get_val n g) in
+        let f,vp' = matched_vp vp n env in
+          f && List.for_all (function (n',_) -> c vp' n') (get_succ n g)
+      with Nomatch -> false)
+  | _ when bp == ddd ->
+      c vp n || (
+        match check_vp vp n with
+          | FALSE -> false
+          | LOOP -> true
+          | SKIP -> 
+              let ns = get_next_vp'' g vp n in
+                (* it seems if, we assume all nodes have at least one successor
+                 * except the exit node (which is phony btw), then the ns=[]
+                 * check should not be performed
+                 *)
+                (* not(ns = []) && *)
+                let vp' = skipped_vp vp n in
+                  List.for_all (trans_bp ddd c vp') ns
+      )
+  in
+  let matcher = trans_cp cp (fun vp x -> true) in
+    matcher init_vp n
+
+let valOf x = match x with
+  | None -> raise (Fail "valOf: None")
+  | Some y -> y
+
+
+let get_last_locs g cp n =
+  let loc_list = ref [] in
+  let init_vp = {skip = []; env = []; last = None;} in 
+  let matched_vp vp n env = 
+    (* let f, env' = try true, env $$ vp.env with Bind_error -> false, [] in *)
+    (* in this semantic, we never allow visiting the same node twice *)
+    let f, env' = try not(List.mem n vp.skip), env $$ vp.env with Match_failure _ -> false, [] in
+    f, {last = Some (get_val n g); skip = n :: vp.skip; env = env'} in
+  let skipped_vp vp n = {
+    last = vp.last;
+    skip = n :: vp.skip; 
+    env = vp.env} in
   let check_vp vp n  = not(List.mem n vp.skip) && 
-                       not(List.exists 
-                             (fun n' -> get_val n g = get_val n' g) vp.skip) in
+                       not(Some (get_val n g) = vp.last)
+  in
   let rec trans_cp cp c = match cp with
   | [] -> c
   | bp :: cp -> trans_bp bp (trans_cp cp c)
@@ -1282,12 +1355,16 @@ let cont_match g cp n =
         List.for_all (trans_bp ddd c vp') ns
       )
   in
-  trans_cp cp (fun vp x -> true
-  ) init_vp n
-
-let valOf x = match x with
-  | None -> raise (Fail "valOf: None")
-  | Some y -> y
+  let matcher = trans_cp cp (fun vp x -> 
+                               loc_list := valOf vp.last :: !loc_list;
+                               true) in
+    if matcher init_vp n
+    then Some (List.fold_left (fun acc_l e -> 
+                           if List.mem e acc_l
+                           then acc_l
+                           else e :: acc_l
+    ) [] !loc_list)
+    else None
 
 let safe up tup = 
   match tup with
@@ -2035,6 +2112,8 @@ let read_src_tgt src tgt =
 let read_src_tgt_cfg src tgt =
   let (ast1, flows1) = read_ast_cfg src in
   let (ast2, flows2) = read_ast_cfg tgt in
+    print_endline "[Main] gflows for file:";
+    flows1 +> List.iter print_gflow;
     (gtree_of_ast_c ast1, flows1),
     (gtree_of_ast_c ast2, flows2)
 

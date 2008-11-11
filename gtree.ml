@@ -26,7 +26,7 @@ end
 
 module HGtree = Make(Gtree_node)
 
-let termht = HGtree.create 251
+let termht = HGtree.create 100313
 
 let view t = t.node
 let hcons t = HGtree.hashcons termht t
