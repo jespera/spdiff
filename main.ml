@@ -702,9 +702,11 @@ let abstract_term depth env t =
       in
         if depth = 0
         then [meta], (id, t) => env
-        else if is_meta t
+        else 
+       (* if is_meta t
         then [t],env 
-        else (match view t with
+        else  *)
+          (match view t with
 (*          | A _ -> (* always abstract atoms *)
                       [meta], (id, t) => env
                       *)
@@ -719,7 +721,7 @@ let abstract_term depth env t =
               let meta_perm = gen_perms (List.rev meta_lists) in
               (* construct new term from lists *)
               t :: List.rev (List.fold_left (fun acc_meta meta_list ->
-                                          mkC(ty, meta_list) :: acc_meta
+                                               mkC(ty, meta_list) :: acc_meta
               ) [] meta_perm), env_acc
           | _ -> [meta;t], (id, t) => env)
   in
@@ -815,7 +817,7 @@ let follows_sp sp g pa =
     in
       List.filter keep_fun pss 
 
-let find_seq_patterns common_np g =
+let find_seq_patterns is_frequent_sp common_np g =
   reset_meta();
   let pa = (concrete_of_graph g) +> List.filter 
               (function t -> common_np +> List.exists 
@@ -849,6 +851,7 @@ let find_seq_patterns common_np g =
     let pp' = ext p p' in
       if (* g |- pp' && *)
          valid pp' &&
+         is_frequent_sp pp' &&
          not(pp' <== ps)
       then ( 
         (*
@@ -859,14 +862,10 @@ let find_seq_patterns common_np g =
       )
       else ps
   and grow ps (p, env) =
-    let ext1 p1 p2 = if p1 = [] 
-    then [mkC("CM",[p2])] 
-    else p1 @ [mkC("CM", [p2])] in
-    let ext2 p1 p2 = if p1 = [] 
-    then [mkC("CM",[p2])] 
-    else p1 @ (ddd :: [mkC("CM", [p2])]) in
+    let ext1 p1 p2 = if p1 = [] then [mkC("CM",[p2])] else p1 @ [mkC("CM", [p2])] in
+    let ext2 p1 p2 = if p1 = [] then [mkC("CM",[p2])] else p1 @ (ddd :: [mkC("CM", [p2])]) in
       (* produce (meta list * env) list *)
-    let pa_f = follows_sp p g pa in 
+    let pa_f = follows_sp p g pa in
     let abs_P_env = List.rev_map (abstract_term !depth env) pa_f in
     let nextP1 = List.fold_left (fun acc_p_env (ps, env) -> 
                                    let valid_ps = List.filter (function p' -> g |- (ext1 p p')) ps 
@@ -902,12 +901,12 @@ let find_seq_patterns common_np g =
       [] pairs
        *)
 
-let patterns_of_graph common_np g =
-  if !verbose then print_endline "[Main] considering graph ";
+let patterns_of_graph is_frequent_sp common_np g =
+  if !verbose then print_endline ("[Main] considering graph with [" ^ string_of_int (List.length (concrete_of_graph g)) ^ "] cnodes");
   (*
   let pa = concrete_of_graph g in
    *)
-  let ps = find_seq_patterns common_np g in
+  let ps = find_seq_patterns is_frequent_sp common_np g in
     if !verbose
     then (
       print_endline "[Main] found patterns:";    
@@ -992,14 +991,21 @@ let filter_common_np_graph common_np g =
 
 let common_patterns_graphs gss =
   let (|-) g p = List.exists (cont_match g p) (nodes_of_graph g) in
+  let is_frequent_sp sp = 
+    if List.length gss = 1 
+    then true 
+    else  List.tl gss +> List.for_all (function fs -> fs +> List.exists (function f -> f |- sp)) in
   print_endline "[Main] looking for common node patterns";
   let common_np = common_node_patterns gss in
   print_endline "[Main] common node patterns";
   common_np +> List.iter (function np -> 
                             Diff.string_of_gtree' np +> print_endline);
-  let pss_first = tail_flatten (List.rev_map (patterns_of_graph common_np) (List.hd gss)) in
+(*  let pss_first = *)
+  tail_flatten (List.rev_map (patterns_of_graph is_frequent_sp common_np) (List.hd gss)) 
+ (*  in
     print_endline "[Main] found pss_first, now looking for global matches";
     List.filter (function sp -> gss +> List.for_all (function fs -> fs +> List.exists (function f -> f |- sp))) pss_first
+  *)
       (*
   let pss = gss +> 
               List.rev_map (function flows ->
@@ -1031,6 +1037,7 @@ let main () =
   Diff.use_mvars     := !mvars;
   Diff.be_fixed      := !fixed;
   Diff.no_exceptions := !exceptions;
+  Diff.verbose       := !verbose;
   if !mfile = ""
   then raise (Diff.Fail "No specfile given")
   else if !patterns 

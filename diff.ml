@@ -1247,12 +1247,15 @@ let ($$) e1 e2 = extend_env e1 e2
 let (=>) (k,v) env = bind env (k,v)
 let get_val n g = g#nodes#find n
 let get_succ n g = (g#successors n)#tolist
-let get_next_vp'' g vp n =
+let get_next_vp'' g vp n = 
+  List.rev_map fst (get_succ n g) 
+    (* below we filter those, that have already be visited
   let ns = get_succ n g in
-  List.fold_left (fun acc_n (n',_) -> 
+    List.fold_left (fun acc_n (n',_) -> 
                     if not(List.mem n' vp.skip)
                     then n' :: acc_n
                     else acc_n) [] ns
+     *)
 
 type skip_action = SKIP | LOOP | FALSE
 
@@ -1282,8 +1285,8 @@ let cont_match g cp n =
                        then FALSE 
                        else if List.mem n vp.skip
                        then (
-                         print_endline ("[Diff] LOOP on " ^ 
-                         string_of_int n);
+                       (* print_endline ("[Diff] LOOP on " ^ 
+                         string_of_int n); *)
                          LOOP)
                        else SKIP
   in
@@ -1304,11 +1307,7 @@ let cont_match g cp n =
           | LOOP -> true
           | SKIP -> 
               let ns = get_next_vp'' g vp n in
-                (* it seems if, we assume all nodes have at least one successor
-                 * except the exit node (which is phony btw), then the ns=[]
-                 * check should not be performed
-                 *)
-                (* not(ns = []) && *)
+                not(ns = []) &&
                 let vp' = skipped_vp vp n in
                   List.for_all (trans_bp ddd c vp') ns
       )
@@ -2109,11 +2108,14 @@ let read_src_tgt src tgt =
   let gt2 = gtree_of_ast_c (read_ast tgt) in
     gt1, gt2
 
+let verbose = ref false
+
 let read_src_tgt_cfg src tgt =
   let (ast1, flows1) = read_ast_cfg src in
   let (ast2, flows2) = read_ast_cfg tgt in
-    print_endline "[Main] gflows for file:";
-    flows1 +> List.iter print_gflow;
+    if !verbose then (
+      print_endline "[Main] gflows for file:";
+      flows1 +> List.iter print_gflow);
     (gtree_of_ast_c ast1, flows1),
     (gtree_of_ast_c ast2, flows2)
 
