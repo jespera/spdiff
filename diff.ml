@@ -1307,7 +1307,9 @@ let cont_match g cp n =
           | LOOP -> true
           | SKIP -> 
               let ns = get_next_vp'' g vp n in
-                not(ns = []) &&
+                (not(ns = []) ||
+                 ns +> List.exists (function n' -> not(n = n'))
+                )&&
                 let vp' = skipped_vp vp n in
                   List.for_all (trans_bp ddd c vp') ns
       )
