@@ -87,8 +87,8 @@ let rec string_of_gtree str_of_t str_of_c gt =
   | A("itype", c) -> "char"
   | C("itype", [sgn;base]) ->
     (match view sgn, view base with
-    | A ("sgn", "signed") , A (_, b) -> b
-    | A ("sgn", "unsigned"), A (_, b) -> "unsigned" ^ " " ^ b
+    | A ("sgn", "signed") , A (_, b) -> "signed " ^ b
+    | A ("sgn", "unsigned"), A (_, b) -> "unsigned " ^ b
     | A ("meta", _), A(_, b) -> b
     )) 
   and string_of_param param =
@@ -136,7 +136,7 @@ let rec string_of_gtree str_of_t str_of_c gt =
   and loop gt =
     match view gt with
       | A ("meta", c) -> c
-      | A ("itype", _) -> string_of_itype gt
+      | A ("itype", _) -> string_of_itype gt 
       | A (t,c) -> c
       | C ("fulltype", ti) -> string_of_ftype ti
       | C ("const", [{node=A(_, c)}]) -> c
@@ -1223,6 +1223,12 @@ let read_ast_cfg file =
 
 type environment = (string * gtree) list
 type res = {last : gtree option; skip : int list ; env : environment}
+
+let print_environment env =
+  List.iter (function (x, v) ->
+    print_string " ;";
+    print_string (x ^ " -> " ^ string_of_gtree' v);
+  ) env; print_newline ()
 
 let bind env (x, v) = 
   try match List.assoc x env with
