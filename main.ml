@@ -226,9 +226,12 @@ let rec filter_redundant solutions =
 	not(redundant_sol (list_of_bp s) (list_of_bp s'))) 
 	(filter_redundant sols)
 
-let filter_less_abstract abs_terms =
+let implies b1 b2 = not(b1)|| b2
+
+let filter_more_abstract abs_terms =
   let keep_sol p =
-    List.for_all (function p' -> gsize p <= gsize p'
+    List.for_all (function p' -> 
+                    implies (Diff.can_match p p' || Diff.can_match p' p) (gsize p <= gsize p')
     ) abs_terms in
     List.filter keep_sol abs_terms
 
@@ -738,8 +741,6 @@ let get_indices t g =
   g#nodes#tolist +> List.fold_left (fun acc_i (i,t') -> if t' == t then i :: acc_i else acc_i) []
 
 let abstract_term depth env t =
-  let fixed_terms = ref [] in
-  let nonsense_abs t_sub = List.mem t_sub !fixed_terms in
   let rec rm_dups xs = List.fold_left (fun acc_xs x -> x +++ acc_xs) [] xs in
   let follow_abs t_sub = match !g_glob with
     | None -> false
@@ -754,9 +755,9 @@ let abstract_term depth env t =
           * occurs?
           *)
          
-         List.exists (function i -> Diff.find_embedded_succ g i t_sub) idxs
-(*          if List.exists (function i -> Diff.find_embedded_succ g i t_sub) idxs
-         then (print_endline ("[Main] follow_abs: " ^ (Diff.string_of_gtree' t_sub)); true) else false *)
+          List.exists (function i -> Diff.find_embedded_succ g i t_sub) idxs 
+      (*    if List.exists (function i -> Diff.find_embedded_succ g i t_sub) idxs
+         then (print_endline ("[Main] follow_abs: " ^ (Diff.string_of_gtree' t_sub)); true) else false  *)
   in
   let rec loop depth env t =
     try [rev_assoc t env], env
@@ -766,9 +767,6 @@ let abstract_term depth env t =
         if depth = 0 || follow_abs t
         then [meta], (id, t) => env
         else 
-          if nonsense_abs t
-          then [t], env
-          else 
        (* if is_meta t
         then [t],env 
         else  *)
@@ -906,7 +904,7 @@ let find_seq_patterns is_frequent_sp common_np g =
   (*   filter_shorter (x :: xs) *)
     x :: xs
   ) in
-  let (++) ps p = (renumber_metas_pattern p) +++ ps
+  let (++) ps p = p +++ ps
   in
   let valid p' =
     let rec loop p =
@@ -929,18 +927,17 @@ let find_seq_patterns is_frequent_sp common_np g =
   in
   let rec grow' ext p ps (p', env') =
     (* flush_string "."; *)
-    let pp' = ext p p' in
+    let pp' = renumber_metas_pattern (ext p p') in
       if (* g |- pp' && *)
-         valid (renumber_metas_pattern pp') &&
-         is_frequent_sp pp' &&
-         not(pp' <== ps)
-      then ( 
+            valid pp'
+         && is_frequent_sp pp'
+         && not(pp' <== ps)
+      then (
         (*
         print_string "adding ";
-        print_endline (string_of_pattern pp'); 
-        *)
+        print_endline (string_of_pattern pp');  *)
         let ps' = ps ++ pp' in
-        grow ps' (pp', env')
+        grow ps' (ext p p', env')
       )
       else 
          ps

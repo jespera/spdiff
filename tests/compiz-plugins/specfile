@@ -1,7 +1,7 @@
 #annotate.c annotate.c
-#blur.c blur.c
-#clone.c clone.c
-#cube.c cube.c
+blur.c blur.c
+clone.c clone.c
+cube.c cube.c
 #dbus.c dbus.c
 #decoration.c decoration.c
 #fade.c fade.c
@@ -10,8 +10,8 @@
 #glib.c glib.c
 #ini.c ini.c
 #inotify.c inotify.c
-#minimize.c minimize.c
-#move.c move.c
+minimize.c minimize.c
+move.c move.c
 #obs.c obs.c
 #place.c place.c
 #png.c png.c
@@ -19,10 +19,10 @@
 #resize.c resize.c
 #rotate.c rotate.c
 scale.c scale.c
-#screenshot.c screenshot.c
+screenshot.c screenshot.c
 #svg.c svg.c
 switcher.c switcher.c
 #video.c video.c
-#water.c water.c
-#wobbly.c wobbly.c
+water.c water.c
+wobbly.c wobbly.c
 zoom.c zoom.c

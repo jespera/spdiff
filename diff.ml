@@ -1323,6 +1323,11 @@ let cont_match_spec spec g cp n =
 
 let find_embedded_succ g n p =
   let spec pat t = if find_match pat t then [] else raise ErrorSpec in
+  let ns = (g#successors n)#tolist in
+    if ns = []
+    then (print_endline ("[Diff] term: " ^ string_of_gtree' (get_val n g) ^ " has no successors");
+    true)
+    else 
   List.for_all (function (n, _) -> cont_match_spec spec g [ddd; mkC("CM", [p])] n) ((g#successors n)#tolist)
 
 let cont_match g cp n = 
