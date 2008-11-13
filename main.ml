@@ -732,27 +732,63 @@ let (=>) = Diff.(=>)
 let cont_match = Diff.cont_match
 let exists_cont_match g p = nodes_of_graph g +> List.exists (cont_match g p) 
     
+let g_glob = ref (None : (Diff.gflow * 'a) option )
+
+let get_indices t g =
+  g#nodes#tolist +> List.fold_left (fun acc_i (i,t') -> if t' == t then i :: acc_i else acc_i) []
 
 let abstract_term depth env t =
-  let add_abstraction gts gt = (renumber_metas_gtree_env gt) +++ gts in
-  let reduce metas = metas +> List.fold_left add_abstraction [] in
+  let fixed_terms = ref [] in
+  let nonsense_abs t_sub = List.mem t_sub !fixed_terms in
   let rec rm_dups xs = List.fold_left (fun acc_xs x -> x +++ acc_xs) [] xs in
+  let follow_abs t_sub = match !g_glob with
+    | None -> false
+    | Some (g, pa) -> 
+       let idxs = pa +> List.fold_left (fun acc_i t' -> 
+                                     if Diff.can_match t t'
+                                     then get_indices t' g +>
+                                            List.fold_left (fun acc_i i -> i +++ acc_i) acc_i
+                                     else acc_i) [] in 
+         (* among the nodes, where the top-level term t occurs is there some
+          * location where in all the following paths eventually the subterm
+          * occurs?
+          *)
+         
+         List.exists (function i -> Diff.find_embedded_succ g i t_sub) idxs
+(*          if List.exists (function i -> Diff.find_embedded_succ g i t_sub) idxs
+         then (print_endline ("[Main] follow_abs: " ^ (Diff.string_of_gtree' t_sub)); true) else false *)
+  in
   let rec loop depth env t =
     try [rev_assoc t env], env
     with Not_found ->
       let meta, id = new_meta_id ()
       in
-        if depth = 0
+        if depth = 0 || follow_abs t
         then [meta], (id, t) => env
         else 
+          if nonsense_abs t
+          then [t], env
+          else 
        (* if is_meta t
         then [t],env 
         else  *)
           (match view t with
-(*          | A _ -> (* always abstract atoms *)
+          | A _ -> (* always abstract atoms *)
                       [meta], (id, t) => env
-                      *)
-    | C(ty, ts) ->
+          | C("call", f :: ts) ->
+              (* generate abstract versions for each t ∈ ts *)
+              let meta_lists, env_acc =
+                List.fold_left (fun (acc_lists, env') t -> 
+                                  let meta', env'' = loop (depth - 1) env' t
+                                  in (meta' :: acc_lists), env''
+                ) ([], env) ts in
+              (* generate all permutations of the list of lists *)
+              let meta_perm = gen_perms (List.rev meta_lists) in
+              (* construct new term from lists *)
+              t :: List.rev (List.fold_left (fun acc_meta meta_list ->
+                                               mkC("call", f :: meta_list) :: acc_meta
+              ) [] meta_perm), env_acc
+          | C(ty, ts) ->
               (* generate abstract versions for each t ∈ ts *)
               let meta_lists, env_acc =
                 List.fold_left (fun (acc_lists, env') t -> 
@@ -769,10 +805,6 @@ let abstract_term depth env t =
   in
   let metas, env = loop depth env t in
     List.filter (function p -> not(infeasible p)) (rm_dups metas), env 
-(*
-    List.filter (function p -> not(infeasible p)) 
-      (reduce metas), env
- *)
 
 let print_patterns ps =
       List.iter (function p -> 
@@ -819,9 +851,6 @@ let dfs_iter xi' f g =
       end
     ) in
   aux_dfs [xi']
-
-let get_indices t g =
-  g#nodes#tolist +> List.fold_left (fun acc_i (i,t') -> if t' == t then i :: acc_i else acc_i) []
 
 let extract_pat p = match view p with
   | C("CM", [p]) -> p
@@ -921,10 +950,18 @@ let find_seq_patterns is_frequent_sp common_np g =
     let ext2 p1 p2 = if p1 = [] then [mkC("CM",[p2])] else p1 @ (ddd :: [mkC("CM", [p2])]) in
       (* produce (meta list * env) list *)
     let pa_f = follows_sp p g pa in
+    g_glob := Some (g, pa_f);
     let abs_P_env = List.rev_map (function t -> 
                                     let metas, env = abstract_term !depth env t in
-                                      filter_less_abstract metas, env
+                                      metas, env
     ) pa_f in
+      g_glob := None;
+      (* 
+      print_string "[Main] number of abstractions to consider : ";
+      let ms = ref 0 in
+        List.iter (function (ps, _) -> ms := List.length ps + !ms) abs_P_env;
+        print_endline (string_of_int !ms);
+       *)            
       (*
       print_endline "[Main] abstractions to consider";
       abs_P_env +> List.iter (function (ps, env) -> 

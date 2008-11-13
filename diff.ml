@@ -1272,6 +1272,59 @@ let string_of_pattern p =
     | gt -> raise (Match_failure (string_of_gtree' p, 1263,0)) in
   String.concat " " (List.map loc p)
 
+exception ErrorSpec
+
+let cont_match_spec spec g cp n =
+  let init_vp = {skip = []; env = []; last = None;} in 
+  let matched_vp vp n env = 
+    (* let f, env' = try true, env $$ vp.env with Bind_error -> false, [] in *)
+    (* in this semantic, we never allow visiting the same node twice *)
+    let f, env' = try not(List.mem n vp.skip), env $$ vp.env with Match_failure _ -> false, [] in
+    f, {last = Some (get_val n g); skip = n :: vp.skip; env = env'} in
+  let skipped_vp vp n = {
+    last = vp.last;
+    skip = n :: vp.skip; 
+    env = vp.env} in
+  let check_vp vp n  = if Some (get_val n g) = vp.last
+                       then FALSE 
+                       else if List.mem n vp.skip
+                       then (
+                       (* print_endline ("[Diff] LOOP on " ^ 
+                         string_of_int n); *)
+                         LOOP)
+                       else SKIP
+  in
+  let rec trans_cp cp c = match cp with
+  | [] -> c
+  | bp :: cp -> trans_bp bp (trans_cp cp c)
+  and trans_bp bp c vp n = match view bp with
+  | C("CM", [gt]) ->
+      (try 
+        let env = spec gt (get_val n g) in
+        let f,vp' = matched_vp vp n env in
+          f && List.for_all (function (n',_) -> c vp' n') (get_succ n g)
+      with Nomatch -> false)
+  | _ when bp == ddd ->
+      c vp n || (
+        match check_vp vp n with
+          | FALSE -> false
+          | LOOP -> true
+          | SKIP -> 
+              let ns = get_next_vp'' g vp n in
+                (not(ns = []) ||
+                 ns +> List.exists (function n' -> not(n = n'))
+                )&&
+                let vp' = skipped_vp vp n in
+                  List.for_all (trans_bp ddd c vp') ns
+      )
+  in
+  let matcher = trans_cp cp (fun vp x -> true) in
+    try matcher init_vp n with ErrorSpec -> false
+
+let find_embedded_succ g n p =
+  let spec pat t = if find_match pat t then [] else raise ErrorSpec in
+  List.for_all (function (n, _) -> cont_match_spec spec g [ddd; mkC("CM", [p])] n) ((g#successors n)#tolist)
+
 let cont_match g cp n = 
  (*
   print_endline ("[Diff] checking pattern : " ^ 

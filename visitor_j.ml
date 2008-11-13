@@ -59,8 +59,9 @@ let rec trans_expr exp =
   | Assignment (e1, op, e2) ->
       let gt_e1 = trans_expr e1 in
       let gt_e2 = trans_expr e2 in
-      let gt_op = trans_assi op in
-      "exp" @@ "assign" @@@ [gt_op;gt_e1;gt_e2]
+(*      let gt_op = trans_assi op in *)
+      let op_str = trans_assi op in
+      "exp" @@ ("assign"^op_str) @@@ [gt_e1;gt_e2]
   | ArrayAccess (e1, e2) ->
       let gt_e1 = trans_expr e1 in
       let gt_e2 = trans_expr e2 in
@@ -146,7 +147,19 @@ and trans_lop lop =
   | NotEq  -> "!="
   | AndLog -> "&&"
   | OrLog  -> "||"
-and trans_assi op = (*{{{*)
+and trans_assi op =
+  match op with
+  | SimpleAssign -> "="
+  | OpAssign Plus -> "+="
+  | OpAssign Minus -> "-="
+  | OpAssign Mul -> "*="
+  | OpAssign Mod -> "%="
+  | OpAssign Div -> "/="
+  | OpAssign And -> "&="
+  | OpAssign Or  -> "|="
+  | OpAssign Xor -> "x="
+  | _ -> "?=?"
+and trans_assi_old op = (*{{{*)
   match op with
   | SimpleAssign -> mkA("simple_assi", "=")
   | OpAssign Plus -> mkA("op_assi", "+=")
