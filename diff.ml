@@ -76,11 +76,12 @@ let print_abs = ref false
 let relax = ref false
 (* copy of the main.ml var with the same name; initialized in main.ml *)
 let do_dmine = ref false
+(* copy from main.ml; initialized in main.ml *)
+let nesting_depth = ref 0
 
 (* check that list l1 is a sublist of l2 *)
 let subset_list l1 l2 =
   List.for_all (function e1 -> (List.mem e1 l2)) l1
-
 
 let rec string_of_gtree str_of_t str_of_c gt = 
   let rec string_of_itype itype = (match view itype with
@@ -458,7 +459,6 @@ let mark_as_read_only t = mkC("RO", [t])
 
 let can_match p t = try match match_term p t with _ -> true with Nomatch -> false
 
-
 (* 
  * occursht is a hashtable indexed by a pair of a pattern and term 
  * the idea is that each (p,t) maps to a boolean which gives the result of
@@ -491,6 +491,26 @@ let find_match pat t =
         (PT.replace occursht (pat,t) res; 
          res)
 
+let find_nested_matches pat t =
+  let mt t = try Some (match_term pat t) with Nomatch -> None in
+  let rec loop depth acc_envs t = 
+    if depth = 0
+    then acc_envs
+    else 
+      let acc_envs' = (match mt t with
+        | Some e -> e :: acc_envs
+        | None -> acc_envs) in
+        match view t with 
+          | A _ -> acc_envs'
+          | C(_, ts) -> let l = loop (depth - 1) in
+                         List.fold_left l acc_envs' ts
+          in
+    loop !nesting_depth [] t
+
+let can_match_nested pat t =
+  match find_nested_matches pat t with
+    | [] -> false 
+    | _ -> true
 
 let return_and_bind (up,t) (t',env) = (
   t',env
@@ -1369,9 +1389,11 @@ let cont_match g cp n =
   and trans_bp bp c vp n = match view bp with
   | C("CM", [gt]) ->
       (try 
-        let env = match_term gt (get_val n g) in
-        let f,vp' = matched_vp vp n env in
-          f && List.for_all (function (n',_) -> c vp' n') (get_succ n g)
+        (* let env = match_term gt (get_val n g) in *)
+        let envs = find_nested_matches gt (get_val n g) in
+        List.exists (function env ->
+          let f,vp' = matched_vp vp n env in
+            f && List.for_all (function (n',_) -> c vp' n') (get_succ n g)) envs
       with Nomatch -> false)
   | _ when bp == ddd ->
       c vp n || (

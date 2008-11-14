@@ -25,7 +25,7 @@ let patterns     = ref false
 let default_abstractness = ref 2.0
 let verbose      = ref false
 let only_changes = ref false
-let nesting_depth = ref 0
+let nesting_depth = ref 1
 
 let speclist =
   Arg.align
@@ -54,12 +54,20 @@ let speclist =
                                                  "float abstractness(explain)";
       "-only_changes",  Arg.Set only_changes,    "bool  only look for patterns in changed functions";
       "-nesting_depth", Arg.Set_int nesting_depth,
-                                                 "int   allow inference of patterns nested this deep (not implemented yet)";
+                                                 "int   allow inference of patterns nested this deep (slow)";
       "-verbose",       Arg.Set verbose,         "bool  print more intermediate results"
   ]
 
 let v_print s = if !verbose then (print_string s; flush stdout)
 let v_print_endline s = if !verbose then print_endline s
+
+let (+>) o f = f o
+
+(* tail recursive version of flatten; does *not* preserve order of elements in
+ * the lists 
+ *)
+let tail_flatten lss =
+  lss +> List.fold_left List.rev_append []
 
 let filesep = Str.regexp " +"
 let file_pairs = ref []
@@ -569,7 +577,6 @@ let spec_main () =
  * In the end, this could do well with being put in its own   *
  * module.                                                    *
  * ---------------------------------------------------------- *)
-let (+>) o f = f o
 let meta_counter = ref 0
 let reset_meta () = meta_counter := 0
 let inc_meta () = meta_counter := !meta_counter + 1
@@ -866,7 +873,7 @@ let extract_pat p = match view p with
 let follows_p p g pa =
   let succ_nodes = ref [] in
   let idxs = pa +> List.fold_left (fun acc_i t' -> 
-                                     if Diff.can_match p t'
+                                     if Diff.can_match_nested p t'
                                      then get_indices t' g +>
                                             List.fold_left (fun acc_i i -> i +++ acc_i) acc_i
                                      else acc_i) [] in
@@ -897,11 +904,24 @@ let follows_sp sp g pa =
     in
       List.filter keep_fun pss 
 let flush_string s = (print_string s; flush stdout)
-let find_seq_patterns is_frequent_sp common_np g =
+
+let get_nested_subterms t = 
+  let rec loop depth acc_ts t =
+    if depth = 0
+    then acc_ts
+    else let acc_ts' = t +++ acc_ts in
+      match view t with
+      | A _ -> acc_ts'
+      | C (_, ts) -> let l = loop (depth - 1) in
+          List.fold_left l acc_ts' ts in
+    loop !nesting_depth [] t
+
+let find_seq_patterns is_frequent_sp is_common g =
   reset_meta();
   let pa = (concrete_of_graph g) +> List.filter 
-              (function t -> common_np +> List.exists 
-              (function np -> Diff.can_match np t)) in
+              (function t -> is_common t) in
+  print_endline "[Main] pa = ";
+  pa +> List.iter (function t -> print_endline (Diff.string_of_gtree' t));
   let nodes = nodes_of_graph g in
   let (<==) p ps = List.exists (function p' -> p <++ p') ps in
   let (|-) g p = List.exists (cont_match g p) nodes in
@@ -963,7 +983,7 @@ let find_seq_patterns is_frequent_sp common_np g =
     let abs_P_env = List.rev_map (function t -> 
                                     let metas, env = abstract_term !depth env t in
                                       metas, env
-    ) pa_f in
+    ) (tail_flatten (List.rev_map get_nested_subterms pa_f )) in
       g_glob := None;
       (* 
       print_string "[Main] number of abstractions to consider : ";
@@ -1088,12 +1108,6 @@ let common_node_patterns gss =
                          )
         )
 
-(* tail recursive version of flatten; does *not* preserve order of elements in
- * the lists 
- *)
-let tail_flatten lss =
-  print_endline "[Main] tail flatten";
-  lss +> List.fold_left List.rev_append []
 
 (* given a list of patterns, find the sublist of patterns that match somewhere
  * in the graph 
@@ -1108,12 +1122,14 @@ let common_patterns_graphs gss =
     then true 
     else  List.tl gss +> List.for_all (function fs -> fs +> List.exists (function f -> f |- sp)) in
   print_endline "[Main] looking for common node patterns";
-  let common_np = common_node_patterns gss in
-  print_endline "[Main] common node patterns";
-  common_np +> List.iter (function np -> 
-                            Diff.string_of_gtree' np +> print_endline);
+  let is_common t = 
+    List.rev_map (abstract_term !depth []) (get_nested_subterms t)
+    +> List.map fst
+    +> tail_flatten
+    +> List.exists (function p' -> is_frequent_sp [mkC("CM",[p'])])
+  in
 (*  let pss_first = *)
-  tail_flatten (List.rev_map (patterns_of_graph is_frequent_sp common_np) (List.hd gss)) 
+  tail_flatten (List.rev_map (patterns_of_graph is_frequent_sp is_common) (List.hd gss)) 
  (*  in
     print_endline "[Main] found pss_first, now looking for global matches";
     List.filter (function sp -> gss +> List.for_all (function fs -> fs +> List.exists (function f -> f |- sp))) pss_first
@@ -1221,6 +1237,7 @@ let main () =
   Diff.be_fixed      := !fixed;
   Diff.no_exceptions := !exceptions;
   Diff.verbose       := !verbose;
+  Diff.nesting_depth := !nesting_depth;
   if !mfile = ""
   then raise (Diff.Fail "No specfile given")
   else if !patterns 

@@ -13,7 +13,7 @@ Reading file pair main2.c.orig main2.c.new
 Reading file pair main.c.orig main.c.new
 Reading file pair lo.c.orig lo.c.new
 Reading file pair leds.c.orig leds.c.new
-return stmt[return] r1 sprom bus 3 3 3 2 2 2 break stmt[break] none stmt[none] TYPEDEXP[typeName[u16,unknown]] + || TYPEDEXP[int] signed int btype[int] int dev phy typeName[u16,unknown] int dev 4 4 4 < == && = no nosto storage[nosto,no] u16 typeName[u16,unknown] void void const & 1 1 1 0 0 0  unknown 
+return stmt[return] r1 sprom bus 3 3 3 2 2 2 break stmt[break] none stmt[none] TYPEDEXP[typeName[u16,unknown]] + || TYPEDEXP[signed int] signed signed int btype[signed int] signed int dev phy typeName[u16,unknown] int dev 4 4 4 < == && no nosto storage[nosto,no] u16 typeName[u16,unknown] void void const & 1 1 1 0 0 0  unknown 
 [Main] Constructing all safe parts for 7 term pairs
 [Main] Making safe parts for pair 1
 [Main] terms that changed: 
@@ -47,10 +47,10 @@ return stmt[return] r1 sprom bus 3 3 3 2 2 2 break stmt[break] none stmt[none] T
 }}}
 [Main] solution #2
 {{{
-	record_acc[record_acc[record_ptr[(bus:*struct ssb_bus),sprom],r1],boardflags_lo] ==> record_acc[record_ptr[(bus:*struct ssb_bus),sprom],boardflags_lo]
+	record_acc[record_ptr[X0,sprom],r1] ==> record_ptr[X0,sprom]
+	record_acc[record_ptr[(sprom:*struct ssb_sprom),r1],X0] ==> record_ptr[(sprom:*struct ssb_sprom),X0]
 }}}
 [Main] solution #3
 {{{
-	record_acc[record_ptr[(sprom:*struct ssb_sprom),r1],X0] ==> record_ptr[(sprom:*struct ssb_sprom),X0]
-	record_acc[record_ptr[record_ptr[record_ptr[(dev:*struct b43_wldev),dev],bus],sprom],r1] ==> record_ptr[record_ptr[record_ptr[(dev:*struct b43_wldev),dev],bus],sprom]
+	record_acc[record_ptr[(bus:*struct ssb_bus),sprom],r1] ==> record_ptr[(bus:*struct ssb_bus),sprom]
 }}}
