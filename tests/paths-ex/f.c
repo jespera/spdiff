@@ -1,6 +1,8 @@
-void biar(int y) {
+void smoz(int y) {
 	  int z;
-	  z = f(z,GFP)/10;
-	  return z+z;
+	  z = f(z,z);
+	  brk();
+	  return z;
 	}
+
 

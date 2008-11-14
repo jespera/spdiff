@@ -369,7 +369,7 @@ and trans_odecl ({v_namei = fopt; v_type = ftype; v_storage = stor}, _) = match 
   | None -> "onedecl" %% "()"
       (*raise (Fail "decl_spec with no init_decl")*)
   | Some ((var, initOpt), _) -> 
-      let gt_var = "ident" %% var in
+      let gt_var = "exp" @@ "ident" %% var in
       let gt_ft  = trans_type ftype in
       let gt_sto = trans_storage stor in
       match initOpt with

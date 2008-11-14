@@ -24,6 +24,8 @@ let strip_eq     = ref false
 let patterns     = ref false
 let default_abstractness = ref 2.0
 let verbose      = ref false
+let only_changes = ref false
+let nesting_depth = ref 0
 
 let speclist =
   Arg.align
@@ -38,7 +40,8 @@ let speclist =
       "-fixed",         Arg.Set fixed,           "bool  never abstract fixed terms";
       "-exceptions",    Arg.Set_int exceptions,  "int   the number of allowed exceptions to the rule derived";
       "-threshold",     Arg.Set_int threshold,   "int   the minimum number of occurrences required";
-      "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing, "bool  also parse if0 blocks";
+      "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing, 
+                                                 "bool  also parse if0 blocks";
       "-print_abs",     Arg.Set Diff.print_abs,  "bool  print abstract updates for each term pair";
       "-relax_safe",    Arg.Set Diff.relax,      "bool  consider non-application safe [experimental]";
       "-print_raw",     Arg.Set print_raw,       "bool  print the raw list of generated simple updates";
@@ -49,9 +52,14 @@ let speclist =
       "-patterns",      Arg.Set patterns,        "bool  look for common patterns in LHS files";
       "-abstractness",  Arg.Set_float default_abstractness,
                                                  "float abstractness(explain)";
+      "-only_changes",  Arg.Set only_changes,    "bool  only look for patterns in changed functions";
+      "-nesting_depth", Arg.Set_int nesting_depth,
+                                                 "int   allow inference of patterns nested this deep (not implemented yet)";
       "-verbose",       Arg.Set verbose,         "bool  print more intermediate results"
   ]
 
+let v_print s = if !verbose then (print_string s; flush stdout)
+let v_print_endline s = if !verbose then print_endline s
 
 let filesep = Str.regexp " +"
 let file_pairs = ref []
@@ -734,6 +742,7 @@ let infeasible p = is_meta p || abstractness p > !default_abstractness
 let (=>) = Diff.(=>)
 let cont_match = Diff.cont_match
 let exists_cont_match g p = nodes_of_graph g +> List.exists (cont_match g p) 
+let (|-) g p = exists_cont_match g p
     
 let g_glob = ref (None : (Diff.gflow * 'a) option )
 
@@ -928,6 +937,9 @@ let find_seq_patterns is_frequent_sp common_np g =
   let rec grow' ext p ps (p', env') =
     (* flush_string "."; *)
     let pp' = renumber_metas_pattern (ext p p') in
+      if !verbose then ( 
+        print_endline ("[Main] testing : " ^ string_of_pattern pp');
+      );
       if (* g |- pp' && *)
             valid pp'
          && is_frequent_sp pp'
@@ -1115,6 +1127,56 @@ let common_patterns_graphs gss =
     print_endline "[Main] patterns that occur in all graphs";
     Diff.filter_all pss
        *)
+let get_fun_name_gflow f =
+  let head_node = f#nodes#tolist +> List.find (function (i,n) -> match view n with
+                                 | C("phony", [{Hashcons.node=C("def",_)}]) -> true
+                                 | _ -> false) in
+    match view (snd head_node) with
+      | C("phony",[{Hashcons.node=C("def",name::_)}]) -> (match view name with
+          | A("fname",name_str) -> name_str)
+      | _ -> raise (Diff.Fail "get_fun_name?")
+
+
+let get_arcs g i =
+  (g#successors i)#tolist
+
+let equal_arcs arcs1 arcs2 =
+  is_subset_list arcs1 arcs2 &&
+  is_subset_list arcs2 arcs1
+
+(* equality of flows *)
+let equal_flows f1 f2 =
+  let ns1 = f1#nodes#tolist in
+  let ns2 = f2#nodes#tolist in
+    (* all nodes must have same index and value *)
+    is_subset_list ns1 ns2 &&
+    is_subset_list ns2 ns1 
+    (* arcs should also be equal, we ignore predecessors  *)
+    && 
+    ns1 +> List.for_all (function (i,n) -> 
+      equal_arcs (get_arcs f1 i) (get_arcs f2 i)
+    ) &&
+    ns2 +> List.for_all (function (i,n) -> 
+      equal_arcs (get_arcs f1 i) (get_arcs f2 i)
+    ) 
+
+
+(* filter_changed looks for patterns that do not match in all RHS; that is given
+ * a list of patterns and a list of lists of graphs, a pattern is reported if
+ * there is a list of graps in the lists of lists such that the pattern does not
+ * match any of those graphs
+ *)
+let filter_changed gss gpats = 
+  if !only_changes 
+  then (
+    print_endline "[Main] looking for changed patterns";
+    gpats +> List.filter (function sp -> 
+    gss +> List.exists (function flows ->
+                          flows +> List.for_all 
+                            (function f -> not(f |- sp))
+    )))
+    else gpats
+
 
 let find_common_patterns () =
   read_spec(); (* gets names to process in file_pairs *)
@@ -1123,8 +1185,29 @@ let find_common_patterns () =
       read_filepair_cfg lfile rfile :: acc_pairs
     ) [] !file_pairs) in
   print_endline ("[Main] read " ^ string_of_int (List.length term_pairs) ^ " files");
-  let gss = List.rev_map (fun ((gt,flows), _) -> flows) term_pairs in
-  let gpats' = common_patterns_graphs gss in
+  let gss = List.rev_map (fun ((gt,flows), (gt',flows')) -> 
+                            if !only_changes 
+                            then
+                            flows +> List.filter 
+                              (function f -> 
+                                 (* is f changed in RHS ? *)
+                                 let f_name = get_fun_name_gflow f in
+                                   if not(flows' +> List.exists (equal_flows f))
+                                   then (
+                                     print_endline ("[Main] function " ^ f_name ^ " changed");
+                                     true)
+                                   else (
+                                     false
+                                   )
+                              )
+                            else flows
+                          ) term_pairs in
+  let gss_rhs = List.rev_map (fun (_, (gt',flows)) -> flows) term_pairs in
+  let gpats'' = common_patterns_graphs gss in
+    (* figure out which patterns no longer match in the RHS
+     * those patterns potentially deal with changes
+     *)
+  let gpats' = filter_changed  gss_rhs gpats'' in
   print_endline "[Main] filtering shorter patterns";
   let gpats = filter_shorter gpats' in
     print_endline "[Main] *Common* patterns found:";

@@ -1211,6 +1211,7 @@ let flow_to_gflow flow =
     );
     !gflow
 
+
 let read_ast_cfg file =
   let (pgm2, parse_stats) = 
     Parse_c.parse_print_error_heuristic file in
@@ -1219,7 +1220,15 @@ let read_ast_cfg file =
     List.iter (do_option (fun f -> 
                             gflows := (flow_to_gflow f) 
                             :: !gflows)) flows;
-    (pgm2, !gflows)
+    (* among the gflows constructed filter out those that are not flows for a
+     * function definition
+     *)
+    (pgm2, !gflows +> List.filter (function gf -> 
+                                     gf#nodes#tolist +> List.exists (
+                                     function (i,n) -> match view n with
+                                       | C("phony",[{node=C("def",_)}]) -> true
+                                       | _ -> false)
+    ))
 
 type environment = (string * gtree) list
 type res = {last : gtree option; skip : int list ; env : environment}
@@ -2181,7 +2190,10 @@ let read_src_tgt_cfg src tgt =
   let (ast2, flows2) = read_ast_cfg tgt in
     if !verbose then (
       print_endline "[Main] gflows for file:";
-      flows1 +> List.iter print_gflow);
+      print_endline "LHS flows";
+      flows1 +> List.iter print_gflow;
+      print_endline "RHS flows";
+      flows2 +> List.iter print_gflow);
     (gtree_of_ast_c ast1, flows1),
     (gtree_of_ast_c ast2, flows2)
 
