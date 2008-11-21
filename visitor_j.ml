@@ -377,7 +377,7 @@ and trans_odecl ({v_namei = fopt; v_type = ftype; v_storage = stor}, _) = match 
       | Some ini -> "onedecl_ini" @@@ 
         [gt_var; trans_ini ini; gt_ft; gt_sto]
 and trans_storage (sto, inl) =
-  let inl_gt = "inline" %% if inl then "yes" else "no" in
+  let inl_gt = "inline" %% if inl then "inline" else "notinline" in
   let sto_gt = "stobis" %% match sto with
   | NoSto -> "nosto"
   | StoTypedef -> "stotypedef"

@@ -1,10 +1,10 @@
 #annotate.c annotate.c
 #blur.c blur.c
-#clone.c clone.c
-#cube.c cube.c
+clone.c clone.c
+cube.c cube.c
 #dbus.c dbus.c
 #decoration.c decoration.c
-#fade.c fade.c
+fade.c fade.c
 #fuse.c fuse.c
 #gconf.c gconf.c
 #glib.c glib.c
@@ -18,7 +18,7 @@
 #regex.c regex.c
 #resize.c resize.c
 #rotate.c rotate.c
-scale.c scale.c
+scale-2.c scale-2.c
 screenshot.c screenshot.c
 #svg.c svg.c
 switcher.c switcher.c
