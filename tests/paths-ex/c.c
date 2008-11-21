@@ -14,7 +14,6 @@ void bar(int y) {
 	  for(a=0;a<42;a++){
 			not();
 		}
-		goo();
 	  uhh();
 	  return a;
 	}

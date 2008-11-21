@@ -6,6 +6,7 @@ void foo(void) {
 	for(x=0;x<42;x++) {
 		baz();
 	}
+		goo();
 	return x;
 }
 
