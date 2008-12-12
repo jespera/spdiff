@@ -502,6 +502,12 @@ let find_match pat t =
       let res = loop t in
         (PT.replace occursht (pat,t) res; 
          res)
+let non_phony p = match view p with
+  | A("phony", _) 
+  | C("phony", _) 
+  | A(_, "N/H") 
+  | A(_, "N/A") -> false
+  | _ -> true
 
 let find_nested_matches pat t =
   let mt t = try Some (match_term pat t) with Nomatch -> None in
@@ -517,7 +523,10 @@ let find_nested_matches pat t =
           | C(_, ts) -> let l = loop (depth - 1) in
                           List.fold_left l acc_envs' ts
   in
-    loop !nesting_depth [] t
+    (* loop !nesting_depth [] t *)
+    if non_phony t
+    then loop !nesting_depth [] t
+    else []
 
 let can_match_nested pat t =
   match find_nested_matches pat t with
@@ -2245,6 +2254,7 @@ let inSome e ell =
     occurs >= !no_occurs
 
 let filter_some ell =
+(* print_endline ("[Diff] no_occurs: " ^ string_of_int !no_occurs);  *)
   List.fold_left (fun acc l -> List.fold_left (fun acc e ->
     if inSome e ell
     then e $$ acc

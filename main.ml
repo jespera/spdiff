@@ -1,8 +1,5 @@
-(* this is the main file for the spfind CFU program
- *)
-
 open Gtree
-let ddd = Diff.ddd
+
 
 let do_dmine     = ref false
 let abs          = ref false
@@ -26,6 +23,7 @@ let default_abstractness = ref 2.0
 let verbose      = ref false
 let only_changes = ref false
 let nesting_depth = ref 1
+let filter_patterns = ref false
 
 let speclist =
   Arg.align
@@ -55,13 +53,16 @@ let speclist =
       "-only_changes",  Arg.Set only_changes,    "bool  only look for patterns in changed functions";
       "-nesting_depth", Arg.Set_int nesting_depth,
                                                  "int   allow inference of patterns nested this deep (slow)";
-      "-verbose",       Arg.Set verbose,         "bool  print more intermediate results"
+      "-verbose",       Arg.Set verbose,         "bool  print more intermediate results";
+      "-filter_patterns", Arg.Set filter_patterns, "bool  only produce largest patterns" 
   ]
 
 let v_print s = if !verbose then (print_string s; flush stdout)
 let v_print_string = v_print
 let v_print_endline s = if !verbose then print_endline s
 let v_print_newline () = v_print_endline ""
+
+let ddd = Diff.ddd
 
 let (+>) o f = f o
 
@@ -244,7 +245,7 @@ let rec filter_redundant solutions =
 	not(redundant_sol (list_of_bp s) (list_of_bp s'))) 
 	(filter_redundant sols)
 
-let implies b1 b2 = not(b1)|| b2
+let implies b1 b2 = not(b1) || b2
 
 let filter_more_abstract abs_terms =
   let keep_sol p =
@@ -656,10 +657,10 @@ let renumber_metas_gtree gt =
   let gt', env = fold_botup gt renumber_metas [] in
     meta_counter := old_meta; gt'
 
-let renumber_metas_gtree_env gt = 
+let renumber_metas_gtree_env env gt = 
   let old_meta = !meta_counter in
   reset_meta ();
-  let gt', env = fold_botup gt renumber_metas [] in
+  let gt', env = fold_botup gt renumber_metas env in
     meta_counter := old_meta; 
     List.iter (function (m1,m2) -> print_string (" ;" ^ m1 ^ "->" ^ m2)) env;
     print_newline ();
@@ -725,32 +726,35 @@ let rec is_subset_list l1 l2 =
     | x :: xs, y :: ys when x = y -> is_subset_list xs ys
     | _, _ -> false
 
-let rec num_metas p =
-  if is_meta p then 1
-  else match view p with
-    | A _ -> 0
-    | C (_,ts) -> List.fold_left (fun acc_sum p -> num_metas p + acc_sum) 0 ts
+let num_metas p =
+  List.length (get_metas_single p)
 
 let rec num_subterms p =
   match view p with
     | A _ -> 1
     | C (_, ts) -> List.fold_left (fun acc_sum p -> num_subterms p + acc_sum) 1 ts
 
-(* a higher value allows a term to be more abstract, while a lower value forces
- * more concrete patterns 
- *)
+
+(* a higher value allows a term means the term is more abstract and a
+   lower means it is less abstract; "number of meta per subterm"
+   f(X) = 1/3
+   f(sizeof(X)) = 1/5
+   thus, the latter is less abstract than the former
+*)
 
 let abstractness p =
   let mv = num_metas p in
   let st = num_subterms p in
-    float st /. float (st - mv)
+    float mv /. float st
 
 let useless_abstraction p = is_meta p || 
   match view p with
     | C("stmt", [p']) | C("exprstmt", [p']) | C("exp", [p']) | C("dlist", [p']) when is_meta p' -> true
     | A("stobis", _) | A("inline",_) -> true
     | C("storage", [p1;p2]) when is_meta p1 || is_meta p2 -> true
-    | C("fulltype", _) -> true
+    | C("fulltype", _) (* | C("pointer", _) *) -> true
+    | C("exp", [{Hashcons.node=A("ident", _)}]) -> true
+    | C("exp", [{Hashcons.node=C("const", _)}]) -> true
     | _ -> false
 
 (* The following function is used to decide when an abstraction is infeasible.
@@ -796,39 +800,43 @@ let abstract_term depth env t =
         if depth = 0 || follow_abs t
         then [meta], (id, t) => env
         else 
-       (* if is_meta t
-        then [t],env 
-        else  *)
+	  if is_meta t
+          then [t],env 
+        else  
           (match view t with
-          | A _ -> (* always abstract atoms *)
-                      [meta], (id, t) => env
-          | C("call", f :: ts) ->
-              (* generate abstract versions for each t ∈ ts *)
-              let meta_lists, env_acc =
-                List.fold_left (fun (acc_lists, env') t -> 
-                                  let meta', env'' = loop (depth - 1) env' t
-                                  in (meta' :: acc_lists), env''
-                ) ([], env) ts in
-              (* generate all permutations of the list of lists *)
-              let meta_perm = gen_perms (List.rev meta_lists) in
-              (* construct new term from lists *)
-              t :: List.rev (List.fold_left (fun acc_meta meta_list ->
-                                               mkC("call", f :: meta_list) :: acc_meta
-              ) [] meta_perm), env_acc
-          | C(ty, ts) ->
-              (* generate abstract versions for each t ∈ ts *)
-              let meta_lists, env_acc =
-                List.fold_left (fun (acc_lists, env') t -> 
-                                  let meta', env'' = loop (depth - 1) env' t
-                                  in (meta' :: acc_lists), env''
-                ) ([], env) ts in
-              (* generate all permutations of the list of lists *)
-              let meta_perm = gen_perms (List.rev meta_lists) in
-              (* construct new term from lists *)
-              t :: List.rev (List.fold_left (fun acc_meta meta_list ->
-                                               mkC(ty, meta_list) :: acc_meta
-              ) [] meta_perm), env_acc
-          | _ -> [meta;t], (id, t) => env)
+            | A _ -> (* always abstract atoms *)
+                [meta], (id, t) => env
+	    | C("storage", _) -> [t], env
+            | C("call", f :: ts) ->
+		(* generate abstract versions for each t ∈ ts *)
+		let meta_lists, env_acc =
+                  List.fold_left (fun (acc_lists, env') t -> 
+                    let meta', env'' = loop (depth - 1) env' t
+                    in (meta' :: acc_lists), env''
+                  ) ([], env) ts in
+		  (* generate all permutations of the list of lists *)
+		let meta_perm = gen_perms (List.rev meta_lists) in
+		  (* construct new term from lists *)
+		  t :: List.rev (List.fold_left (fun acc_meta meta_list ->
+                    mkC("call", f :: meta_list) :: acc_meta
+		  ) [] meta_perm), env_acc
+            | C(ty, ts) ->
+		(* generate abstract versions for each t ∈ ts *)
+		let meta_lists, env_acc =
+                  List.fold_left (fun (acc_lists, env') t -> 
+                    let meta', env'' = loop (depth - 1) env' t
+                    in (meta' :: acc_lists), env''
+                  ) ([], env) ts in
+		  (* generate all permutations of the list of lists *)
+		let meta_perm = gen_perms (List.rev meta_lists) in
+		  (* construct new term from lists *)
+		  t :: List.rev (List.fold_left (fun acc_meta meta_list ->
+                    mkC(ty, meta_list) :: acc_meta
+		  ) [] meta_perm), env_acc
+		    (*
+            | _ -> [meta;t], (id, t) => env
+		    *)
+	  )
   in
   let metas, env = loop depth env t in
     List.filter (function p -> not(infeasible p)) (rm_dups metas), env 
@@ -981,24 +989,6 @@ let print_trace tr =
   v_print_newline ()
 
 let subpattern g sp1 sp2 =
-  let (!!) x = match view x with
-    | C("CM", [t]) -> t
-    | _ when x == ddd -> x
-    | _ -> raise (Diff.Fail (
-	"!! applied to non-pattern:" ^ 
-	  Diff.string_of_gtree' x
-      )) in
-  let rec chop x xs = match xs with
-    | [] -> raise Not_found
-    | x' :: xs' when Diff.find_match !!x !!x' -> xs'
-    | x' :: xs' -> chop x xs' in
-  let rec (<++) p p' = p = [] || match p, p' with
-    | x :: xs, ys -> let ys' = try Some (chop x ys) with Not_found -> None in
-		       (match ys' with
-			 | None -> false
-			 | Some ys' -> xs <++ ys')
-    | _, _ -> false 
-  in
   let trcs1 = get_pattern_traces g sp1 in
   let trcs2 = get_pattern_traces g sp2 in
   let subseq = sp1 <++ sp2 in
@@ -1006,13 +996,11 @@ let subpattern g sp1 sp2 =
       trcs2 +> List.exists (function trace2 -> 
 	embedded_trace g trace1 trace2
       )) in
-    if  embed &&
-	subseq
+    if  embed 
+      (* &&
+	subseq *)
     then 
-      true
-    else
-      (* false *)
-      (v_print_endline "[Main] NOT subsumed pattern:";
+      (v_print_endline "[Main] subsumed pattern:";
        v_print_endline (string_of_pattern sp1);
        v_print_endline "[Main] with traces";
        trcs1 +> List.iter print_trace;
@@ -1021,7 +1009,10 @@ let subpattern g sp1 sp2 =
        v_print_endline "[Main] with traces";
        trcs2 +> List.iter print_trace;
        v_print_endline ("[Main] embed,subseq: " ^ string_of_bool embed ^ "," ^ string_of_bool subseq);
-       false)
+       true)
+     (*  true *)
+    else
+      false
 
 
 (* we are given a set of sets of flows and wish to verify that sp1 is
@@ -1033,6 +1024,7 @@ let subpattern_some gss sp1 sp2 =
       subpattern f sp1 sp2
     )
   )
+     
   
   
 
@@ -1042,143 +1034,220 @@ let filter_shorter g pss =
   let keep_fun sp = not(pss +> List.exists (function sp' -> (sp <@@ sp') && not(sp = sp'))) in
     List.filter keep_fun pss
 
-let filter_shorter_sub sub_pat pss =
-  (* only keep around the largest according to subpattern relation*)
+let embedded_pattern sp1 sp2 =
+  let (!!) x = match view x with
+    | C("CM", [t]) -> t
+    | _ when x == ddd -> x
+    | _ -> raise (Diff.Fail (
+	"!! applied to non-pattern:" ^ 
+	  Diff.string_of_gtree' x
+      )) in
+  let rec chop x xs = match xs with
+    | [] -> raise Not_found
+    | x' :: xs' when Diff.can_match !!x !!x'  
+	  && abstractness x <= abstractness x' -> xs'
+    | x' :: xs' when Diff.find_match !!x !!x' -> xs' 
+    | x' :: xs' -> chop x xs' in
+  let rec (<++) p p' = p = [] || match p, p' with
+    | x :: xs, ys -> let ys' = try Some (chop x ys) with Not_found -> None in
+		       (match ys' with
+			 | None -> false
+			 | Some ys' -> xs <++ ys')
+    | _, _ -> false in
+    sp1 <++ sp2
+
+let filter_shorter_sub gss sub_pat pss =
+  let (<++) = embedded_pattern in
   let (<@@) p1 p2 = sub_pat p1 p2 in
-  let keep_fun sp = not(pss +> List.exists (function sp' -> (sp <@@ sp') && not(sp = sp'))) in
-    List.filter keep_fun pss
+  let (===) sp1 sp2 = sp1 <@@ sp2 && sp2 <@@ sp1 in
+  let add_eq acc_eq_clss sp = 
+    let rec loop eq_clss =
+      match eq_clss with
+	| [] -> [[sp]]
+	| eq_cls :: eq_clss when eq_cls +> List.for_all ((===) sp) -> (sp +++ eq_cls) :: eq_clss
+	| x :: eq_clss -> x :: loop eq_clss in
+      loop acc_eq_clss in
+    (* partition list into eq-classes *)
+  let eq_clss = pss +> List.fold_left add_eq [] in
+    eq_clss 
+    +> List.rev_map (function eq_cls -> eq_cls +> List.filter (
+      function sp -> not(eq_cls +> List.exists (function sp' -> sp <++ sp' && not(sp = sp')))
+    ))
+    +> tail_flatten
+      
+
+  (* let keep_fun sp =  *)
+  (*   pss +> List.for_all (function sp' ->  *)
+  (*     implies (sp <@@ sp') (sp' <@@ sp && sp' <++ sp) *)
+  (*   ) *)
+  (* in *)
+  (*   List.filter keep_fun pss *)
+
+let equal_pattern_term gt1 gt2 =
+  let ngt1 = renumber_metas_gtree gt1 in
+  let ngt2 = renumber_metas_gtree gt2 in
+    if ngt1 = ngt2
+    then (
+      v_print_endline ("[Main] equal patterns:\n\t" ^
+	Diff.string_of_gtree' gt1 ^
+	"\n\t=\n\t" ^
+	Diff.string_of_gtree' gt2);
+      true)
+    else (
+      v_print_endline ("[Main] NOT equal patterns:\n\t" ^
+	Diff.string_of_gtree' ngt1 ^
+	"\n\t!=\n\t" ^
+	Diff.string_of_gtree' ngt2);
+      false)
 
 
 let find_seq_patterns is_frequent_sp is_common g =
+  []
+(*
+  print_endline "WRONG FUNCTION ******************";
   reset_meta();
   let pa = (concrete_of_graph g) +> List.filter 
-    (function t -> is_common t) in
-    if !verbose 
-    then ( 
-      print_endline "[Main] pa = ";
-      pa +> List.iter (function t -> print_endline (Diff.string_of_gtree' t));
-    );
-    let nodes = nodes_of_graph g in
-    let (<==) p ps = ps +> (* List.exists (function p' -> p <++ p') *)
-                           List.exists (subpattern g p) 
-    in
-    let (|-) g p = List.exists (cont_match g p) nodes in
-    let (+++) x xs = if List.mem x xs then xs else (
-      if !print_adding then (
-	print_string "[Main] attempting to add ";
-	print_endline (string_of_pattern x);
-      );
-        filter_shorter g (x :: xs)
-      (* x :: xs *)
-    ) in
-    let (++) ps p = p +++ ps
-    in
-    let valid p' =
-      let rec loop p =
-	match p with 
-          | [] -> true
-          | p :: seq when loop seq && is_match p -> not(List.mem p seq) &&
-              (match get_metas_single p with
-		| [] -> true
-		| p_metas -> 
-                    (match get_metas_pattern seq with
-                      | [] -> true
-                      | seq_metas -> not(intersect_lists p_metas seq_metas = []))
-              )
-          | skip :: seq when skip == ddd -> loop seq
-          | _ -> false
-      in
-	match p' with
-          | skip :: _ when skip == ddd -> false
-          | _ -> loop p'
-    in
-    let rec grow' ext p ps (p', env') =
-      (* flush_string "."; *)
-      let pp' = renumber_metas_pattern (ext p p') in
-	if !verbose then ( 
-          print_string ("[Main] testing : " ^ List.map Diff.string_of_gtree' pp' +> String.concat " ");
-	);
-	if (* g |- pp' &&  -- this test is already performed in grow below*)
-          valid pp'
-          && (v_print " valid "; is_frequent_sp pp')
-          && (v_print "is_freq "; not(pp' <== ps))
-	then (
-          (*
-            print_string "adding ";
-            print_endline (string_of_pattern pp');  *)
-	  v_print_endline "not_subseq";
-          let ps' = ps ++ pp' in
-            grow ps' (ext p p', env')
-	)
-	else (
-	  v_print_endline "";
-          ps)
-    and grow ps (p, env) =
-      (* flush_string "#"; *)
-      let ext1 p1 p2 = if p1 = [] then [mkC("CM",[p2])] else p1 @ [mkC("CM", [p2])] in
-      let ext2 p1 p2 = if p1 = [] then [mkC("CM",[p2])] else p1 @ (ddd :: [mkC("CM", [p2])]) in
-	(* produce (meta list * env) list *)
-      let pa_f = follows_sp p g pa in
-      let pa_f = tail_flatten (List.rev_map get_nested_subterms pa_f) in
-	g_glob := Some (g, pa_f);
-	let abs_P_env = List.rev_map (function t -> 
-          let metas, env = abstract_term !depth env t in
-            metas, env
-	) pa_f in
-	  g_glob := None;
-	  (* 
-	     print_string "[Main] number of abstractions to consider : ";
-	     let ms = ref 0 in
-             List.iter (function (ps, _) -> ms := List.length ps + !ms) abs_P_env;
-             print_endline (string_of_int !ms);
-	  *)            
-	  (*
-	    print_endline "[Main] abstractions to consider";
-	    abs_P_env +> List.iter (function (ps, env) -> 
-            ps +> List.iter (function p -> print_endline (Diff.string_of_gtree' p));
-	    print_endline "[Main] under environment";
-	    Diff.print_environment env;
-	    ); 
-	  *)
-	  let nextP1 = abs_P_env +> List.fold_left (fun acc_p_env (ps, env) -> 
-            let valid_ps = List.filter (function p' -> g |- (ext1 p p')) ps 
-            in
-              if valid_ps = []
-              then acc_p_env
-              else List.rev_map (function p -> (p, env)) valid_ps 
-                :: acc_p_env
-	  ) [] in
-	  let nextP2 = abs_P_env +> List.fold_left (fun acc_p_env (ps, env) -> 
-            let valid_ps = List.filter (function p' -> g |- (ext2 p p')) ps 
-            in
-              if valid_ps = []
-              then acc_p_env
-              else List.rev_map (function p -> (p, env)) valid_ps 
-                :: acc_p_env
-	  ) [] in
-	  let ps' = 
-	    List.fold_left (fun acc_ps next_pairs -> List.fold_left (grow' ext1 p) acc_ps next_pairs) ps nextP1 in
-	    List.fold_left (fun acc_ps next_pairs -> List.fold_left (grow' ext2 p) acc_ps next_pairs) ps' nextP2
-    in
-      grow [] ([], [])
-	(*
-	  let pairs = List.fold_left (fun acc_p_env (ps, env) -> 
-          List.map (function p -> ([mkC("CM", [p])], env)) ps
-          :: acc_p_env) 
-          [] (List.map (reset_meta(); abstract_term depth []) pa) in
-	  List.fold_left (fun acc_ps next_pairs -> 
-          print_endline ("Trying from fresh patterns.");
-          next_pairs +> List.iter (function (ps,env) -> 
-          string_of_pattern ps +> print_endline);
-          List.fold_left grow acc_ps next_pairs) 
-	  [] pairs
-	*)
- 
+  (function t -> is_common t) in
+  if !verbose 
+  then ( 
+  print_endline "[Main] pa = ";
+  pa +> List.iter (function t -> print_endline (Diff.string_of_gtree' t));
+  );
+  let nodes = nodes_of_graph g in
+  let (<==) p ps = ps +> (* List.exists (function p' -> p <++ p') *)
+  List.exists (subpattern g p) 
+  in
+  let (|-) g p = List.exists (cont_match g p) nodes in
+  let (+++) x xs = if List.mem x xs then xs else (
+  if !print_adding then (
+  print_string "[Main] attempting to add ";
+  print_endline (string_of_pattern x);
+  );
+  filter_shorter g (x :: xs)
+    (* x :: xs *)
+  ) in
+  let (++) ps p = p +++ ps
+  in
+  let valid p' =
+  let rec loop p =
+  match p with 
+  | [] -> true
+  | p :: seq when loop seq && is_match p -> not(List.exists (function p' -> 
+  equal_pattern_term p p') seq) &&
+  (match get_metas_single p with
+  | [] -> true
+  | p_metas -> 
+  (match get_metas_pattern seq with
+  | [] -> true
+  | seq_metas -> not(intersect_lists p_metas seq_metas = []))
+  )
+  | skip :: seq when skip == ddd -> loop seq
+  | _ -> false
+  in
+  match p' with
+  | skip :: _ when skip == ddd -> false
+  | _ -> loop p'
+  in
+  let rec grow' ext p ps (p', env') =
+    (* flush_string "."; *)
+  let pp' = renumber_metas_pattern (ext p p') in
+  if !verbose then ( 
+  print_string ("[Main] testing : " ^ List.map Diff.string_of_gtree' pp' +> String.concat " ");
+  );
+  if (* g |- pp' &&  -- this test is already performed in grow below*)
+  valid pp'
+  && (v_print " valid "; is_frequent_sp pp')
+  && (v_print "is_freq "; not(pp' <== ps))
+  then (
+    (*
+  print_string "adding ";
+  print_endline (string_of_pattern pp');  *)
+  v_print_endline "not_subseq";
+  let ps' = ps ++ pp' in
+  grow ps' (ext p p', env')
+  )
+  else (
+  v_print_endline "";
+  ps)
+  and grow ps (p, env) =
+    (* flush_string "#"; *)
+  let ext1 p1 p2 = if p1 = [] then [mkC("CM",[p2])] else p1 @ [mkC("CM", [p2])] in
+  let ext2 p1 p2 = if p1 = [] then [mkC("CM",[p2])] else p1 @ (ddd :: [mkC("CM", [p2])]) in
+    (* produce (meta list * env) list *)
+  let pa_f = follows_sp p g pa in
+  let pa_f = tail_flatten (List.rev_map get_nested_subterms pa_f) in
+  g_glob := Some (g, pa_f);
+  let abs_P_env = List.rev_map (function t -> 
+  let metas, env = abstract_term !depth env t in
+  metas, env
+  ) pa_f in
+  g_glob := None;
+    (* 
+  print_string "[Main] number of abstractions to consider : ";
+  let ms = ref 0 in
+  List.iter (function (ps, _) -> ms := List.length ps + !ms) abs_P_env;
+  print_endline (string_of_int !ms);
+*)            
+    (*
+  print_endline "[Main] abstractions to consider";
+  abs_P_env +> List.iter (function (ps, env) -> 
+  ps +> List.iter (function p -> print_endline (Diff.string_of_gtree' p));
+  print_endline "[Main] under environment";
+  Diff.print_environment env;
+  ); 
+*)
+  let nextP1 = abs_P_env +> 
+  List.fold_left (fun acc_p_env (ps, env) -> 
+  let valid_ps = List.filter (function p' -> g |- (ext1 p p')) ps 
+  in
+  if valid_ps = []
+  then acc_p_env
+  else List.rev_map (function p -> (p, env)) valid_ps 
+  :: acc_p_env
+  ) [] 
+  +> tail_flatten in
+  let abs_P_env' = abs_P_env +> List.fold_left (fun acc_ps_env (ps, env) -> 
+  let ps' = ps +> List.filter (function p' ->
+  not(nextP1 +> List.exists (function (p'', env') -> p' = p''))
+  ) in
+  (ps', env) :: acc_ps_env
+  ) [] in
+  let nextP2 = abs_P_env' +> List.fold_left (fun acc_p_env (ps, env) -> 
+  let valid_ps = List.filter (function p' -> g |- (ext2 p p')) ps 
+  in
+  if valid_ps = []
+  then acc_p_env
+  else List.rev_map (function p -> (p, env)) valid_ps 
+  :: acc_p_env
+  ) [] 
+  +> tail_flatten in
+  let ps' = 
+  List.fold_left (fun acc_ps pair -> grow' ext1 p acc_ps pair) ps nextP1 in
+  List.fold_left (fun acc_ps pair -> grow' ext2 p acc_ps pair) ps' nextP2
+  in
+  grow [] ([], [])
+    (*
+  let pairs = List.fold_left (fun acc_p_env (ps, env) -> 
+  List.map (function p -> ([mkC("CM", [p])], env)) ps
+  :: acc_p_env) 
+  [] (List.map (reset_meta(); abstract_term depth []) pa) in
+  List.fold_left (fun acc_ps next_pairs -> 
+  print_endline ("Trying from fresh patterns.");
+  next_pairs +> List.iter (function (ps,env) -> 
+  string_of_pattern ps +> print_endline);
+  List.fold_left grow acc_ps next_pairs) 
+  [] pairs
+*)
+*) 
 
-let find_seq_patterns_new sub_pat is_frequent_sp pa  =
+
+let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
   print_endline "[Main] growing patterns";
   reset_meta();
-  let (<==) p ps = ps +> List.exists (sub_pat p) in
+  let mk_pat p = [mkC("CM",[p])] in
+  let (<==) sp ps = ps +> List.exists (function sp' -> 
+    sub_pat sp sp' && embedded_pattern sp sp'
+  ) in
   let (!-) sp = is_frequent_sp sp in
   let (+++) x xs = 
     if List.mem x xs then xs else (
@@ -1186,8 +1255,12 @@ let find_seq_patterns_new sub_pat is_frequent_sp pa  =
 	print_string "[Main] attempting to add ";
 	print_endline (string_of_pattern x);
       );
-      filter_shorter_sub sub_pat (x :: xs)
-	(* x :: xs *)
+(*
+      if !filter_patterns
+      then filter_shorter_sub gss sub_pat (x :: xs)
+      else x :: xs
+*)
+      x :: xs
     ) in
   let (++) ps p = p +++ ps
   in
@@ -1195,14 +1268,16 @@ let find_seq_patterns_new sub_pat is_frequent_sp pa  =
     let rec loop p =
       match p with 
         | [] -> true
-        | p :: seq when loop seq && is_match p -> not(List.mem p seq) &&
+        | p :: seq when loop seq && is_match p -> 
+	    not(List.exists (function p' -> equal_pattern_term p p') seq)
+	       &&
             (match get_metas_single p with
 	      | [] -> true
 	      | p_metas -> 
                   (match get_metas_pattern seq with
                     | [] -> true
                     | seq_metas -> not(intersect_lists p_metas seq_metas = []))
-            )
+            ) 
         | skip :: seq when skip == ddd -> loop seq
         | _ -> false
     in
@@ -1211,7 +1286,7 @@ let find_seq_patterns_new sub_pat is_frequent_sp pa  =
         | _ -> loop p'
   in
   let get_next abs_P_env ext p =
-    flush_string "[Main] get_next ... ";
+    v_print "[Main] get_next ... ";
     let res = abs_P_env +> List.fold_left (fun acc_p_env (ps, env) -> 
       let valid_ps = List.filter (function p' -> !- (ext p p')) ps 
       in
@@ -1220,7 +1295,7 @@ let find_seq_patterns_new sub_pat is_frequent_sp pa  =
         else List.rev_map (function p -> (p, env)) valid_ps 
           :: acc_p_env
     ) [] in
-      print_endline "done";
+      v_print_endline "done";
       res
   in
   let ext1 p1 p2 = if p1 = [] then [mkC("CM",[p2])] else p1 @ [mkC("CM", [p2])] in
@@ -1234,7 +1309,8 @@ let find_seq_patterns_new sub_pat is_frequent_sp pa  =
       if
         valid pp'
         && (v_print " valid "; is_frequent_sp pp')
-        && (v_print "is_freq "; not(pp' <== ps))
+        && (v_print "is_freq "; 
+	    if !prune then not(pp' <== ps) else true)
       then (
 	v_print_endline "not_subseq";
         let ps' = ps ++ pp' in
@@ -1244,29 +1320,53 @@ let find_seq_patterns_new sub_pat is_frequent_sp pa  =
 	v_print_endline "";
         ps)
   and grow ps (p, env) =
-    (* produce (meta list * env) list *)
-    flush_string "[Main] abstracting ... ";
+    v_print_string "[Main] getting common cterms after pattern: ";
+    v_print_endline (string_of_pattern p);
     let abs_P_env = 
-      pa  
-	(* we need to find a way to limit the size of this list since
-	   there really is no need to try to abstract all those terms
-	   further when they cannot even be an extension of the current
-	   pattern 'p' *)
-      +> List.rev_map (function t -> 
-	let metas, env = abstract_term !depth env t in
-          metas, env
+      get_pa env
+      +> List.filter (function (sps,env) ->
+	gss 
+	+> for_some !threshold (function flows ->
+	  flows 
+	  +> List.exists (function f -> 
+	    sps +> List.exists 
+	      (function sp -> 
+		f |- p && f |- mk_pat sp
+	      )
+	  )
+	)	  
       ) 
     in
-      print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
-      let nextP1 = get_next abs_P_env ext1 p in
-      let nextP2 = get_next abs_P_env ext2 p in
-	print_endline ("[Main] from pattern : " ^ string_of_pattern p);
-	print_endline ("[Main] potential new patterns : " ^ string_of_int (
+      (* produce (meta list * env) list *)
+      (*    v_print "[Main] abstracting ... ";
+	    let abs_P_env = 
+	    pa
+      (* we need to find a way to limit the size of this list since
+	    there really is no need to try to abstract all those terms
+	    further when they cannot even be an extension of the current
+	    pattern 'p' *)
+	    +> List.rev_map (function t -> 
+	    let metas, env = abstract_term !depth env t in
+	    metas, env
+	    )  in
+*)
+
+      v_print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
+      let nextP1 = tail_flatten (get_next abs_P_env ext1 p) in
+      let abs_P_env' = abs_P_env +> List.fold_left (fun acc_ps_env (ps, env) -> 
+	let ps' = ps +> List.filter (function p' ->
+	  not(nextP1 +> List.exists (function (p'', env') -> p' = p''))
+	) in
+	  (ps', env) :: acc_ps_env
+      ) [] in
+      let nextP2 = tail_flatten (get_next abs_P_env' ext2 p) in
+	v_print_endline ("[Main] from pattern : " ^ string_of_pattern p);
+	v_print_endline ("[Main] potential new patterns : " ^ string_of_int (
 	  List.length nextP1 + List.length nextP2));
-	print_newline ();
+	v_print_newline ();
 	let ps' = 
-	  List.fold_left (fun acc_ps next_pairs -> List.fold_left (grow' ext1 p) acc_ps next_pairs) ps nextP1 in
-	  List.fold_left (fun acc_ps next_pairs -> List.fold_left (grow' ext2 p) acc_ps next_pairs) ps' nextP2
+	  List.fold_left (fun acc_ps pair -> grow' ext1 p acc_ps pair) ps nextP1 in
+	  List.fold_left (fun acc_ps pair -> grow' ext2 p acc_ps pair) ps' nextP2
   in
     grow [] ([], [])
 
@@ -1295,8 +1395,14 @@ let filter_common_np_graph common_np g =
 (* find all patterns p in gss such that p occurs in threshold number
    of flows
 *)
-let get_common_node_patterns gss =
-  print_endline "[Main] finding common cterms";
+
+
+let rm_dups_pred eq_f ls =
+  let (+++) x xs = if List.exists (function y -> eq_f x y) xs then xs else x :: xs in
+    List.fold_left (fun acc_xs x -> x +++ acc_xs) [] ls
+
+let get_common_node_patterns gss env =
+  v_print_endline "[Main] finding common cterms";
   let concrete_terms = 
     gss 
     +> List.rev_map (function flows ->
@@ -1309,25 +1415,42 @@ let get_common_node_patterns gss =
       +> tail_flatten
       +> rm_dups
     )
-    +> Diff.filter_some 
-  in
-    print_string "[Main] abstracting cterms";
-    let abs = concrete_terms
-      +> List.rev_map (function ct -> 
-	print_string ".";
-	fst(abstract_term !depth [] ct))
-      +> tail_flatten
-      +> rm_dups in
-      print_endline " done";
-      print_endline ("[Main] common abstract terms : " ^ string_of_int (List.length abs));
-      abs
+  in 
+    v_print_string ("[Main] abstracting cterms (ct = " ^
+		     string_of_int (List.length concrete_terms) ^")") ;
+    let (|-) g sp = List.exists (cont_match g sp) (nodes_of_graph g) in
+    let (!-) sp = gss +> for_some !threshold (function fs -> 
+      fs +> List.exists (function f -> f |- sp)
+    ) in     
+    let mk_pat p = [mkC("CM",[p])] in
+    let is_common sp = !- (mk_pat sp) in
+    let abs_P_env = concrete_terms
+      +> List.rev_map (function cts -> 
+	cts 
+	+> List.rev_map (function gt ->
+
+	  let (ps,env) = abstract_term !depth env gt in
+	    List.filter is_common ps, env
+	)
+      ) +> tail_flatten
+      +> List.filter (function (ps, env) -> not(ps = []))
+    in
+      v_print_endline " done";
+      v_print_endline ("[Main] common abstract terms : " ^ string_of_int (List.length abs_P_env));
+      if !verbose then 
+	abs_P_env +> List.iter (function (gts,env) -> 
+	  gts +> List.iter (function gt -> print_endline (Diff.string_of_gtree' gt)));
+      abs_P_env
 
 
 let common_patterns_graphs gss =
   (* detect whether a threshold was given *)
   let loc_pred = 
     if !threshold = 0
-    then (threshold := List.length gss; List.for_all)
+    then (
+      threshold := List.length gss;
+      Diff.no_occurs := !threshold;
+      List.for_all)
     else for_some !threshold in
   let (|-) g sp = List.exists (cont_match g sp) (nodes_of_graph g) in
   let (!-) sp = gss +> loc_pred (function fs -> 
@@ -1335,9 +1458,13 @@ let common_patterns_graphs gss =
   ) in
   let is_frequent_sp_some sp = !- sp in
   let is_subpattern sp1 sp2 = subpattern_some gss sp1 sp2 in
-    get_common_node_patterns gss
-    +> find_seq_patterns_new is_subpattern is_frequent_sp_some 
+  let get_pa = get_common_node_patterns gss in
+    find_seq_patterns_new is_subpattern is_frequent_sp_some gss get_pa
     +> rm_dups
+    +> (function pss -> 
+      if !filter_patterns
+      then filter_shorter_sub gss is_subpattern pss 
+      else pss)
     
 let get_fun_name_gflow f =
   let head_node = f#nodes#tolist +> List.find (function (i,n) -> match view n with
@@ -1345,7 +1472,9 @@ let get_fun_name_gflow f =
     | _ -> false) in
     match view (snd head_node) with
       | C("phony",[{Hashcons.node=C("def",name::_)}]) -> (match view name with
-          | A("fname",name_str) -> name_str)
+          | A("fname",name_str) -> name_str
+	  | _ -> raise (Diff.Fail "impossible match get_fun_name_gflow")
+	)
       | _ -> raise (Diff.Fail "get_fun_name?")
 
 
@@ -1389,6 +1518,15 @@ let filter_changed gss gpats =
     )))
     else gpats
 
+(* Look through all relevant nodes and find out which one have
+   changed; a node have changed if it does not occur in the RHS graph
+   [or if it's succ/pred have changed -- not implemented yet]
+*)
+let find_changed_nodes g1 g2 =
+  let nodes1 = concrete_of_graph g1 in
+  let nodes2 = concrete_of_graph g2 in
+    nodes1 +> List.filter (function n -> not(List.mem n nodes2))
+      
 
 let find_common_patterns () =
   read_spec(); (* gets names to process in file_pairs *)
@@ -1396,32 +1534,32 @@ let find_common_patterns () =
     List.fold_left (fun acc_pairs (lfile, rfile) ->
       read_filepair_cfg lfile rfile :: acc_pairs
     ) [] !file_pairs) in
-  print_endline ("[Main] read " ^ string_of_int (List.length term_pairs) ^ " files");
-  let gss = List.rev_map (fun ((gt,flows), (gt',flows')) -> 
-                            if !only_changes 
-                            then
-                            flows +> List.filter 
-                              (function f -> 
-                                 (* is f changed in RHS ? *)
-                                 let f_name = get_fun_name_gflow f in
-                                   if not(flows' +> List.exists (equal_flows f))
-                                   then (
-                                     print_endline ("[Main] function " ^ f_name ^ " changed");
-                                     true)
-                                   else (
-                                     false
-                                   )
-                              )
-                            else flows
-                          ) term_pairs in
-  let gss_rhs = List.rev_map (fun (_, (gt',flows)) -> flows) term_pairs in
-  let gpats'' = common_patterns_graphs gss in
-    (* figure out which patterns no longer match in the RHS
-     * those patterns potentially deal with changes
-     *)
-  let gpats' = filter_changed  gss_rhs gpats'' in
-    print_endline "[Main] *Common* patterns found:";
-    print_patterns gpats'
+    print_endline ("[Main] read " ^ string_of_int (List.length term_pairs) ^ " files");
+    let gss = List.rev_map (fun ((gt,flows), (gt',flows')) -> 
+      if !only_changes 
+      then
+        flows +> List.filter 
+          (function f -> 
+            (* is f changed in RHS ? *)
+            let f_name = get_fun_name_gflow f in
+              if not(flows' +> List.exists (equal_flows f))
+              then (
+                print_endline ("[Main] function " ^ f_name ^ " changed");
+                true)
+              else (
+                false
+              )
+          )
+      else flows
+    ) term_pairs in
+    let gss_rhs = List.rev_map (fun (_, (gt',flows)) -> flows) term_pairs in
+    let gpats'' = common_patterns_graphs gss in
+      (* figure out which patterns no longer match in the RHS
+       * those patterns potentially deal with changes
+       *)
+    let gpats' = filter_changed  gss_rhs gpats'' in
+      print_endline "[Main] *Common* patterns found:";
+      print_patterns gpats'
 
 let main () =
   (* decide which mode to operate in *)
