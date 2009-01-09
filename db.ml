@@ -441,7 +441,7 @@ let rec get_support_itemset db subitemset =
   | DB(db, _) -> List.fold_left get_sup 0 db
   | EmptyDB -> 0
 
-let ($) a b = get_support_itemset a b
+let (%) a b = get_support_itemset a b
   (*| itemset :: dbrest -> if subitemset subseteq itemset *)
       (*then 1 + get_support_itemset dbrest subitemset*)
       (*else get_support_itemset dbrest subitemset*)
@@ -510,12 +510,12 @@ let add_itemset_cdb get_support cdb (new_itemset, new_support) =
  * to determine supports of itemsets in the mined database;
  *)
 let close_db orig_db mined_db =
-  let g_sup = function itemset -> orig_db$itemset in
+  let g_sup = function itemset -> orig_db%itemset in
   let lfun = function acc_cdb -> function itemset ->
-    add_itemset_cdb g_sup acc_cdb (itemset, orig_db$itemset) in
+    add_itemset_cdb g_sup acc_cdb (itemset, orig_db%itemset) in
   fold_itemset mined_db lfun (makeEmpty ())
   (*List.fold_left (function acc_cdb -> function itemset ->*)
-      (*add_itemset_to_cdb g_sup acc_cdb (itemset, orig_db$itemset))*)
+      (*add_itemset_to_cdb g_sup acc_cdb (itemset, orig_db%itemset))*)
   (*[]*)
   (*mined_db*)
 
@@ -592,7 +592,7 @@ let mined_db2str string_of_item orig_db db =
     List.fold_left (function inner_str -> function item ->
       (string_of_item item) ^ ", " ^ inner_str
     )
-    (":"^ string_of_int (orig_db$itemset)^ ";\n"^acc_str)
+    (":"^ string_of_int (orig_db%itemset)^ ";\n"^acc_str)
     itemset
   )
     ""
@@ -625,7 +625,7 @@ let rec dmine db threshold =
 
 let dmine_cls db_orig threshold =
   let get_items db = fold_unique db (fun item fre ls -> item :: ls) [] in
-  let g_sup iset = db_orig $ iset in
+  let g_sup iset = db_orig % iset in
   let (++) iset db = 
     print_string "+";
     flush stdout;

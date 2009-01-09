@@ -79,14 +79,51 @@ let do_dmine = ref false
   (* copy from main.ml; initialized in main.ml *)
 let nesting_depth = ref 0
 
+(* non-duplicating cons *)
+let (+++) x xs = if List.mem x xs then xs else x :: xs
+
+(* convenience for application *)
+let (+>) o f = f o
+
 (* check that list l1 is a sublist of l2 *)
 let subset_list l1 l2 =
   List.for_all (function e1 -> (List.mem e1 l2)) l1
 
 let string_of_meta p = match view p with
-  | A ("meta", m) -> "$" ^ m
+  (*| A ("meta", m) -> "$" ^ m*)
+  | A ("meta", m) -> m
   | A (_, b) -> b
   | C _ -> raise (Fail "not meta")
+
+let not_compound gt = match view gt with
+  | C("comp{}", _) | A("comp{}", _) -> false
+  | _ -> true
+
+let is_assignment a_string = match a_string with 
+  | "assign="
+  | "assign+="
+  | "assign-="
+  | "assign*="
+  | "assign%="
+  | "assign/="
+  | "assign&="
+  | "assign|="
+  | "assignx="
+  | "assign?=?" -> true
+  | _ -> false
+  
+let extract_aop a_string = match a_string with
+  | "assign="  -> "="
+  | "assign+=" -> "+="
+  | "assign-=" -> "-="
+  | "assign*=" -> "*="
+  | "assign%=" -> "%="
+  | "assign/=" -> "/="
+  | "assign&=" -> "&="
+  | "assign|=" -> "|="
+  | "assignx=" -> "^="
+  | "assign?=?" -> "?=?"
+  | _ -> raise (Fail "Not assign operator?")
 
 let rec string_of_gtree str_of_t str_of_c gt = 
   let rec string_of_itype itype = (match view itype with
@@ -144,19 +181,30 @@ let rec string_of_gtree str_of_t str_of_c gt =
       | A ("meta", c) -> string_of_meta gt
 (*      | A ("itype", _) -> string_of_itype gt *)
       | A (t,c) -> c
-      (* | C ("fulltype", ti) -> string_of_ftype ti *)
-      (* | C ("const", [{node=A(_, c)}]) -> c *)
-      (* | C ("itype", _ ) -> string_of_itype gt *)
-      (* | C ("exp", [e]) -> loop e *)
-      (* | C ("exp", [{node=A("meta", x0)}; e]) -> "(" ^ loop e ^ ":_)" *)
-      (* | C ("exp", [{node=C ("TYPEDEXP", [t])} ; e]) -> *)
-      (*     "(" ^ loop e ^ ":" ^ loop t ^ ")" *)
-      (* | C ("call", f :: args) -> *)
-      (*     loop f ^ "(" ^ String.concat "," (List.map loop args) ^ ")" *)
-      (* | C ("binary_arith", [{node=A("aop",op_str)} ;e1;e2]) -> *)
-      (*     loop e1 ^ op_str ^ loop e2 *)
-      (* | C ("binary_logi", [{node=A("logiop", op_str)}; e1;e2]) -> *)
-      (*     loop e1 ^ op_str ^ loop e2 *)
+      | C ("fulltype", ti) -> string_of_ftype ti
+      | C ("const", [{node=A(_, c)}]) -> c
+      | C ("itype", _ ) -> string_of_itype gt
+      | C ("exp", [e]) -> loop e 
+      (*| C ("exp", [{node=A("meta", x0)}; e]) -> "(" ^ loop e ^ ":_)"*)
+      | C ("exp", [{node=C ("TYPEDEXP", [t])} ; e]) ->
+          (*"(" ^ loop e ^ ":" ^ loop t ^ ")"*) 
+          loop e
+      | C ("call", f :: args) ->
+          loop f ^ "(" ^ String.concat "," (List.map loop args) ^ ")"
+      | C ("binary_arith", [{node=A("aop",op_str)} ;e1;e2]) ->
+          loop e1 ^ op_str ^ loop e2
+      | C ("binary_logi", [{node=A("logiop", op_str)}; e1;e2]) ->
+          loop e1 ^ op_str ^ loop e2
+      | C ("record_ptr", [e;f]) -> 
+          loop e ^ "->" ^ loop f
+      | C ("record_acc", [e;f]) ->
+          loop e ^ "." ^ loop f
+      | C ("stmt", [st]) when not_compound st -> 
+          loop st ^ ";"
+      | C ("exprstmt", [gt]) -> loop gt
+      | C (assignment, [l;r]) when is_assignment assignment ->
+          loop l ^ extract_aop assignment ^ loop r
+      | C ("&ref", [gt]) -> "&" ^ loop gt
       | C (t, gtrees) -> 
           str_of_t t ^ "[" ^
             String.concat "," (List.map loop gtrees)
@@ -164,22 +212,75 @@ let rec string_of_gtree str_of_t str_of_c gt =
   in
     loop gt
 
+let verbose_string_of_gtree gt =
+  let rec loop gt = match view gt with
+  | A(t,c) -> t ^ "<" ^ c ^ ">"
+  | C (t, gtrees) -> 
+          t ^ "[" ^
+            String.concat "," (List.map loop gtrees)
+          ^ "]"
+  in loop gt
+
 let str_of_ctype x = x
 let str_of_catom a = a
 
-
-let rec string_of_diff d =
-  match d with
-    | SEQ(p1,p2) -> "SEQ:  " ^ string_of_diff p1 ^ " ; " ^ string_of_diff p2
-    | ID s -> "ID:  " ^ string_of_gtree str_of_ctype str_of_catom s
-    | UP(s,s') -> 
-	(string_of_gtree str_of_ctype str_of_catom s) ^ 
-	  " ==> " ^
-	  (string_of_gtree str_of_ctype str_of_catom s')
-    | ADD s -> "ADD:  " ^ string_of_gtree str_of_ctype str_of_catom s
-    | RM s -> "RM:  " ^ string_of_gtree str_of_ctype str_of_catom s
-
 let string_of_gtree' = string_of_gtree str_of_ctype str_of_catom
+
+
+let collect_metas gt = 
+  let gs gt = match view gt with
+  | A("meta",x) -> x ^ ";"in
+  let (!!) gt = match view gt with
+  | A("meta", _) -> true | _ -> false in
+  let gtype gt = string_of_gtree' gt in
+  let rec loop acc_metas gt = 
+    if !!gt then (gs gt) +++ acc_metas
+    else match view gt with
+    | A _ -> acc_metas
+    | C("const", [gt]) when !! gt -> ("const " ^ gs gt) +++ acc_metas
+    | C("call", fargs) -> 
+        fargs +> List.fold_left (fun acc_metas gt -> 
+          match view gt with
+          | _ when !! gt -> ("expression " ^ gs gt) +++ acc_metas
+          | _ -> loop acc_metas gt
+        ) acc_metas
+    | C("exp",[gt']) when !!gt' -> ("expression " ^ gs gt') +++ acc_metas
+    | C ("exp", [{node=C ("TYPEDEXP", [t])} ; e]) 
+    when !!e -> (gtype t ^ " " ^ gs e) +++ acc_metas
+    | C ("record_acc", [e;f]) -> 
+        let acc = if !! f 
+                  then ("identifier " ^ gs f) +++ acc_metas 
+                  else loop acc_metas f in
+        if !! e 
+        then ("expression " ^ gs e) +++ acc
+        else loop acc e
+    | C ("record_ptr", [e;f]) -> 
+        let acc = if !! f 
+                  then ("identifier " ^ gs f) +++ acc_metas 
+                  else loop acc_metas f in
+        if !! e 
+        then ("expression " ^ gs e) +++ acc
+        else loop acc e
+    | C (_, gts) -> gts +> List.fold_left 
+    (fun acc_meta gt ->
+      loop acc_meta gt
+    ) acc_metas
+  in
+  loop [] gt
+        
+let rec string_of_diff d =
+  let make_string_header gt = collect_metas gt in
+  match d with
+  | SEQ(p1,p2) -> "SEQ:  " ^ string_of_diff p1 ^ " ; " ^ string_of_diff p2
+  | ID s -> "ID:  " ^ string_of_gtree str_of_ctype str_of_catom s
+  | UP(s,s') -> 
+      "@@\n" ^ String.concat "\n" (make_string_header s) ^
+      "\n@@\n" ^
+      "- " ^ (string_of_gtree str_of_ctype str_of_catom s) ^ 
+      "\n" ^
+      "+ " ^ (string_of_gtree str_of_ctype str_of_catom s')
+  | ADD s -> "ADD:  " ^ string_of_gtree str_of_ctype str_of_catom s
+  | RM s -> "RM:  " ^ string_of_gtree str_of_ctype str_of_catom s
 
 (* a solution is a list of updates, diff list and the idea is that it will
  * transform an original gt into the updated gt' *)
@@ -502,6 +603,7 @@ let find_match pat t =
       let res = loop t in
         (PT.replace occursht (pat,t) res; 
          res)
+
 let non_phony p = match view p with
   | A("phony", _) 
   | C("phony", _) 
@@ -1233,7 +1335,6 @@ let print_gflow g =
       ()
 
 let add_node i node g = g#add_nodei i node
-let (+>) o f = f o
 
 (* convert a graph produced by ast_to_flow into a graph where all nodes in the
  * flow have been translated to their gtree counterparts
@@ -1241,22 +1342,22 @@ let (+>) o f = f o
 let flow_to_gflow flow =
   let gflow = ref (new Ograph_extended.ograph_mutable) in
   let nodes = flow#nodes in
-    nodes#iter (fun (index, (node1, s)) ->
-      !gflow +> add_node index (translate_node node1);
+  nodes#iter (fun (index, (node1, s)) ->
+    !gflow +> add_node index (translate_node node1);
     );
     nodes#iter (fun (index, node) ->
       let succ = flow#successors index in
-	succ#iter (fun (j, edge_val) -> 
-          !gflow#add_arc ((index,j), edge_val)
-	)
-    );
-    !gflow
+      succ#iter (fun (j, edge_val) -> 
+        !gflow#add_arc ((index,j), edge_val)
+        )
+      );
+      !gflow
 
 
 let read_ast_cfg file =
   let (pgm2, parse_stats) = 
     Parse_c.parse_print_error_heuristic file in
-  let flows = List.map (function (c,info) -> Ast_to_flow.ast_to_control_flow c) pgm2 in
+  let flows = List.map (function (c,info) -> Ast_to_flow2.ast_to_control_flow c) pgm2 in
   let  gflows = ref [] in
     List.iter (do_option (fun f -> 
       gflows := (flow_to_gflow f) 
@@ -1296,11 +1397,10 @@ let string_of_bind string_of_val (x, v) =
 let string_of_env env = 
   String.concat "; " (List.map (string_of_bind string_of_gtree') env)
 
-let (+++) x xs = if List.mem x xs then xs else x :: xs
 let extend_env env1 env2 =
   List.fold_left bind env1 env2
 let ddd = mkA("SKIP", "...")
-let ($$) e1 e2 = extend_env e1 e2
+let (%%) e1 e2 = extend_env e1 e2
 let (=>) (k,v) env = bind env (k,v)
 let get_val n g = g#nodes#find n
 let get_succ n g = (g#successors n)#tolist
@@ -1334,12 +1434,12 @@ exception ErrorSpec
 let cont_match_spec spec g cp n =
   let init_vp = {skip = []; env = []; last = None;} in 
   let matched_vp vp n env = 
-    (* let f, env' = try true, env $$ vp.env with Bind_error -> false, [] in *)
+    (* let f, env' = try true, env %% vp.env with Bind_error -> false, [] in *)
     (* in this semantic, we never allow visiting the same node twice *)
     let f, env' = try 
 	not(List.mem n vp.skip) && 
 	  not(List.exists (function nh -> get_val nh g = get_val n g ) vp.skip)
-	, env $$ vp.env with Match_failure _ -> false, [] in
+	, env %% vp.env with Match_failure _ -> false, [] in
       f, {last = Some (get_val n g); skip = n :: vp.skip; env = env'} in
   let skipped_vp vp n = {
     last = vp.last;
@@ -1403,12 +1503,12 @@ let cont_match g cp n =
   *)
   let init_vp = {skip = []; env = []; last = None;} in 
   let matched_vp vp n env = 
-    (* let f, env' = try true, env $$ vp.env with Bind_error -> false, [] in *)
+    (* let f, env' = try true, env %% vp.env with Bind_error -> false, [] in *)
     (* in this semantic, we never allow visiting the same node twice *)
     let f, env' = try 
 	not(List.mem n vp.skip) && 
 	  not(List.exists (function nh -> get_val nh g = get_val n g ) vp.skip)
-	  , env $$ vp.env with Match_failure _ -> false, [] in
+	  , env %% vp.env with Match_failure _ -> false, [] in
       f, {last = Some (get_val n g); skip = n :: vp.skip; env = env'} in
   let skipped_vp vp n = {
     last = vp.last;
@@ -1482,12 +1582,12 @@ let cont_match_traces  g cp n =
   *)
   let init_vp = {skip_t = []; env_t = []; last_t = None; trace = []} in 
   let matched_vp vp n env = 
-    (* let f, env' = try true, env $$ vp.env with Bind_error -> false, [] in *)
+    (* let f, env' = try true, env %% vp.env with Bind_error -> false, [] in *)
     (* in this semantic, we never allow visiting the same node twice *)
     let f, env' = try 
 	not(List.mem n vp.skip_t) && 
 	  not(List.exists (function nh -> get_val nh g = get_val n g ) vp.skip_t)
-	  , env $$ vp.env_t with Match_failure _ -> false, [] in
+	  , env %% vp.env_t with Match_failure _ -> false, [] in
       f, {last_t = Some (get_val n g); skip_t = n :: vp.skip_t; env_t = env'; trace = n :: vp.trace} in
   let skipped_vp vp n = {
     last_t = vp.last_t;
@@ -1567,9 +1667,9 @@ let get_last_locs g cp n =
   let loc_list = ref [] in
   let init_vp = {skip = []; env = []; last = None;} in 
   let matched_vp vp n env = 
-    (* let f, env' = try true, env $$ vp.env with Bind_error -> false, [] in *)
+    (* let f, env' = try true, env %% vp.env with Bind_error -> false, [] in *)
     (* in this semantic, we never allow visiting the same node twice *)
-    let f, env' = try not(List.mem n vp.skip), env $$ vp.env with Match_failure _ -> false, [] in
+    let f, env' = try not(List.mem n vp.skip), env %% vp.env with Match_failure _ -> false, [] in
       f, {last = Some (get_val n g); skip = n :: vp.skip; env = env'} in
   let skipped_vp vp n = {
     last = vp.last;
@@ -2090,8 +2190,8 @@ let should_abs_depth t = gdepth t <= !abs_depth
 
 
 let non_dub_cons x xs = if List.mem x xs then xs else x :: xs 
-let ($$) a b = non_dub_cons a b
-let non_dub_app ls1 ls2 = List.fold_left (fun acc l -> l $$ acc) ls1 ls2
+let (%%) a b = non_dub_cons a b
+let non_dub_app ls1 ls2 = List.fold_left (fun acc l -> l %% acc) ls1 ls2
 let (%) ls1 ls2 = non_dub_app ls1 ls2
 
 (* construct all the possible sub-terms of a given term in the gtree format; the
@@ -2100,8 +2200,8 @@ let (%) ls1 ls2 = non_dub_app ls1 ls2
 let make_all_subterms t =
   let rec loop ts t =
     match view t with
-      | C(_, ts_sub) -> List.fold_left loop (t $$ ts) ts_sub
-      | _ -> t $$ ts in
+      | C(_, ts_sub) -> List.fold_left loop (t %% ts) ts_sub
+      | _ -> t %% ts in
     loop [] t
 
 (* in order to make a list of the things that are supposed to be fixed when
@@ -2237,7 +2337,7 @@ let inAll e ell = List.for_all (fun l -> List.mem e l) ell
 let filter_all_old ell =
   List.fold_left (fun acc l -> List.fold_left (fun acc e ->
     if inAll e ell
-    then e $$ acc
+    then e %% acc
     else acc
   ) acc l) [] ell
 
@@ -2257,7 +2357,7 @@ let filter_some ell =
 (* print_endline ("[Diff] no_occurs: " ^ string_of_int !no_occurs);  *)
   List.fold_left (fun acc l -> List.fold_left (fun acc e ->
     if inSome e ell
-    then e $$ acc
+    then e %% acc
     else acc
   ) acc l) [] ell
 
@@ -2354,15 +2454,86 @@ let read_src_tgt src tgt =
 
 let verbose = ref false
 
+let get_fun_name_gflow f =
+  let head_node = f#nodes#tolist +> List.find (function (i,n) -> match view n with
+    | C("phony", [{node=C("def",_)}]) -> true
+    | _ -> false) in
+    match view (snd head_node) with
+      | C("phony",[{node=C("def",name::_)}]) -> (match view name with
+          | A("fname",name_str) -> name_str
+	  | _ -> raise (Fail "impossible match get_fun_name_gflow")
+	)
+      | _ -> raise (Fail "get_fun_name?")
+
+(* depth first search *)
+let dfs_iter xi' f g =
+  let already = Hashtbl.create 101 in
+  let rec aux_dfs xs = 
+    xs +> List.iter (fun xi -> 
+      if Hashtbl.mem already xi then ()
+      else begin
+        Hashtbl.add already xi true;
+        if not(xi = xi')
+             then f xi;
+        let succ = g#successors xi in
+        aux_dfs (succ#tolist +> List.map fst);
+      end
+    ) in
+  aux_dfs [xi']
+
+let seq_of_flow f = 
+  let seq = ref [] in
+  let start_idx = 0 in
+  let add_node i = seq := f#nodes#find i :: !seq in
+  dfs_iter start_idx add_node f;
+  !seq +> List.filter non_phony +> List.rev
+
+let dfs_diff f1 f2 = 
+  let seq1 = seq_of_flow f1 in
+  let seq2 = seq_of_flow f2 in
+  get_diff_nonshared seq1 seq2
+
+let tl = List.tl
+let hd = List.hd
+
+let rec get_marked_seq ss = match ss with
+  | ID t :: ADD t' :: ss' | ADD t' :: ID t :: ss' -> ID t +++ get_marked_seq (tl ss)
+  | RM t :: ss -> RM t +++ get_marked_seq ss
+  | _ :: ss -> get_marked_seq ss
+  | [] -> []
+
+let print_diff_flow di =
+  di 
+  +> get_marked_seq
+  +> List.iter (function m -> 
+    match m with
+    | ID t -> print_endline ("  " ^ string_of_gtree' t)
+    | ADD t -> print_endline ("+ " ^ string_of_gtree' t)
+    | RM t -> print_endline ("- " ^ string_of_gtree' t)
+    )
+
 let read_src_tgt_cfg src tgt =
   let (ast1, flows1) = read_ast_cfg src in
   let (ast2, flows2) = read_ast_cfg tgt in
     if !verbose then (
-      print_endline "[Main] gflows for file:";
-      print_endline "LHS flows";
+      print_endline "[Diff] gflows for file:";
+      print_endline "[Diff] LHS flows";
       flows1 +> List.iter print_gflow;
-      print_endline "RHS flows";
+      print_endline "[Diff] RHS flows";
       flows2 +> List.iter print_gflow);
+      print_endline "[Diff] DFS diff";
+      (* for each g1:fun<name> in flows1 such that g2:fun<name> in flows2:
+        * we assume all g in flows? are of function-flows
+        * compute diff_dfs g1 g2
+        * print diff
+        *)
+      flows1 +> List.iter (function f ->
+        let fname = get_fun_name_gflow f in
+        try 
+          let f' = flows2 +> List.find 
+          (function f' -> get_fun_name_gflow f' = fname) in
+          print_diff_flow (dfs_diff f f') with Not_found -> ()
+      );
     (gtree_of_ast_c ast1, flows1),
   (gtree_of_ast_c ast2, flows2)
 

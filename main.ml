@@ -1,7 +1,7 @@
 open Gtree
 
 
-let do_dmine     = ref false
+let do_dmine     = ref true
 let abs          = ref false
 let spec         = ref false
 let mfile        = ref ""
@@ -29,7 +29,6 @@ let speclist =
   Arg.align
     [
       "-noncompact",    Arg.Set noncompact,      "bool  also return non-compact solutions";
-      "-dmine",         Arg.Set do_dmine,        "bool  indicate to do datamining";
       "-specfile",      Arg.Set_string mfile,    "str   name of specification file";
       "-top",           Arg.Set_int max_level,   "int   terms larger than this will not have subterms abstracted";
       "-depth",         Arg.Set_int depth,       "int   recursion depth at which we still abstract terms";
@@ -407,7 +406,6 @@ let generate_sols chgset_orig simple_patches =
     let print_sol sol =
     print_endline "{{{";
     List.iter (function bp -> 
-      print_string "\t";
       print_endline (Diff.string_of_diff bp);
     ) sol;
     print_endline "}}}"
@@ -1570,6 +1568,7 @@ let main () =
   Diff.no_exceptions := !exceptions;
   Diff.verbose       := !verbose;
   Diff.nesting_depth := !nesting_depth;
+  if !threshold = 0 then do_dmine := false;
   if !mfile = ""
   then raise (Diff.Fail "No specfile given")
   else if !patterns 

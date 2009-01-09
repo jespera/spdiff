@@ -1,6 +1,6 @@
 extmem.c.orig extmem.c.new
 dcssblk.c.orig dcssblk.c.new
 raw3270.c.orig raw3270.c.new
-tape_core.c.orig tape_core.c.new
-netiucv.c.orig netiucv.c.new
-smsgiucv.c.orig smsgiucv.c.new
+#tape_core.c.orig tape_core.c.new
+#netiucv.c.orig netiucv.c.new
+#smsgiucv.c.orig smsgiucv.c.new

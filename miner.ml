@@ -30,14 +30,14 @@
 
 (*open Db*)
 
-let ($) db itemset = Db.get_support_itemset db itemset
+let (%) db itemset = Db.get_support_itemset db itemset
 
 let mined_db2str string_of_item orig_db db = 
   List.fold_left (function acc_str -> function itemset ->
     List.fold_left (function inner_str -> function item ->
       (string_of_item item) ^ ", " ^ inner_str
     )
-    (":"^ string_of_int (orig_db$itemset)^ ";\n"^acc_str)
+    (":"^ string_of_int (orig_db%itemset)^ ";\n"^acc_str)
     itemset
   )
     ""
@@ -83,7 +83,7 @@ let rec dmine db threshold =
 
 let dmine_cls db_orig threshold =
   let get_items db = Db.fold_unique db (fun a b -> a :: b) [] in
-  let g_sup iset = db_orig $ iset in
+  let g_sup iset = db_orig % iset in
   let (++) iset db = Db.add_itemset_cdb g_sup db (iset, g_sup iset) in
   let rec gen acc_db current_db current_iset =
     let next_db = Db.rm_infrequent current_db threshold in
@@ -175,7 +175,7 @@ let main () =
   if !toprint then 
     (*Db.print_db mdb;*)
     (Db.fold_itemset mdb (function () -> function itemset ->
-      let sup = rdb$itemset in
+      let sup = rdb%itemset in
       print_string (string_of_int (Db.interestRatio itemset sup));
       print_string (": " ^ string_of_int sup ^ " ::: ");
       Db.print_itemset s2s itemset ;
@@ -187,7 +187,7 @@ let main () =
     let _ = print_endline "done." in
     (*Db.print_db cdb)*)
     Db.fold_itemset cdb (function () -> function itemset ->
-      let sup = rdb$itemset in
+      let sup = rdb%itemset in
       (*print_string (string_of_int (Db.interestRatio itemset sup));*)
       print_endline ("\n: " ^ string_of_int sup ^ " ::: ");
       Db.print_itemset s2s itemset ;
@@ -196,7 +196,7 @@ let main () =
     (*print_endline "Non-closed db:";*)
     (*Db.print_db mdb)*)
     (*Db.fold_itemset mdb (function () -> function itemset ->*)
-      (*let sup = rdb$itemset in*)
+      (*let sup = rdb%itemset in*)
       (*print_string (string_of_int (Db.interestRatio itemset sup));*)
       (*print_endline ("\n: " ^ string_of_int sup ^ " ::: ");*)
       (*Db.print_itemset itemset ;*)

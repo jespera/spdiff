@@ -362,7 +362,7 @@ and trans_floattype ft =
 and trans_decl decl = match decl with
 | DeclList (odecls,_) -> "dlist" @@@ 
   List.map trans_odecl odecls
-| MacroDecl ((s, args), _) -> 
+| MacroDecl ((s, args), _) ->
     "mdecl" @@ s @@@ List.map (function a -> trans_arg (unwrap a)) args
 (*and trans_odecl ((fopt, ftype, stor, _), _) = match fopt with *)
 and trans_odecl ({v_namei = fopt; v_type = ftype; v_storage = stor}, _) = match fopt with

@@ -60,7 +60,7 @@ Reading file pair mtdsuper.c.orig mtdsuper.c.new
 Reading file pair dm-table.c.orig dm-table.c.new
 Reading file pair mconsole_kern.c.orig mconsole_kern.c.new
 Reading file pair inode.c.orig inode.c.new
- no nosto storage[nosto,no] int signed int btype[int] int linux 
+ notinline nosto storage[nosto,notinline] int signed signed int btype[signed int] signed int linux 
 [Main] Constructing all safe parts for 14 term pairs
 [Main] Making safe parts for pair 1
 [Main] terms that changed: 
@@ -105,16 +105,16 @@ Reading file pair inode.c.orig inode.c.new
 [Main] terms that changed: 
 [Main] abstracted one pair
 [Main] filtering all safe patches.
-[Main] Finding unit patches with minimum support at least: 3
+[Main] Finding unit patches with minimum support at least: 5
 [Main] generating solutions...
-[Main] min sup = 3
+[Main] min sup = 5
 [Main] found 1 solutions
 [Main] solution #1
 {{{
-	stmt[exprstmt[assign[=,(dentry_save:*struct dentry),record_ptr[(nd:*struct nameidata),dentry]]]] ==> stmt[exprstmt[assign[=,(dentry_save:*struct dentry),record_acc[record_ptr[(nd:*struct nameidata),path],dentry]]]]
-	stmt[exprstmt[assign[=,(vfsmount_save:*struct vfsmount),record_ptr[(nd:*struct nameidata),mnt]]]] ==> stmt[exprstmt[assign[=,(vfsmount_save:*struct vfsmount),record_acc[record_ptr[(nd:*struct nameidata),path],mnt]]]]
-	stmt[exprstmt[assign[=,record_ptr[(nd:*struct nameidata),dentry],(lower_dentry:*struct dentry)]]] ==> stmt[exprstmt[assign[=,record_acc[record_ptr[(nd:*struct nameidata),path],dentry],(lower_dentry:*struct dentry)]]]
-	stmt[exprstmt[assign[=,record_ptr[(nd:*struct nameidata),mnt],(lower_mnt:*struct vfsmount)]]] ==> stmt[exprstmt[assign[=,record_acc[record_ptr[(nd:*struct nameidata),path],mnt],(lower_mnt:*struct vfsmount)]]]
-	stmt[exprstmt[assign[=,record_ptr[(nd:*struct nameidata),dentry],(dentry_save:*struct dentry)]]] ==> stmt[exprstmt[assign[=,record_acc[record_ptr[(nd:*struct nameidata),path],dentry],(dentry_save:*struct dentry)]]]
-	stmt[exprstmt[assign[=,record_ptr[(nd:*struct nameidata),mnt],(vfsmount_save:*struct vfsmount)]]] ==> stmt[exprstmt[assign[=,record_acc[record_ptr[(nd:*struct nameidata),path],mnt],(vfsmount_save:*struct vfsmount)]]]
+@@
+*struct nameidata X0;
+identifier X1;
+@@
+- X0->X1
++ X0->path.X1
 }}}
