@@ -2,6 +2,7 @@ open Gtree
 
 
 let do_dmine     = ref true
+let malign       = ref false
 let abs          = ref false
 let spec         = ref false
 let mfile        = ref ""
@@ -53,7 +54,8 @@ let speclist =
       "-nesting_depth", Arg.Set_int nesting_depth,
                                                  "int   allow inference of patterns nested this deep (slow)";
       "-verbose",       Arg.Set verbose,         "bool  print more intermediate results";
-      "-filter_patterns", Arg.Set filter_patterns, "bool  only produce largest patterns" 
+      "-filter_patterns", Arg.Set filter_patterns, "bool  only produce largest patterns";
+      "-malign",        Arg.Set malign,          "bool  use the new subpatch relation definition"
   ]
 
 let v_print s = if !verbose then (print_string s; flush stdout)
@@ -1568,6 +1570,7 @@ let main () =
   Diff.no_exceptions := !exceptions;
   Diff.verbose       := !verbose;
   Diff.nesting_depth := !nesting_depth;
+  Diff.malign_mode   := !malign;
   if !threshold = 0 then do_dmine := false;
   if !mfile = ""
   then raise (Diff.Fail "No specfile given")

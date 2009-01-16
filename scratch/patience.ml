@@ -252,6 +252,7 @@ let correlate_diffs d =
     n @ o
 
 let malign s1 s2 s3 = 
+  let calls = ref 0 in
   let rec get_list e s = match s with
     | [] -> raise (Fail "get_list")
     | e' :: s when e = e' -> s
@@ -261,6 +262,7 @@ let malign s1 s2 s3 =
     | e :: s1 -> try let s' = get_list e s2 in subseq s1 s' with _ -> false
   in
   let rec loop s1 s2 s3 = 
+    calls := !calls + 1;
     match s1, s2, s3 with
       | s1, [], [] -> true (* the rest of s1 was deleted *)
       | [], [], s3 -> true (* the rest of s3 was added *)
@@ -268,33 +270,40 @@ let malign s1 s2 s3 =
       | e1 :: s1', e2 :: s2', e3 :: s3' -> 
           (* movement vectors: *)
           (** 1,1,1 => no change *)
-          (e1 = e2 && e2 = e3 && loop s1' s2' s3') ||
+          let r = loop s1' s2' s3' in
+          (e1 = e2 && e2 = e3 && r) ||
             (** 1,1,0 => either e1,e2 was removed or changed *)
-            (e1 = e2 && (loop s1' s2' s3 || loop s1' s2' s3')) ||
-            (** 1,0,0 => e1 was removed *)
-            (loop s1' s2 s3) ||
+            (e1 = e2 && (loop s1' s2' s3 || r)) ||
             (** 0,1,1 => e2 = e3 is a new elem *)
             (e2 = e3 && loop s1 s2' s3') ||
             (** 0,0,1 => e3 is a new elem *)
-            (loop s1 s2 s3')
+            (loop s1 s2 s3') ||
+            (** 1,0,0 => e1 was removed *)
+            (loop s1' s2 s3) 
       | _, _, _ -> false
   in
-    loop s1 s2 s3
+      not(s2 +> List.exists (fun e2 -> not(
+	  List.mem e2 s1 ||
+	  List.mem e2 s3)))
+       &&
+	let 	r = loop s1 s2 s3 in
+    (print_endline ("calls: " ^ string_of_int !calls);
+     r)
 
 type gterm = 
     | A of string * string
     | C of string * (gterm list)
 
-let part_of gt1 gt2 gt3 =
-  gt1 = gt2 || gt2 = gt3 || match gt1, gt2, gt3 with
-    | C(t1,gts1), C(t2,gts2), C(t3, gts3) when t1 = t2 || t2 = t3 ->
-	malign gts1 gts2 gts3
-    | _ -> false
 
 let rec flatten_tree gt = 
+  let a_of_type t = A("nodetype", t) in
   match gt with 
     | A _ -> [gt]
-    | C(_, gts) -> gt :: List.fold_left (fun acc gt -> flatten_tree gt @ acc) [] gts
+    | C(t, gts) -> a_of_type t :: List.fold_left (fun acc gt -> flatten_tree gt @ acc) [] gts
+
+let part_of gt1 gt2 gt3 =
+  gt1 = gt2 || gt2 = gt3 || 
+  malign (flatten_tree gt1) (flatten_tree gt2) (flatten_tree gt3)
 
 let get_tree_changes gt1 gt2 = 
   let s1 = flatten_tree gt1 in
@@ -302,6 +311,14 @@ let get_tree_changes gt1 gt2 =
     patience_diff s1 s2 +>
       correlate_diffs +>
       List.filter (function u -> match u with UP _ -> true | _ -> false)
+
+let edit_cost gt1 gt2 =
+  patience_diff (flatten_tree gt1) (flatten_tree gt2) +>
+  List.fold_left (fun acc_sum op -> match op with
+    | ID _ -> acc_sum
+    | RM _ | ADD _ -> acc_sum + 1
+    | UP _ -> raise (Fail "UP in edit_cost")
+  ) 0
 
 let f = A("id","f")
 let x = A("id","x")
@@ -316,3 +333,16 @@ let hfg = C("call",[h;fx;g])
 let hf'g = C("call",[h;fx';g])
 let hyzf'g = C("call",[h;y;z;fx';g])
 
+(*
+smoz/1  y/2 int/3 signed/4 void/5 nosto/6 notinline/7 signed int z/8 z int signed f/9 z int signed z int signed
+smoz  y int signed void nosto notinline signed int z +/10 z int signed z int signed f + z int signed z int signed + z int signed z int signed
+biar/11  y int signed void nosto notinline signed int z z int signed f z int signed GFP/12 + z int signed z int signed
+*)
+
+let s1 = [1; 2; 3; 4; 5; 6; 7; 4; 3; 8; 8; 3; 4; 9; 8; 3; 4; 8; 3; 4]
+let s2 = [1; 2; 3; 4; 5; 6; 7; 4; 3; 8; 10; 8; 3; 4; 8; 3; 4; 9; 10; 8; 3; 4; 8;3; 4; 10; 8; 3; 4; 8; 3; 4]
+let s3 = [11; 2; 3; 4; 5; 6; 7; 4; 3; 8; 8; 3; 4; 9; 8; 3; 4; 12; 10; 8; 3; 4; 8; 3; 4]
+
+let ss1 = [9; 8; 3; 4; 8; 3; 4]
+let ss2 = [4; 8; 3; 4; 9; 10; 8; 3; 4; 8; 3; 4; 10; 8; 3; 4; 8; 3; 4]
+let ss3 = [9; 8; 3; 4; 12; 10; 8; 3; 4; 8; 3; 4]

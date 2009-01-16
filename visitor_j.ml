@@ -36,7 +36,7 @@ let rec trans_expr exp =
   | Constant (Int s) -> 
       "exp" @@ "const" @@ "int" %% s
   | Constant (Char (s, _)) ->
-      "exp" @@ "conts" @@ "char" %% s
+      "exp" @@ "const" @@ "char" %% s
   | Constant (Float (s, flT)) ->
       "exp" @@ "const" @@ "float" %% s
   | Constant _ ->

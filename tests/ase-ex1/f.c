@@ -1,6 +1,9 @@
 void biar(int y) {
 	  int z;
-	  z = f(z,GFP);
+		f();
+		bar();
+		lonnie();
+		z = f(z,GFP);
 	  return z+z;
 	}
 

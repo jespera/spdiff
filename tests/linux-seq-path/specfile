@@ -1,9 +1,9 @@
-#md.c.orig md.c.new
+md.c.orig md.c.new
 #namespace.c.orig namespace.c.new
-export.c.orig export.c.new
-#nommu.c.orig nommu.c.new
+#export.c.orig export.c.new
+nommu.c.orig nommu.c.new
 #task_mmu.c.orig task_mmu.c.new
 #seq_file.c.orig seq_file.c.new
 #seq_file.h.orig seq_file.h.new
-#mempolicy.c.orig mempolicy.c.new
-swapfile.c.orig swapfile.c.new
+mempolicy.c.orig mempolicy.c.new
+#swapfile.c.orig swapfile.c.new

@@ -64,45 +64,101 @@ Reading file pair inode.c.orig inode.c.new
 [Main] Constructing all safe parts for 14 term pairs
 [Main] Making safe parts for pair 1
 [Main] terms that changed: 
+[Diff] getting concrete parts
+[Diff] filtering safe parts
+[Diff] number of concrete parts: 16
+[Diff] finding abstract parts
 [Main] abstracted one pair
 [Main] Making safe parts for pair 2
 [Main] terms that changed: 
+[Diff] getting concrete parts
+[Diff] filtering safe parts
+[Diff] number of concrete parts: 89
+[Diff] finding abstract parts
 [Main] abstracted one pair
 [Main] Making safe parts for pair 3
 [Main] terms that changed: 
+[Diff] getting concrete parts
+[Diff] filtering safe parts
+[Diff] number of concrete parts: 40
+[Diff] finding abstract parts
 [Main] abstracted one pair
 [Main] Making safe parts for pair 4
 [Main] terms that changed: 
+[Diff] getting concrete parts
+[Diff] filtering safe parts
+[Diff] number of concrete parts: 30
+[Diff] finding abstract parts
 [Main] abstracted one pair
 [Main] Making safe parts for pair 5
 [Main] terms that changed: 
+[Diff] getting concrete parts
+[Diff] filtering safe parts
+[Diff] number of concrete parts: 26
+[Diff] finding abstract parts
 [Main] abstracted one pair
 [Main] Making safe parts for pair 6
 [Main] terms that changed: 
+[Diff] getting concrete parts
+[Diff] filtering safe parts
+[Diff] number of concrete parts: 1
+[Diff] finding abstract parts
 [Main] abstracted one pair
 [Main] Making safe parts for pair 7
 [Main] terms that changed: 
+[Diff] getting concrete parts
+[Diff] filtering safe parts
+[Diff] number of concrete parts: 1
+[Diff] finding abstract parts
 [Main] abstracted one pair
 [Main] Making safe parts for pair 8
 [Main] terms that changed: 
+[Diff] getting concrete parts
+[Diff] filtering safe parts
+[Diff] number of concrete parts: 105
+[Diff] finding abstract parts
 [Main] abstracted one pair
 [Main] Making safe parts for pair 9
 [Main] terms that changed: 
+[Diff] getting concrete parts
+[Diff] filtering safe parts
+[Diff] number of concrete parts: 19
+[Diff] finding abstract parts
 [Main] abstracted one pair
 [Main] Making safe parts for pair 10
 [Main] terms that changed: 
+[Diff] getting concrete parts
+[Diff] filtering safe parts
+[Diff] number of concrete parts: 82
+[Diff] finding abstract parts
 [Main] abstracted one pair
 [Main] Making safe parts for pair 11
 [Main] terms that changed: 
+[Diff] getting concrete parts
+[Diff] filtering safe parts
+[Diff] number of concrete parts: 54
+[Diff] finding abstract parts
 [Main] abstracted one pair
 [Main] Making safe parts for pair 12
 [Main] terms that changed: 
+[Diff] getting concrete parts
+[Diff] filtering safe parts
+[Diff] number of concrete parts: 12
+[Diff] finding abstract parts
 [Main] abstracted one pair
 [Main] Making safe parts for pair 13
 [Main] terms that changed: 
+[Diff] getting concrete parts
+[Diff] filtering safe parts
+[Diff] number of concrete parts: 1
+[Diff] finding abstract parts
 [Main] abstracted one pair
 [Main] Making safe parts for pair 14
 [Main] terms that changed: 
+[Diff] getting concrete parts
+[Diff] filtering safe parts
+[Diff] number of concrete parts: 89
+[Diff] finding abstract parts
 [Main] abstracted one pair
 [Main] filtering all safe patches.
 [Main] Finding unit patches with minimum support at least: 5
