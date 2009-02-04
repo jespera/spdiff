@@ -467,8 +467,7 @@ let trans_prg2 prg =
   in
   let tops_envs = 
     Type_annoter_c.annotate_program 
-      Type_annoter_c.initial_env
-      true
+      !Type_annoter_c.initial_env
       tops in
   "prg2" @@@
   List.map (function (top, (tenvb, tenv)) -> 

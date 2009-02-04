@@ -1,8 +1,0 @@
-#bttv-driver.c.orig bttv-driver.c.new
-#bttv-vbi.c.orig bttv-vbi.c.new
-saa7134-empress.c.orig saa7134-empress.c.new
-#saa7134-video.c.orig saa7134-video.c.new
-videobuf-core.c.orig videobuf-core.c.new
-videobuf-dma-sg.c.orig videobuf-dma-sg.c.new
-videobuf-vmalloc.c.orig videobuf-vmalloc.c.new
-#videobuf-core.h.orig videobuf-core.h.new

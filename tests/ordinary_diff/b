@@ -1,3 +1,0 @@
-#include <foo>
-#include <bar>
-f(a,42);

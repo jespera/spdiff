@@ -1,6 +1,0 @@
-void maim () {
-	/*if (mem(x,y->data,z->w))*/
-		/*h(117);*/
-	mem(card->tx_dma_handle_host,
-				       skb->data, skb->len);
-}

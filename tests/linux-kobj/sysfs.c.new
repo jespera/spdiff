@@ -31,7 +31,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: sysfs.c 1349 2004-12-16 21:09:43Z roland $
+ * $Id: sysfs.c.new,v 1.1 2009/01/16 14:52:30 jespera Exp $
  */
 
 #include "core_priv.h"

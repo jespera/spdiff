@@ -1,4 +1,4 @@
-void biar(int y) {
+void smoz(int y) {
 	  int z;
 		f();
 		bar();
