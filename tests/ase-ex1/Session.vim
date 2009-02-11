@@ -27,7 +27,7 @@ set termencoding=utf-8
 set textwidth=79
 set whichwrap=<,>,h,l
 set wildmenu
-set window=41
+set window=34
 let s:so_save = &so | let s:siso_save = &siso | set so=0 siso=0
 let v:this_session=expand("<sfile>:p")
 silent only
@@ -36,12 +36,12 @@ if expand('%') == '' && !&modified && line('$') <= 1 && getline(1) == ''
   let s:wipebuf = bufnr('%')
 endif
 set shortmess=aoO
-badd +1 a.c
-badd +0 b.c
-badd +0 c.c
-badd +0 d.c
+badd +4 a.c
+badd +1 b.c
+badd +1 c.c
+badd +1 d.c
 badd +3 e.c
-badd +0 f.c
+badd +1 f.c
 args a.c b.c c.c d.c e.c f.c
 edit a.c
 set splitbelow splitright
@@ -68,18 +68,18 @@ set nosplitbelow
 set nosplitright
 wincmd t
 set winheight=1 winwidth=1
-exe '1resize ' . ((&lines * 13 + 21) / 42)
-exe 'vert 1resize ' . ((&columns * 74 + 74) / 148)
-exe '2resize ' . ((&lines * 13 + 21) / 42)
-exe 'vert 2resize ' . ((&columns * 73 + 74) / 148)
-exe '3resize ' . ((&lines * 12 + 21) / 42)
-exe 'vert 3resize ' . ((&columns * 74 + 74) / 148)
-exe '4resize ' . ((&lines * 12 + 21) / 42)
-exe 'vert 4resize ' . ((&columns * 73 + 74) / 148)
-exe '5resize ' . ((&lines * 12 + 21) / 42)
-exe 'vert 5resize ' . ((&columns * 74 + 74) / 148)
-exe '6resize ' . ((&lines * 12 + 21) / 42)
-exe 'vert 6resize ' . ((&columns * 73 + 74) / 148)
+exe '1resize ' . ((&lines * 10 + 17) / 35)
+exe 'vert 1resize ' . ((&columns * 63 + 63) / 126)
+exe '2resize ' . ((&lines * 10 + 17) / 35)
+exe 'vert 2resize ' . ((&columns * 62 + 63) / 126)
+exe '3resize ' . ((&lines * 10 + 17) / 35)
+exe 'vert 3resize ' . ((&columns * 63 + 63) / 126)
+exe '4resize ' . ((&lines * 10 + 17) / 35)
+exe 'vert 4resize ' . ((&columns * 62 + 63) / 126)
+exe '5resize ' . ((&lines * 10 + 17) / 35)
+exe 'vert 5resize ' . ((&columns * 63 + 63) / 126)
+exe '6resize ' . ((&lines * 10 + 17) / 35)
+exe 'vert 6resize ' . ((&columns * 62 + 63) / 126)
 argglobal
 setlocal keymap=
 setlocal noarabic
@@ -177,7 +177,7 @@ set nowrap
 setlocal nowrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 6) / 13)
+let s:l = 1 - ((0 * winheight(0) + 5) / 10)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -282,7 +282,7 @@ set nowrap
 setlocal nowrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 6) / 13)
+let s:l = 1 - ((0 * winheight(0) + 5) / 10)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -387,12 +387,12 @@ set nowrap
 setlocal nowrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 3 - ((2 * winheight(0) + 6) / 12)
+let s:l = 1 - ((0 * winheight(0) + 5) / 10)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-3
-normal! 0
+1
+normal! 01l
 wincmd w
 argglobal
 edit d.c
@@ -439,7 +439,7 @@ setlocal formatexpr=
 setlocal formatoptions=croql
 setlocal formatlistpat=^\\s*\\d\\+[\\]:.)}\\t\ ]\\s*
 setlocal grepprg=
-setlocal iminsert=2
+setlocal iminsert=0
 setlocal imsearch=2
 setlocal include=
 setlocal includeexpr=
@@ -492,11 +492,11 @@ set nowrap
 setlocal nowrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 6) / 12)
+let s:l = 6 - ((5 * winheight(0) + 5) / 10)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
-1
+6
 normal! 0
 wincmd w
 argglobal
@@ -597,7 +597,7 @@ set nowrap
 setlocal nowrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 7 - ((6 * winheight(0) + 6) / 12)
+let s:l = 7 - ((5 * winheight(0) + 5) / 10)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
@@ -702,26 +702,26 @@ set nowrap
 setlocal nowrap
 setlocal wrapmargin=0
 silent! normal! zE
-let s:l = 1 - ((0 * winheight(0) + 6) / 12)
+let s:l = 1 - ((0 * winheight(0) + 5) / 10)
 if s:l < 1 | let s:l = 1 | endif
 exe s:l
 normal! zt
 1
 normal! 0
 wincmd w
-5wincmd w
-exe '1resize ' . ((&lines * 13 + 21) / 42)
-exe 'vert 1resize ' . ((&columns * 74 + 74) / 148)
-exe '2resize ' . ((&lines * 13 + 21) / 42)
-exe 'vert 2resize ' . ((&columns * 73 + 74) / 148)
-exe '3resize ' . ((&lines * 12 + 21) / 42)
-exe 'vert 3resize ' . ((&columns * 74 + 74) / 148)
-exe '4resize ' . ((&lines * 12 + 21) / 42)
-exe 'vert 4resize ' . ((&columns * 73 + 74) / 148)
-exe '5resize ' . ((&lines * 12 + 21) / 42)
-exe 'vert 5resize ' . ((&columns * 74 + 74) / 148)
-exe '6resize ' . ((&lines * 12 + 21) / 42)
-exe 'vert 6resize ' . ((&columns * 73 + 74) / 148)
+2wincmd w
+exe '1resize ' . ((&lines * 10 + 17) / 35)
+exe 'vert 1resize ' . ((&columns * 63 + 63) / 126)
+exe '2resize ' . ((&lines * 10 + 17) / 35)
+exe 'vert 2resize ' . ((&columns * 62 + 63) / 126)
+exe '3resize ' . ((&lines * 10 + 17) / 35)
+exe 'vert 3resize ' . ((&columns * 63 + 63) / 126)
+exe '4resize ' . ((&lines * 10 + 17) / 35)
+exe 'vert 4resize ' . ((&columns * 62 + 63) / 126)
+exe '5resize ' . ((&lines * 10 + 17) / 35)
+exe 'vert 5resize ' . ((&columns * 63 + 63) / 126)
+exe '6resize ' . ((&lines * 10 + 17) / 35)
+exe 'vert 6resize ' . ((&columns * 62 + 63) / 126)
 tabnext 1
 if exists('s:wipebuf')
   silent exe 'bwipe ' . s:wipebuf

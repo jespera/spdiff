@@ -164,13 +164,26 @@ Reading file pair inode.c.orig inode.c.new
 [Main] Finding unit patches with minimum support at least: 5
 [Main] generating solutions...
 [Main] min sup = 5
-[Main] found 1 solutions
+[Main] found 2 solutions
 [Main] solution #1
 {{{
 @@
-*struct nameidata X0;
-identifier X1;
+X0;
 @@
-- X0->X1
-+ X0->path.X1
+- nd->mnt=X0;
++ nd->path.mnt=X0;
+@@
+X0;
+@@
+- nd->dentry=X0;
++ nd->path.dentry=X0;
+}}}
+[Main] solution #2
+{{{
+@@
+identifier X1;
+expression X0;
+@@
+- X0(nd->X1)
++ X0(nd->path.X1)
 }}}

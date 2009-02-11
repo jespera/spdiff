@@ -105,12 +105,14 @@ let rec trans_expr exp =
       let comp' = stmt_elems_of_sequencable comp in
       "exp" @@ "stmtexp" @@@ List.map trans_statement comp'
   | Constructor (ft, initw2) -> "exp" %% "constr"
+
 and trans_binary e1 bop e2 = 
   let gt_e1 = trans_expr e1 in
   let gt_e2 = trans_expr e2 in
   match bop with
   | Arith aop   -> "binary_arith" @@@ [trans_aop aop; gt_e1; gt_e2]
   | Logical lop -> "binary_logi" @@@ [trans_lop lop; gt_e1; gt_e2]
+
 and trans_unary uop =
   match uop with
   | GetRef      -> "&ref"
@@ -120,10 +122,12 @@ and trans_unary uop =
   | Tilde       -> "~"
   | Not         -> "!"
   | GetRefLabel -> "&&"
+
 and trans_fop fop =
   match fop with 
   | Dec -> "--"
   | Inc -> "++"
+
 and trans_aop aop =
   match aop with
   | Plus    -> "aop" %% "+"
@@ -136,6 +140,7 @@ and trans_aop aop =
   | And     -> "aop" %% "&"
   | Or      -> "aop" %% "|"
   | Xor     -> "aop" %% "^"
+
 and trans_lop lop =
   "logiop" %%
   match lop with
@@ -147,6 +152,7 @@ and trans_lop lop =
   | NotEq  -> "!="
   | AndLog -> "&&"
   | OrLog  -> "||"
+
 and trans_assi op =
   match op with
   | SimpleAssign -> "="
@@ -159,6 +165,7 @@ and trans_assi op =
   | OpAssign Or  -> "|="
   | OpAssign Xor -> "x="
   | _ -> "?=?"
+
 and trans_assi_old op = (*{{{*)
   match op with
   | SimpleAssign -> mkA("simple_assi", "=")
@@ -171,10 +178,12 @@ and trans_assi_old op = (*{{{*)
   | OpAssign Or  -> mkA("op_assi", "|=")
   | OpAssign Xor -> mkA("op_assi", "x=")
   | _ -> mkA("op_assi", "N/H")(*}}}*)
+
 and trans_arg arg = match arg with
   | Common.Left e -> trans_expr e
   | Common.Right (ArgType p) -> mkA("argtype", "N/H")
   | Common.Right (ArgAction amac) -> mkA("argact", "N/H")
+
 and trans_statement (sta : statement) = 
   let unwrap_st, ii = sta in
   match unwrap_st with
@@ -203,6 +212,7 @@ and trans_statement (sta : statement) =
   | Decl de -> "stmt" @@ trans_decl de
   | Labeled lab -> "stmt" @@ trans_labeled lab
   | _ -> mkA ("statem", "N/H")
+
 and trans_labeled lab = match lab with
 | Label (s, stat) -> "labeled" @@@ ["lname" %% s; trans_statement stat]
 | Case (e, stat) -> "case" @@@ [trans_expr e; trans_statement stat]
@@ -210,6 +220,7 @@ and trans_labeled lab = match lab with
     trans_expr e1; trans_expr e2;
     trans_statement st]
 | Default stat -> "default" @@ trans_statement stat
+
 and trans_iter i = 
   match i with
   | While (e, s) -> "while" @@@ [
@@ -233,6 +244,7 @@ and trans_iter i =
         trans_statement st
       ]
       (*raise (Fail "macroiterator not yet supported")*)
+
 and trans_select s = 
   match s with
   | If(e, st1, st2) -> "if" @@@ [
@@ -247,6 +259,7 @@ and trans_select s =
       "ifdef1" @@@ List.map trans_statement ss1;
       "ifdef2" @@@ List.map trans_statement ss2]
  *)
+
 and trans_jump j =
   match j with
   | Goto s -> "goto" %% s
@@ -255,14 +268,17 @@ and trans_jump j =
   | Return -> "jump" %% "return"
   | ReturnExpr e -> "return" @@ trans_expr e
   | GotoComputed e -> "goto" @@ trans_expr e
+
 and trans_type (tqual, typec) =
   let gt_qual = trans_qual tqual in
   let gt_typc = [trans_typec typec] in
   "fulltype" @@@ (gt_qual @ gt_typc)
+
 and trans_qual tq =
   let gt_const = if (unwrap tq).const then ["tqual" %% "const"] else [] in
   let gt_vola  = if (unwrap tq).volatile then ["tqual" %% "vola"] else [] in
   gt_const @ gt_vola
+
 and trans_typec tc =
   match unwrap tc with
   | BaseType bt -> trans_basetype bt
@@ -297,8 +313,10 @@ and trans_typec tc =
   | ParenType ft -> trans_type ft
   | TypeOfExpr ex -> "typeOfExp" @@ trans_expr ex
   | TypeOfType ft -> "typeOfType" @@ trans_type ft
+
 and trans_struct_type st = "fields" @@@
   List.map trans_field_type st
+
 and trans_field_type f = match unwrap f with
   | DeclarationField (FieldDeclList (fkinds, _)) -> "fdecls" @@@ List.map (function fkwrap -> 
       (match unwrap (unwrap fkwrap) with
@@ -318,27 +336,33 @@ and trans_field_type f = match unwrap f with
       ) fkinds
   | EmptyField -> "field" %% "empty"
   | _ -> "field_type" %% "N/A"
+
 and string_of_structunion su = match su with
 | Struct -> "struct"
 | Union  -> "union"
+
 and trans_enumtype_list enT = 
   let en_gts = List.map trans_enum_type enT in
   "enumTypes" @@@ en_gts
+
 and trans_enum_type (((enum_val, cExpOpt), _), _) =
   let enum_val_name = "enum_val" %% enum_val in
   let enum_val_val  = (match cExpOpt with
     | None -> "enum_const" %% "unset"
     | Some e -> "enum_exp" @@ trans_expr e) in
   "enum_entry" @@@ [enum_val_name; enum_val_val]
+
 and trans_basetype bt =
   match bt with
   | Void -> mkA("btype","void")
   | IntType it -> "btype" @@ trans_inttype it
   | FloatType ft -> "btype" @@ trans_floattype ft
+
 and trans_inttype it = 
   match it with
   | CChar -> "itype" %% "char"
   | Si si -> "itype" @@@ trans_signed si
+
 and trans_signed (s, b) =
   let gt_sign = match s with 
   | Signed -> "signed"
@@ -353,18 +377,21 @@ and trans_signed (s, b) =
   let gt1 = mkA("sgn", gt_sign) in
   let gt2 = mkA("base", gt_base) in
   [gt1; gt2]
+
 and trans_floattype ft = 
   let gt_ft = match ft with
   | CFloat -> "float"
   | CDouble -> "double"
   | CLongDouble -> "long double" in
   "ftype" %% gt_ft
+
 and trans_decl decl = match decl with
 | DeclList (odecls,_) -> "dlist" @@@ 
   List.map trans_odecl odecls
 | MacroDecl ((s, args), _) ->
     "mdecl" @@ s @@@ List.map (function a -> trans_arg (unwrap a)) args
 (*and trans_odecl ((fopt, ftype, stor, _), _) = match fopt with *)
+
 and trans_odecl ({v_namei = fopt; v_type = ftype; v_storage = stor}, _) = match fopt with
   | None -> "onedecl" %% "()"
       (*raise (Fail "decl_spec with no init_decl")*)
@@ -376,6 +403,7 @@ and trans_odecl ({v_namei = fopt; v_type = ftype; v_storage = stor}, _) = match 
       | None -> "onedecl" @@@ [gt_var;gt_ft;gt_sto]
       | Some ini -> "onedecl_ini" @@@ 
         [gt_var; trans_ini ini; gt_ft; gt_sto]
+
 and trans_storage (sto, inl) =
   let inl_gt = "inline" %% if inl then "inline" else "notinline" in
   let sto_gt = "stobis" %% match sto with
@@ -387,6 +415,7 @@ and trans_storage (sto, inl) =
       | Register -> "register"
       | Extern -> "extern") in
   "storage" @@@ [sto_gt;inl_gt]
+
 and trans_ini (ini, _) = match ini with
 | InitExpr e -> "ini" @@ trans_expr e
 | InitList ilist -> "iniList" @@@ List.map 
@@ -406,6 +435,7 @@ and trans_ini (ini, _) = match ini with
           "drange" @@@ [trans_expr from; trans_expr tgt])
     ) deslist))
 (* and trans_def def =  *)
+
 and trans_def ({
   f_name = name;
   f_type = ty;
@@ -418,10 +448,12 @@ and trans_def ({
   let gt_body  = "stmt" @@ "comp{}" @@@ gt_comp in
   let gt_name  = "fname" %% name in
   mkC("def", [gt_name; gt_funty; gt_body])(*}}}*)
+
 and trans_funtype (rettype, (params, hasdots)) =
   let gt_ret = trans_type rettype in
   let par_types = List.map trans_param params in
   "funtype" @@@ (gt_ret :: par_types)
+
 and trans_param p = 
   match unwrap (unwrap p) with
   | (reg, name, ft) ->
@@ -429,12 +461,15 @@ and trans_param p =
       let name = mkA("name", match name with Some n -> n | _ -> "") in
       let ft = trans_type ft in
       mkC("param",[reg;name;ft])
+
 and trans_define def = mkA("define", "N/H")
+
 and trans_ccp cpp_dir =
   match cpp_dir with
     | Include inc -> trans_include inc
     | Define def -> trans_define def
     | _ -> "cpp_dir" %% "N/A"
+
 and trans_top top = 
   match top with
   | Definition def -> trans_def def
@@ -449,15 +484,18 @@ and trans_top top =
   | FinalDef _ -> mkA("fdef", "N/H")
   | _ -> mkA("top", "N/H")
 (* and trans_include (inc_f, inc_pos) = *)
+
 and trans_include { i_include = inc_f} =
   let ie s = mkA("inc_elem", s) in
   match unwrap inc_f with
   | Local ies -> mkC("includeL", List.map ie ies)
   | NonLocal ies -> mkC("includeN", List.map ie ies)
   | Wierd s -> mkC("include", [mkA("winc", s)])
+
 let trans_prg prg = 
   let tops = List.map trans_top prg in
   C ("prg", tops)
+
 let trans_prg2 prg = 
   let tops = 
     (List.map (fun (a, _) -> a)

@@ -181,7 +181,8 @@ let rec string_of_gtree str_of_t str_of_c gt =
   and loop gt =
     match view gt with
       | A ("meta", c) -> string_of_meta gt
-	  (*      | A ("itype", _) -> string_of_itype gt *)
+	  (*      | A ("itype", _) -> string_of_itype gt 
+      | A (t,c) -> t ^ ":" ^ c *)
       | A (t,c) -> c
       | C ("fulltype", ti) -> string_of_ftype ti
       | C ("const", [{node=A(_, c)}]) -> c
@@ -381,19 +382,19 @@ let lcs_shared size_f src tgt =
     m
 
 let rec shared_gtree t1 t2 =
-        let localeq a b = if a = b then 1 else 0 in
-        let rec comp l1 l2 =
-                match l1, l2 with
-                | [], _ | _, [] -> 0
-                (* below: only do shallow comparison *)
-                (*| x :: xs, y :: ys -> localeq x y + comp xs ys in*)
-                | x :: xs, y :: ys -> shared_gtree x y + comp xs ys in
-        match view t1, view t2 with
-        | A (ct1, at1), A (ct2, at2) -> 
-                        localeq ct1 ct2 + localeq at1 at2
-        | C(ct1, ts1), C(ct2, ts2) ->
-                        localeq ct1 ct2 + comp ts1 ts2
-        | _, _ -> 0
+  let localeq a b = if a = b then 1 else 0 in
+  let rec comp l1 l2 =
+    match l1, l2 with
+      | [], _ | _, [] -> 0
+          (* below: only do shallow comparison *)
+          (*| x :: xs, y :: ys -> localeq x y + comp xs ys in*)
+      | x :: xs, y :: ys -> shared_gtree x y + comp xs ys in
+    match view t1, view t2 with
+      | A (ct1, at1), A (ct2, at2) -> 
+          localeq ct1 ct2 + localeq at1 at2
+      | C(ct1, ts1), C(ct2, ts2) ->
+          localeq ct1 ct2 + comp ts1 ts2
+      | _, _ -> 0
 
 let rec get_diff_nonshared src tgt =
   match src, tgt with
@@ -414,7 +415,7 @@ let rec get_diff_nonshared src tgt =
 	  then 
 	    loop i (j - 1) @ [ADD (List.nth tgt (j - 1))]
 	  else if 
-              i > 0 && (j = 0 || m.(i).(j - 1) < m.(i - 1).(j))
+            i > 0 && (j = 0 || m.(i).(j - 1) < m.(i - 1).(j))
 	  then 
 	    loop (i - 1) j @ [RM (List.nth src (i - 1))]
 	  else (assert(i=j && j=0) ;
@@ -455,6 +456,28 @@ let rec get_diff src tgt =
 	    else (assert(i=j && j=0) ;
 		  []) (* here we should have that i = j = 0*)
 	in loop slen  tlen
+
+(* normalize diff rearranges a diff so that there are no consequtive
+ * removals/additions if possible.
+ *)
+let normalize_diff diff =
+        let rec get_next_add prefix diff = 
+                match diff with
+                | [] -> None, prefix
+                | ADD t :: diff -> Some (ADD t), prefix @ diff
+                | t :: diff -> get_next_add (prefix @ [t]) diff
+        in 
+        let rec loop diff =
+                match diff with
+                | [] -> []
+                | RM t :: diff' -> 
+                                let add, tail = get_next_add [] diff' in
+                                (match add with
+                                | None -> RM t :: loop tail
+                                | Some add -> RM t :: add :: loop tail)
+                | UP(t,t') :: diff -> RM t :: ADD t' :: loop diff
+                | i :: diff' -> i :: loop diff' in 
+        loop diff
 
 (* correlate_diff tries to take sequences of -+ and put them in either
    UP(-,+) or ID. Notice, that permutations of arguments is not
@@ -618,6 +641,8 @@ end
 
 module PT = Hashtbl.Make(PatternTerm)
 
+
+
 let occursht = PT.create 591
 
 let find_match pat t =
@@ -641,11 +666,21 @@ let find_match pat t =
 	(PT.replace occursht (pat,t) res; 
 	 res)
 
+let is_header head_str = 
+  head_str.[0] = 'h' &&
+  head_str.[1] = 'e' &&
+  head_str.[2] = 'a' &&
+  head_str.[3] = 'd'
+
 let non_phony p = match view p with
   | A("phony", _) 
-  | C("phony", _) 
+  | C("phony", _)
   | A(_, "N/H") 
   | A(_, "N/A") -> false
+(*
+  | A(head,_)
+  | C(head,_) -> not(is_header head)
+*)
   | _ -> true
 
 let find_nested_matches pat t =
@@ -778,14 +813,23 @@ let rec patience_diff ls1 ls2 =
     in merge_slice lcs diff_slices
 
 let a_of_type t = mkA("nodetype", t)
-
+let begin_c t = mkA("begin",t)
+let end_c t = mkA("end",t)
+    
 let rec flatten_tree gt = 
     match view gt with 
       | A _ -> [gt]
 	  (*| C(t, gts) -> List.fold_left (fun acc gt -> List.rev_append (flatten_tree gt) acc) [] gts*)
+(*
       | C(t, gts) -> a_of_type t :: List.fold_left 
 				     (fun acc gt -> List.rev_append (flatten_tree gt) acc) 
 				     [] (List.rev gts)
+*)
+      | C(t, gts) -> 
+	  begin_c t ::
+	  List.fold_left
+	    (fun acc gt -> List.rev_append (flatten_tree gt) acc) 
+	    [end_c t] (List.rev gts)
 
 let rec linearize_tree gt =
   let rec loop acc gt = 
@@ -830,7 +874,7 @@ let get_tree_changes gt1 gt2 =
   let get_ups (UP(gt1,gt2) as up) = 
     if gt1 = gt2 then []
     else match view gt1, view gt2 with
-      | C(_, gts1), C(_, gts2) ->
+      | C(t1, gts1), C(t2, gts2) when t1 = t2 ->
           (patience_diff gts1 gts2 +>
 	      correlate_diffs +>
 	      List.filter is_up)
@@ -849,36 +893,126 @@ let get_tree_changes gt1 gt2 =
 
 let editht = PT.create 1000001
 
+
+type 'a label = V of 'a | L
+
+let get_tree_label t = match view t with
+  | A (c,l) -> c^l
+  | C(l,_) -> l
+
+let label_dist l1 l2 = match l1, l2 with
+  | L, L -> 0
+  | L, _ | _, L -> 1
+  | V t1, V t2 -> 
+      if get_tree_label t1 = get_tree_label t2
+      then 0
+    else 1
+
+
+let min3 a b c = min a (min b c) 
+
+  (*
+  if b < c 
+  then if a < b
+  then (print_endline "a"; a)
+  else (print_endline "b"; b)
+  else if a < c 
+  then (print_endline "a"; a)
+  else (print_endline "c"; c)
+*)
+
+exception Rm_leftmost
+
+let rm_leftmost f1 =
+        match f1 with
+        | [] -> raise Rm_leftmost
+        | t :: f -> (match view t with
+          | A _ -> t, f
+          | C(_, ts) -> t, ts @ f)
+
+exception Rm_leftmost_tree
+
+let rm_leftmost_tree f1 = match f1 with
+  | [] -> raise Rm_leftmost_tree
+  | _ :: f -> f
+
+let get_head_forest f = match f with
+  | [] -> raise (Fail "empty forest in get_head_forest")
+  | t :: _ -> (match view t with
+    | A _ -> []
+    | C(_,ts) -> ts)
+
+let get_leftmost f = match f with
+  | [] -> raise (Fail "no leftmost")
+  | t :: _ -> t
+
+let rec forest_dist f1 f2 =
+  match f1, f2 with
+    | [], [] -> 0
+    |  _, [] -> let v, f1' = rm_leftmost f1 in
+         forest_dist f1' f2 + 
+           label_dist (V v) L
+    | [],  _ -> let w, f2' = rm_leftmost f2 in
+        forest_dist f1 f2' +
+          label_dist L (V w)
+    |  _,  _ -> 
+	 let v, f1mv = rm_leftmost f1 in
+	 let w, f2mw = rm_leftmost f2 in
+	   min3 
+             (
+	       forest_dist f1mv f2 + label_dist (V v) L
+             )
+             (
+	       forest_dist f1 f2mw + label_dist L (V w)
+             )
+             (let f1v  = get_head_forest f1 in
+              let f2w  = get_head_forest f2 in
+              let f1mv = rm_leftmost_tree f1 in
+              let f2mw = rm_leftmost_tree f2 in
+		forest_dist f1v f2w +
+		  forest_dist f1mv f2mw +
+		  label_dist (V v) (V w)
+             )
+
+
+let minimal_tree_dist t1 t2 = forest_dist [t1] [t2]
+
 let edit_cost gt1 gt2 =
+  let rec node_size gt = match view gt with
+    | A _ -> 1
+    | C (_, ts) -> ts +> List.fold_left (fun sum t -> sum + node_size t) 1 in
   let up_cost up = match up with
     | ID _ -> 0
-    | RM _ | ADD _ -> 1
-    | UP (t1,t2) when t1 = t2 -> 0
-    | UP _ -> 1
+    | RM t | ADD t -> node_size t
+    | UP (t1,t2) when t1  = t2 -> 0
+    | UP (t,t') -> 1 (* node_size t + node_size t' *)
   in
   let get_cost gt1 g2 =
+    (* patience_diff (flatten_tree gt1) (flatten_tree gt2) +> *)
     patience_diff (flatten_tree gt1) (flatten_tree gt2) +>
       List.fold_left (fun acc_sum up -> up_cost up + acc_sum) 0 in
   let rec get_cost_tree gt1 gt2 = 
-    if gt1 == gt2 then 0
+    if gt1 = gt2 then 0
     else 
       match view gt1, view gt2 with
 	| C(t1,gts1), C(t2,gts2) -> 
 	    (if t1 = t2 then 0 else 1) + (
-	   (* patience_diff gts1 gts2 +> *)
-	    get_diff gts1 gts2 +>
-	    List.rev +>
+	      patience_diff gts1 gts2 +>
+		(* get_diff gts1 gts2 +> *)
 		List.fold_left (fun acc_sum up -> match up with
-		  | UP(t1,t2) -> get_cost_tree t1 t2 + acc_sum
-		  | _ -> up_cost up + acc_sum) 0)
-	| _ -> 1
+				  | UP(t1,t2) -> get_cost_tree t1 t2 + acc_sum
+				  | _ -> up_cost up + acc_sum) 0)
+	| _ -> 1 
+	    (*	| _ -> up_cost (UP(gt1,gt2)) *)
   in
     try
       let res = PT.find editht (gt1,gt2) in
 	res
     with Not_found ->
-      let res = get_cost_tree gt1 gt2
-      (* let res = get_cost gt1 gt2 *)
+      let 
+	(* res = minimal_tree_dist gt1 gt2 *)
+	res = get_cost_tree gt1 gt2 
+	(* res = get_cost gt1 gt2 *)
       in
 	(
 	  PT.replace editht (gt1,gt2) res;
@@ -1356,8 +1490,8 @@ and part_of_edit_dist gt1 gt2 gt3 =
     string_of_gtree' gt1 +> print_endline;    
     string_of_gtree' gt2 +> print_endline; 
     string_of_gtree' gt3 +> print_endline;
-    ("12 " ^ string_of_int dist12 ^ " 23 " ^ string_of_int dist23 ^ 
-    " 13 " ^ string_of_int dist13) +> print_endline;
+    ("12: " ^ string_of_int dist12 ^ " 23: " ^ string_of_int dist23 ^ 
+    " 13: " ^ string_of_int dist13) +> print_endline;
     (* false *)
     raise (Fail "<")
    )    
@@ -1587,19 +1721,19 @@ let i2s i = string_of_int i
 let translate_node (n2, ninfo) = match n2 with
   | Control_flow_c.TopNode -> mkA("phony","TopNode")
   | Control_flow_c.EndNode -> mkA("phony","EndNode")
-  | Control_flow_c.FunHeader def -> mkC("phony", [Visitor_j.trans_def def])
+  | Control_flow_c.FunHeader def -> mkC("head:def", [Visitor_j.trans_def def])
   | Control_flow_c.Decl decl -> Visitor_j.trans_decl decl
-  | Control_flow_c.SeqStart (s,i,info) -> mkA("phony", "{" ^ i2s i)
-  | Control_flow_c.SeqEnd (i, info) -> mkA("phony", "}" ^ i2s i)
+  | Control_flow_c.SeqStart (s,i,info) -> mkA("head:seqstart", "{" ^ i2s i)
+  | Control_flow_c.SeqEnd (i, info) -> mkA("head:seqend", "}" ^ i2s i)
   | Control_flow_c.ExprStatement (st, (eopt, info)) -> Visitor_j.trans_statement st
-  | Control_flow_c.IfHeader (st, (cond,info)) -> mkC("ifhead", [Visitor_j.trans_expr cond])
+  | Control_flow_c.IfHeader (st, (cond,info)) -> mkC("head:if", [Visitor_j.trans_expr cond])
   | Control_flow_c.Else info -> mkA("phony", "Else")
-  | Control_flow_c.WhileHeader (st, (cond, info)) -> mkC("whilehead", [Visitor_j.trans_expr cond])
-  | Control_flow_c.DoHeader (st, info) -> mkA("dohead", "do")
-  | Control_flow_c.DoWhileTail (expr, info) -> mkC("dotail", [Visitor_j.trans_expr expr])
+  | Control_flow_c.WhileHeader (st, (cond, info)) -> mkC("head:while", [Visitor_j.trans_expr cond])
+  | Control_flow_c.DoHeader (st, info) -> mkA("head:do", "do")
+  | Control_flow_c.DoWhileTail (expr, info) -> mkC("head:dotail", [Visitor_j.trans_expr expr])
   | Control_flow_c.ForHeader (st, (((e1opt, _), 
                                    (e2opt, _),
-                                   (e3opt, _)),info)) -> mkC("forheader",
+                                   (e3opt, _)),info)) -> mkC("head:for",
 							     let handle_empty x = match x with
 							       | None -> mkA("expr", "empty")
 							       | Some e -> Visitor_j.trans_expr e in
@@ -1608,7 +1742,7 @@ let translate_node (n2, ninfo) = match n2 with
 								 handle_empty e2opt;
 								 handle_empty e3opt;
 							       ]) 
-  | Control_flow_c.SwitchHeader (st, (expr, info)) -> mkC("switchhead", [Visitor_j.trans_expr expr])
+  | Control_flow_c.SwitchHeader (st, (expr, info)) -> mkC("head:switch", [Visitor_j.trans_expr expr])
   | Control_flow_c.MacroIterHeader (st, 
                                    ((mname, aw2s), info)) ->
       mkC(mname, List.map (fun (a,i) -> Visitor_j.trans_arg a) aw2s)
@@ -1665,7 +1799,7 @@ let translate_node (n2, ninfo) = match n2 with
   (* flow_to_ast: In this case, I need to know the  order between the children
    * of the switch in the graph. 
    *)
-  | Control_flow_c.CaseNode i -> mkA("phony", "[case" ^ i2s i ^"]")
+  | Control_flow_c.CaseNode i -> mkA("head:case", "[case" ^ i2s i ^"]")
 
   (* ------------------------ *)
   (* for ctl:  *)
@@ -1725,20 +1859,19 @@ let read_ast_cfg file =
     Parse_c.parse_print_error_heuristic file in
     (*  let flows = List.map (function (c,info) -> Ast_to_flow2.ast_to_control_flow c) pgm2 in *)
     (* ast_to_control_flow is given a toplevel entry and turns that into a flow *)
-  let flows = List.map (function (c,info) -> Ast_to_flow2.ast_to_control_flow c) pgm2 in
+  let flows = pgm2 +> List.map (function (c,info) -> Ast_to_flow2.ast_to_control_flow c)  in
   let  gflows = ref [] in
-    List.iter (do_option (fun f -> 
-      gflows := (flow_to_gflow f) 
-      :: !gflows)) flows;
+    flows +> List.iter (do_option (fun f -> 
+				     gflows := (flow_to_gflow f) :: !gflows));
     (* among the gflows constructed filter out those that are not flows for a
      * function definition
      *)
     (pgm2, !gflows +> List.filter (function gf -> 
-      gf#nodes#tolist +> List.exists (
-        function (i,n) -> match view n with
-          | C("phony",[{node=C("def",_)}]) -> true
-          | _ -> false)
-    ))
+				     gf#nodes#tolist +> List.exists (
+				       function (i,n) -> match view n with
+					 | C("head:def",[{node=C("def",_)}]) -> true
+					 | _ -> false)
+				  ))
 
 type environment = (string * gtree) list
 type res = {last : gtree option; skip : int list ; env : environment}
@@ -2012,8 +2145,6 @@ let cont_match_traces  g cp n =
     matcher init_vp n 
 
       
-
-
 let get_traces g sp n =
   traces_ref := [];
   if 
@@ -2824,10 +2955,10 @@ let verbose = ref false
 
 let get_fun_name_gflow f =
   let head_node = f#nodes#tolist +> List.find (function (i,n) -> match view n with
-    | C("phony", [{node=C("def",_)}]) -> true
+    | C("head:def", [{node=C("def",_)}]) -> true
     | _ -> false) in
     match view (snd head_node) with
-      | C("phony",[{node=C("def",name::_)}]) -> (match view name with
+      | C("head:def",[{node=C("def",name::_)}]) -> (match view name with
           | A("fname",name_str) -> name_str
 	  | _ -> raise (Fail "impossible match get_fun_name_gflow")
 	)
@@ -2857,27 +2988,6 @@ let seq_of_flow f =
     (* !seq +> List.filter (function (i, t) -> non_phony t) +> List.rev *)
     !seq +> List.rev
 
-(* normalize diff rearranges a diff so that there are no consequtive
- * removals/additions if possible.
- *)
-let normalize_diff diff =
-        let rec get_next_add prefix diff = 
-                match diff with
-                | [] -> None, prefix
-                | ADD t :: diff -> Some (ADD t), prefix @ diff
-                | t :: diff -> get_next_add (prefix @ [t]) diff
-        in 
-        let rec loop diff =
-                match diff with
-                | [] -> []
-                | RM t :: diff' -> 
-                                let add, tail = get_next_add [] diff' in
-                                (match add with
-                                | None -> RM t :: loop tail
-                                | Some add -> RM t :: add :: loop tail)
-                | UP(t,t') :: diff -> RM t :: ADD t' :: loop diff
-                | i :: diff' -> i :: loop diff' in 
-        loop diff
 
 let dfs_diff f1 f2 = 
   let seq1 = seq_of_flow f1 in
