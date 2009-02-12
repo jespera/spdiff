@@ -1402,6 +1402,7 @@ let filter_common_np_graph common_np g =
 
 
 let rm_dups_pred eq_f ls =
+  print_endline "[Main] removing duplicates based on pred-eq";
   let (+++) x xs = if List.exists (function y -> eq_f x y) xs then xs else x :: xs in
   List.fold_left (fun acc_xs x -> x +++ acc_xs) [] ls
 
@@ -1606,62 +1607,62 @@ graphs *)
 let construct_spatches patterns is_freq =
   let rec get_context_point chunk =
     match chunk with
-    | [] -> raise (Diff.Fail "no context point?")
-    | Difftype.ADD _ :: chunk -> get_context_point chunk
-    | c :: _ -> c in
+      | [] -> raise (Diff.Fail "no context point?")
+      | Difftype.ADD _ :: chunk -> get_context_point chunk
+      | c :: _ -> c in
   let local_extract diff =
     let local i = match i with
-    | Difftype.ID (i,t) -> Difftype.ID t
-    | Difftype.ADD (i,t) -> Difftype.ADD t
-    | Difftype.RM (i,t) -> Difftype.RM t in
-    List.map local diff in
-  (* The idea is to refine a spatch given a chunk under a certain
-   * environment. What kinds of chunks are there and what are appropriate
-   * actions for them?
-   * chunk ::= (+t)* (-t | t) (+t)* 
-   * All additions can be selected for inclusion so for each chunk we need
-   * to construct a list of potential chunks to build from
-   * *)
+      | Difftype.ID (i,t) -> Difftype.ID t
+      | Difftype.ADD (i,t) -> Difftype.ADD t
+      | Difftype.RM (i,t) -> Difftype.RM t in
+      List.map local diff in
+    (* The idea is to refine a spatch given a chunk under a certain
+     * environment. What kinds of chunks are there and what are appropriate
+     * actions for them?
+     * chunk ::= (+t)* (-t | t) (+t)* 
+     * All additions can be selected for inclusion so for each chunk we need
+     * to construct a list of potential chunks to build from
+     * *)
   let use_chunk chunk = 
     let suffix_all res e =
       if res = [] 
       then [[e]]
       else
         res +> List.fold_left (fun res ls -> 
-          ((e :: List.rev ls)
-             +> List.rev)
-          :: res
+				 ((e :: List.rev ls)
+				  +> List.rev)
+				 :: res
 			      ) []
     in
-    (* results is a list of chunks to include/use/apply *)
+      (* results is a list of chunks to include/use/apply *)
     let rec loop chunk results =
       match chunk with
-      | [] -> results
-      | ((Difftype.ID _ | Difftype.RM _) as m) :: chunk -> loop chunk (suffix_all results m)
-      | m :: chunk -> 
-          let results' = 
-            suffix_all results m 
+	| [] -> results
+	| ((Difftype.ID _ | Difftype.RM _) as m) :: chunk -> loop chunk (suffix_all results m)
+	| m :: chunk -> 
+            let results' = 
+              suffix_all results m 
               +> List.rev_append results in 
-          loop chunk results'
+              loop chunk results'
     in
-    loop chunk [] in
+      loop chunk [] in
   let rec get_before chunk =
     match chunk with
-    | [] -> []
-    | (Difftype.ID _ | Difftype.RM _) :: _ -> []
-    | a :: chunk -> a :: get_before chunk
+      | [] -> []
+      | (Difftype.ID _ | Difftype.RM _) :: _ -> []
+      | a :: chunk -> a :: get_before chunk
   in
-  (* assume that there is always a context-point in a chunk *)
+    (* assume that there is always a context-point in a chunk *)
   let rec get_after chunk =
     match chunk with
-    | [] -> []
-    | Difftype.ADD _ :: chunk -> get_after chunk
-    | (Difftype.ID _ | Difftype.RM _) :: chunk ->  chunk
+      | [] -> []
+      | Difftype.ADD _ :: chunk -> get_after chunk
+      | (Difftype.ID _ | Difftype.RM _) :: chunk ->  chunk
   in
-  (* the following function does the real work: given a spatch, an env,
-   * and a chunk it finds the context-point of the chunk and inserts the
-   * modifications mentioned in the chunk based on the environment given;
-   * the result is a new spatch + env and the old one is not preserved *)
+    (* the following function does the real work: given a spatch, an env,
+     * and a chunk it finds the context-point of the chunk and inserts the
+     * modifications mentioned in the chunk based on the environment given;
+     * the result is a new spatch + env and the old one is not preserved *)
   let apply_chunk_one chunk (acc_spatch, env) = 
     v_print_endline ("[Main] adding to: " ^ acc_spatch +> List.map Diff.string_of_diff +> String.concat " ");
     v_print_endline "[Main] with chunk: ";
@@ -1671,151 +1672,153 @@ let construct_spatches patterns is_freq =
     (* find context point in chunk *)
     let chunk_context_point = get_context_point chunk in
     let before_ops = get_before chunk in
-    v_print_endline ("[Main] before: " ^ List.map Diff.string_of_diff before_ops
-					 +> String.concat " ");
-    let after_ops  = get_after chunk in
-    v_print_endline ("[Main] after: " ^ List.map Diff.string_of_diff after_ops
-					+> String.concat " ");
-    (* look for the (could there be more than one?) context point in
-     * the spatch and decide whether it has already been handled
-     * it it has not, insert the operations mentioned in the chunk
-     * operations are "before" "at" "after"
-     *)
-    let has_been_modified pp chunk_context =
-      match pp with
-      | Difftype.ID _ -> false
-      | _ -> true 
-            (* TODO ; need to mark prev. modifications or use
-               safe_part filter *) in
-    let at_context_point pp chunk_context env =
-      match pp, chunk_context_point with
-      | (Difftype.ID p | Difftype.RM p) , (Difftype.ID t | Difftype.RM t) -> 
-          (try Some (Diff.match_term (extract_pat p) t) with _ -> None
-          | _ -> None) in
-    let embed_context_point pp chunk_context_point =
-      match pp, chunk_context_point with
-      | Difftype.ID p, Difftype.ID _ -> Difftype.ID p
-      | Difftype.ID p, Difftype.RM _ -> Difftype.RM p
-      | _, _ -> raise (Diff.Fail ("pp not Difftype.ID"))  in
-    let rec insert_ops env suffix iops = 
-    match iops with
-    | [] -> suffix
-    | Difftype.ADD t :: iops -> 
-	insert_ops env (Difftype.ADD (Diff.rev_sub env t) :: suffix) iops in
-    let rec loop prefix_spatch suffix_spatch =
-       match suffix_spatch with
-       | [] -> (List.rev prefix_spatch, [])
-       | ((Difftype.ID p | Difftype.RM p) as pp) :: suffix_spatch ->
-	   (
-	    match at_context_point pp chunk_context_point env
-	    with
-	    | None -> loop (pp :: prefix_spatch) suffix_spatch
-	    | Some env' ->
-		if has_been_modified pp chunk_context_point
-		then 
-		  (* assume that a context point should
-		   * only match in one patch point
-		   *)
-		  ((List.rev prefix_spatch) @ (pp :: suffix_spatch)), []
-		else 
-	 	  (* insert operations *)
-		  (* dummy entry for now *)
-		    (List.rev (insert_ops env' prefix_spatch (List.rev before_ops))) 
-		     @ (embed_context_point pp chunk_context_point
-			:: (insert_ops env' suffix_spatch (List.rev after_ops)))
-		    , env' 
-	   )
-       | i :: suffix_spatch -> loop (i :: prefix_spatch) suffix_spatch
-    in
-    loop [] acc_spatch
+      v_print_endline ("[Main] before: " ^ List.map Diff.string_of_diff before_ops
+		       +> String.concat " ");
+      let after_ops  = get_after chunk in
+	v_print_endline ("[Main] after: " ^ List.map Diff.string_of_diff after_ops
+			 +> String.concat " ");
+	(* look for the (could there be more than one?) context point in
+	 * the spatch and decide whether it has already been handled
+	 * it it has not, insert the operations mentioned in the chunk
+	 * operations are "before" "at" "after"
+	 *)
+	let has_been_modified pp chunk_context =
+	  match pp with
+	    | Difftype.ID _ -> false
+	    | _ -> true 
+		(* TODO ; need to mark prev. modifications or use
+		   safe_part filter *) in
+	let at_context_point pp chunk_context env =
+	  match pp, chunk_context_point with
+	    | (Difftype.ID p | Difftype.RM p) , (Difftype.ID t | Difftype.RM t) -> 
+		(try Some (Diff.match_term (extract_pat p) t) with _ -> None
+		   | _ -> None) in
+	let embed_context_point pp chunk_context_point =
+	  match pp, chunk_context_point with
+	    | Difftype.ID p, Difftype.ID _ -> Difftype.ID p
+	    | Difftype.ID p, Difftype.RM _ -> Difftype.RM p
+	    | _, _ -> raise (Diff.Fail ("pp not Difftype.ID"))  in
+	let rec insert_ops env suffix iops = 
+	  match iops with
+	    | [] -> suffix
+	    | Difftype.ADD t :: iops -> 
+		insert_ops env (Difftype.ADD (Diff.rev_sub env t) :: suffix) iops in
+	let rec loop prefix_spatch suffix_spatch =
+	  match suffix_spatch with
+	    | [] -> (List.rev prefix_spatch, [])
+	    | ((Difftype.ID p | Difftype.RM p) as pp) :: suffix_spatch ->
+		(
+		  match at_context_point pp chunk_context_point env
+		  with
+		    | None -> loop (pp :: prefix_spatch) suffix_spatch
+		    | Some env' ->
+			if has_been_modified pp chunk_context_point
+			then 
+			  (* assume that a context point should
+			   * only match in one patch point
+			   *)
+			  ((List.rev prefix_spatch) @ (pp :: suffix_spatch)), []
+			else 
+	 		  (* insert operations *)
+			  (* dummy entry for now *)
+			  (List.rev (insert_ops env' prefix_spatch (List.rev before_ops))) 
+			  @ (embed_context_point pp chunk_context_point
+			     :: (insert_ops env' suffix_spatch (List.rev after_ops)))
+			    , env' 
+		)
+	    | i :: suffix_spatch -> loop (i :: prefix_spatch) suffix_spatch
+	in
+	  loop [] acc_spatch
   in
   let apply_chunk acc_spatch_env chunk =
     acc_spatch_env +> List.fold_left 
       (fun acc_spatch_env sp_e -> 
-        apply_chunk_one chunk sp_e :: acc_spatch_env)
+         apply_chunk_one chunk sp_e :: acc_spatch_env)
       acc_spatch_env in
   let is_pattern_diff sp = sp +> List.for_all 
-      (function p ->
-	match p with
-	| Difftype.ID _ -> true
-	| _ -> false
-      ) in
+    (function p ->
+       match p with
+	 | Difftype.ID _ -> true
+	 | _ -> false
+    ) in
   let is_transformation_chunk chunk = 
     match chunk with
-    | [Difftype.ID _] -> false
-    | _ -> true in
-  (* this function uses the above _one version to iterate over all
-   * spatches given a chunk; it does NOT preserve the already given based
-   * on the intuition that we already given the spatch_construct functions
-   * more patterns than needed???
-   *)
+      | [Difftype.ID _] -> false
+      | _ -> true in
+    (* this function uses the above _one version to iterate over all
+     * spatches given a chunk; it does NOT preserve the already given based
+     * on the intuition that we already given the spatch_construct functions
+     * more patterns than needed???
+     *)
   let build_from_chunk spatches_env chunk = 
     let potential_chunks = use_chunk chunk  in
-    potential_chunks 
+      potential_chunks 
       +> List.filter is_transformation_chunk
       +> List.fold_left apply_chunk spatches_env
   in 
-  print_endline "[Main] constructing semantic patches";
-  let chunks = 
-    !Diff.flow_changes +>
-    List.fold_left (fun acc_chunks_lists diff ->
-      List.rev_append 
-        (Diff.chunks_of_diff diff)
-        acc_chunks_lists) [] in
-  (* chunks is now a list of (+t)*(t|-t)(+t)* diffs; for each chunk we
-   * can extract the context/attachment-point (t|-t) which is to be found
-   * in some pattern ...
-   *)
-  let good_chunks = chunks 
-  +> List.filter (function diff -> match diff with 
-  | [Difftype.ID _] -> false
-  | _ -> true)
-  +> List.filter (function diff -> match get_context_point diff with
-  | Difftype.ID context_point 
-  | Difftype.RM context_point -> 
-  (* does the context-point match anything in at least some pattern *)
-  not(get_change_matches patterns context_point = [])
-  )
-  +> List.rev_map (function chunk -> 
-  chunk +> List.filter (function it -> match it with
-  | Difftype.ADD t -> is_freq t
-  | _ -> true))
-  in
-  good_chunks  
-    +> List.iter (function diff -> 
-      print_endline "[Chunk]";
-      print_endline (diff 
-                       +> List.map Diff.string_of_diff
-                       +> String.concat "\n");
-      print_endline "[End]"
-                 );
-  (* for each pattern, we wish to try and construct a (or many) spatch
-   * from it; we iterate over each chunk to try and see whether the chunk
-   * allows us to add rm/add instructions to the pattern
-   *)
-  let init_spatches_env = 
-    patterns 
-      +> List.rev_map (function sp -> 
-        sp +> List.map (function p -> Difftype.ID p), []) in
-  let spatches_env =
-    good_chunks +> 
-    List.fold_left 
-      (fun acc_spatch_env chunk -> 
-        build_from_chunk acc_spatch_env chunk) 
-      init_spatches_env
-      +> List.filter (function (sp,_) -> not(is_pattern_diff sp))
-      +> rm_dups_pred (fun (sp,_) (sp', _) -> sp = sp')
-  in
-  print_endline ("[Main] *CANDIDATE* semantic patches inferred: " ^ 
-		 List.length spatches_env +> string_of_int);
-  spatches_env 
-    +> List.iter (function diff, env -> 
-      print_endline "[spatch:]";
-      print_endline (diff 
-                       +> List.map Diff.string_of_diff
-                       +> String.concat "\n");
-                 );
-  List.rev_map fst spatches_env
+    print_endline "[Main] constructing semantic patches";
+    let chunks = 
+      !Diff.flow_changes +>
+	List.fold_left (fun acc_chunks_lists diff ->
+			  List.rev_append 
+			    (Diff.chunks_of_diff diff)
+			    acc_chunks_lists) [] in
+      (* chunks is now a list of (+t)*(t|-t)(+t)* diffs; for each chunk we
+       * can extract the context/attachment-point (t|-t) which is to be found
+       * in some pattern ...
+       *)
+    let good_chunks = chunks 
+      +> List.filter (function diff -> match diff with 
+			| [Difftype.ID _] -> false
+			| _ -> true)
+      +> List.filter (function diff -> match get_context_point diff with
+			| Difftype.ID context_point 
+			| Difftype.RM context_point -> 
+			    (* does the context-point match anything in at least some pattern *)
+			    not(get_change_matches patterns context_point = [])
+		     )
+      +> List.rev_map (function chunk -> 
+			 chunk +> List.filter (function it -> match it with
+						 | Difftype.ADD t -> is_freq t
+						 | _ -> true))
+    in
+      good_chunks  
+      +> List.iter (function diff -> 
+		      print_endline "[Chunk]";
+		      print_endline (diff 
+				     +> List.map Diff.string_of_diff
+				     +> String.concat "\n");
+		      print_endline "[End]"
+                   );
+      (* for each pattern, we wish to try and construct a (or many) spatch
+       * from it; we iterate over each chunk to try and see whether the chunk
+       * allows us to add rm/add instructions to the pattern
+       *)
+      print_endline "[Main] making init_spatches";
+      let init_spatches_env = 
+	patterns 
+	+> List.rev_map (function sp -> 
+			   sp +> List.map (function p -> Difftype.ID p), []) in
+	print_endline "[Main] building spatches";
+	let spatches_env =
+	  good_chunks +> 
+	    List.fold_left 
+	    (fun acc_spatch_env chunk -> 
+               build_from_chunk acc_spatch_env chunk) 
+	    init_spatches_env
+	  +> List.filter (function (sp,_) -> not(is_pattern_diff sp))
+	  +> rm_dups_pred (fun (sp,_) (sp', _) -> sp = sp')
+	in
+	  print_endline ("[Main] *CANDIDATE* semantic patches inferred: " ^ 
+			   List.length spatches_env +> string_of_int);
+	  spatches_env 
+	  +> List.iter (function diff, env -> 
+			  print_endline "[spatch:]";
+			  print_endline (diff 
+					 +> List.map Diff.string_of_diff
+					 +> String.concat "\n");
+                       );
+	  List.rev_map fst spatches_env
 
 
 let get_rhs_flows term_pairs =
@@ -1945,10 +1948,12 @@ let pending_of_chunk chunk subterm =
 
 (* this function takes a term with embedded pending transformation
    info and a chunk and locates the chunk in the term and inserts the
-   chunk as an embedded pending transformation...  the chunk is
-   annoted with the node in which the context-point matched; we can
-   then use 'locate_subterm' to find the subterm in pending_term that
-   corresponds to that node;
+   chunk as an embedded pending transformation...  
+
+   the chunk is annoted with the node in which the context-point
+   matched; we can then use 'locate_subterm' to find the subterm in
+   pending_term that corresponds to that node;
+   
    - get_context_point from chunk
    - transform the chunk into a pending transformation
    - locate the subterm in pending_term
@@ -2075,7 +2080,7 @@ let find_common_patterns () =
 		    ) 
       in
       let sp_candidates = construct_spatches gpats' is_freq in
-      let ttf_list = term_pairs +> List.map (function ((lhs_gt, lhs_flows),(rhs_gt,_)) -> 
+      let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flows),(rhs_gt,_)) -> 
 				 (lhs_gt, rhs_gt, lhs_flows)
 			      ) in
       let res_spatches = sp_candidates +> List.filter 
