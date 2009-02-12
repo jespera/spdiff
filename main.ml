@@ -1514,24 +1514,32 @@ let equal_flows f1 f2 =
  * term
  *)
 let get_change_matches spatterns term =
-  spatterns +> List.filter (function spat ->
-    (* recall that spat is a list of patterns *)
-    spat 
-      +> List.filter (function p -> match view p with 
-      | C("CM",[p]) -> true 
-      | _ -> false) 
-      +> List.exists (function p -> Diff.can_match (extract_pat p) term)
-			   ) 
+  print_endline "[Main] getting patterns that relate to: ";
+  print_endline (Diff.string_of_gtree' term);
+  spatterns +> List.filter 
+    (function spat ->
+       (* recall that spat is a list of term-patterns *)
+       spat 
+       +> List.filter (function p -> match view p with 
+			 | C("CM",[p]) -> true 
+			 | _ -> false) 
+       +> List.exists (function p -> Diff.can_match (extract_pat p) term)
+    ) 
 
 (* given a set of patterns and a set of terms that have been identified as
  * belonging to a change, we wish to find the patterns that match any of the
  * terms
  *)
 let get_change_matches_terms spatterns terms =
-  terms 
-    +> List.map (get_change_matches spatterns)
-    +> tail_flatten
-    +> rm_dups
+  print_endline "[Main] filtering patterns that are related to changed terms";
+  let changes = terms 
+    +> List.rev_map (get_change_matches spatterns) in
+    print_endline "flattening";
+    let tmp = tail_flatten changes in
+      print_endline "rm_dups";
+      let tmp1 = rm_dups tmp in
+	print_endline "done";
+	tmp1
 
 
 (* filter_changed uses the "flow-changes" information to extract a list of terms
@@ -1577,7 +1585,7 @@ let filter_changed gss gpats =
 
 
 let lhs_flows_of_term_pairs term_pairs =
-  print_endline "[Main] getting flows";
+  print_endline "[Main] getting lhs flows";
   List.rev_map (fun ((gt,flows), (gt',flows')) -> 
     if !only_changes 
     then
@@ -1603,13 +1611,13 @@ let lhs_flows_of_term_pairs term_pairs =
 on some term that is believed to have been involved in a change; the
 function is_freq determines whether a node-term is frequent in the RHS
 graphs *)
+let rec get_context_point chunk =
+  match chunk with
+    | [] -> raise (Diff.Fail "no context point?")
+    | Difftype.ADD _ :: chunk -> get_context_point chunk
+    | c :: _ -> c
 
 let construct_spatches patterns is_freq =
-  let rec get_context_point chunk =
-    match chunk with
-      | [] -> raise (Diff.Fail "no context point?")
-      | Difftype.ADD _ :: chunk -> get_context_point chunk
-      | c :: _ -> c in
   let local_extract diff =
     let local i = match i with
       | Difftype.ID (i,t) -> Difftype.ID t
@@ -1664,83 +1672,83 @@ let construct_spatches patterns is_freq =
      * modifications mentioned in the chunk based on the environment given;
      * the result is a new spatch + env and the old one is not preserved *)
   let apply_chunk_one chunk (acc_spatch, env) = 
-    v_print_endline ("[Main] adding to: " ^ acc_spatch +> List.map Diff.string_of_diff +> String.concat " ");
-    v_print_endline "[Main] with chunk: ";
-    v_print_endline (chunk 
-                     +> List.map Diff.string_of_diff
-                     +> String.concat "\n");
     (* find context point in chunk *)
     let chunk_context_point = get_context_point chunk in
     let before_ops = get_before chunk in
-      v_print_endline ("[Main] before: " ^ List.map Diff.string_of_diff before_ops
-		       +> String.concat " ");
-      let after_ops  = get_after chunk in
-	v_print_endline ("[Main] after: " ^ List.map Diff.string_of_diff after_ops
-			 +> String.concat " ");
-	(* look for the (could there be more than one?) context point in
-	 * the spatch and decide whether it has already been handled
-	 * it it has not, insert the operations mentioned in the chunk
-	 * operations are "before" "at" "after"
-	 *)
-	let has_been_modified pp chunk_context =
-	  match pp with
-	    | Difftype.ID _ -> false
-	    | _ -> true 
-		(* TODO ; need to mark prev. modifications or use
-		   safe_part filter *) in
-	let at_context_point pp chunk_context env =
-	  match pp, chunk_context_point with
-	    | (Difftype.ID p | Difftype.RM p) , (Difftype.ID t | Difftype.RM t) -> 
-		(try Some (Diff.match_term (extract_pat p) t) with _ -> None
-		   | _ -> None) in
-	let embed_context_point pp chunk_context_point =
-	  match pp, chunk_context_point with
-	    | Difftype.ID p, Difftype.ID _ -> Difftype.ID p
-	    | Difftype.ID p, Difftype.RM _ -> Difftype.RM p
-	    | _, _ -> raise (Diff.Fail ("pp not Difftype.ID"))  in
-	let rec insert_ops env suffix iops = 
-	  match iops with
-	    | [] -> suffix
-	    | Difftype.ADD t :: iops -> 
-		insert_ops env (Difftype.ADD (Diff.rev_sub env t) :: suffix) iops in
-	let rec loop prefix_spatch suffix_spatch =
-	  match suffix_spatch with
-	    | [] -> (List.rev prefix_spatch, [])
-	    | ((Difftype.ID p | Difftype.RM p) as pp) :: suffix_spatch ->
-		(
-		  match at_context_point pp chunk_context_point env
-		  with
-		    | None -> loop (pp :: prefix_spatch) suffix_spatch
-		    | Some env' ->
-			if has_been_modified pp chunk_context_point
-			then 
-			  (* assume that a context point should
-			   * only match in one patch point
-			   *)
-			  ((List.rev prefix_spatch) @ (pp :: suffix_spatch)), []
-			else 
-	 		  (* insert operations *)
-			  (* dummy entry for now *)
-			  (List.rev (insert_ops env' prefix_spatch (List.rev before_ops))) 
-			  @ (embed_context_point pp chunk_context_point
-			     :: (insert_ops env' suffix_spatch (List.rev after_ops)))
-			    , env' 
-		)
-	    | i :: suffix_spatch -> loop (i :: prefix_spatch) suffix_spatch
-	in
-	  loop [] acc_spatch
+    let after_ops  = get_after chunk in
+      (* look for the (could there be more than one?) context point in
+       * the spatch and decide whether it has already been handled
+       * it it has not, insert the operations mentioned in the chunk
+       * operations are "before" "at" "after"
+       *)
+    let has_been_modified pp chunk_context =
+      match pp with
+	| Difftype.ID _ -> false
+	| _ -> true 
+	    (* TODO ; need to mark prev. modifications or use
+	       safe_part filter *) in
+    let at_context_point pp chunk_context env =
+      match pp, chunk_context_point with
+	| (Difftype.ID p | Difftype.RM p) , (Difftype.ID t | Difftype.RM t) -> 
+	    (try Some (Diff.match_term (extract_pat p) t) with _ -> None
+	       | _ -> None) in
+    let embed_context_point pp chunk_context_point =
+      match pp, chunk_context_point with
+	| Difftype.ID p, Difftype.ID _ -> Difftype.ID p
+	| Difftype.ID p, Difftype.RM _ -> Difftype.RM p
+	| _, _ -> raise (Diff.Fail ("pp not Difftype.ID"))  in
+    let rec insert_ops env suffix iops = 
+      match iops with
+	| [] -> suffix
+	| Difftype.ADD t :: iops -> 
+	    insert_ops env (Difftype.ADD (Diff.rev_sub env t) :: suffix) iops in
+    let rec loop prefix_spatch suffix_spatch =
+      match suffix_spatch with
+	| [] -> (List.rev prefix_spatch, [])
+	| ((Difftype.ID p | Difftype.RM p) as pp) :: suffix_spatch ->
+	    (
+	      match at_context_point pp chunk_context_point env
+	      with
+		| None -> loop (pp :: prefix_spatch) suffix_spatch
+		| Some env' ->
+		    if has_been_modified pp chunk_context_point
+		    then 
+		      (* assume that a context point should
+		       * only match in one patch point
+		       *)
+		      ((List.rev prefix_spatch) @ (pp :: suffix_spatch)), []
+		    else 
+	 	      (* insert operations *)
+		      (List.rev (insert_ops env' prefix_spatch (List.rev before_ops))) 
+		      @ (embed_context_point pp chunk_context_point
+			 :: (insert_ops env' suffix_spatch (List.rev after_ops)))
+			, env' 
+	    )
+	| i :: suffix_spatch -> loop (i :: prefix_spatch) suffix_spatch
+    in
+      loop [] acc_spatch 
   in
-  let apply_chunk acc_spatch_env chunk =
-    acc_spatch_env +> List.fold_left 
-      (fun acc_spatch_env sp_e -> 
-         apply_chunk_one chunk sp_e :: acc_spatch_env)
-      acc_spatch_env in
   let is_pattern_diff sp = sp +> List.for_all 
     (function p ->
        match p with
 	 | Difftype.ID _ -> true
 	 | _ -> false
     ) in
+  let apply_chunk acc_spatch_env chunk =
+    acc_spatch_env +> List.fold_left 
+      (fun acc_spatch_env sp_e -> 
+	 let (sp, env) = apply_chunk_one chunk sp_e in
+	   if is_pattern_diff sp
+	   then acc_spatch_env
+	   else 
+	     if acc_spatch_env +> 
+	       List.exists (function (sp',_) ->
+			      sp = sp'
+			   )
+	     then acc_spatch_env
+	     else (sp, env) :: acc_spatch_env
+      )
+      acc_spatch_env in
   let is_transformation_chunk chunk = 
     match chunk with
       | [Difftype.ID _] -> false
@@ -1752,6 +1760,15 @@ let construct_spatches patterns is_freq =
      *)
   let build_from_chunk spatches_env chunk = 
     let potential_chunks = use_chunk chunk  in
+      print_endline ("[Main] potential chunks: " ^
+		       List.length potential_chunks +> string_of_int);
+      potential_chunks +> List.iter (function diff -> 
+		      print_endline "[Chunk]";
+		      print_endline (diff 
+				     +> List.map Diff.string_of_diff
+				     +> String.concat "\n");
+		      print_endline "[End]"
+                   );
       potential_chunks 
       +> List.filter is_transformation_chunk
       +> List.fold_left apply_chunk spatches_env
@@ -1799,15 +1816,18 @@ let construct_spatches patterns is_freq =
 	patterns 
 	+> List.rev_map (function sp -> 
 			   sp +> List.map (function p -> Difftype.ID p), []) in
-	print_endline "[Main] building spatches";
+	print_endline ("[Main] building spatches based on " ^
+			 List.length good_chunks +> string_of_int 
+		       ^ " chunks");
 	let spatches_env =
-	  good_chunks +> 
-	    List.fold_left 
+	  good_chunks 
+	  +> List.fold_left 
 	    (fun acc_spatch_env chunk -> 
                build_from_chunk acc_spatch_env chunk) 
 	    init_spatches_env
-	  +> List.filter (function (sp,_) -> not(is_pattern_diff sp))
+(*
 	  +> rm_dups_pred (fun (sp,_) (sp', _) -> sp = sp')
+*)
 	in
 	  print_endline ("[Main] *CANDIDATE* semantic patches inferred: " ^ 
 			   List.length spatches_env +> string_of_int);
@@ -1822,9 +1842,14 @@ let construct_spatches patterns is_freq =
 
 
 let get_rhs_flows term_pairs =
+  term_pairs
+  +> List.rev_map (function (gtf,gtf') -> (gtf',gtf))
+  +> lhs_flows_of_term_pairs
+(*
   term_pairs +>
   List.rev_map (fun ((gt,flows), (gt',flows')) -> flows'
 	       )
+*)
 
 (* this function returns the subterm of the given term
    corresponding to the function definition "sname" *)
@@ -1910,7 +1935,7 @@ let locate_subterm g subterm path f =
   (* this function is used to check whether we are at a context point *)
   let is_at_context node_term pending_subterm = 
     match view pending_subterm with
-      | C("pending", cp :: chunk_op) -> cp = node_term
+      | C("pending", orig_cp :: chunk_op) -> orig_cp = node_term
       | _ -> node_term = pending_subterm in
   let rec loop subterm path =
     match path with
@@ -1950,9 +1975,9 @@ let pending_of_chunk chunk subterm =
    info and a chunk and locates the chunk in the term and inserts the
    chunk as an embedded pending transformation...  
 
-   the chunk is annoted with the node in which the context-point
-   matched; we can then use 'locate_subterm' to find the subterm in
-   pending_term that corresponds to that node;
+   the chunk is annoted with the nodeS (<- plural) in which the
+   context-point matched; we can then use 'locate_subterm' to find the
+   subterms in pending_term that corresponds to that node;
    
    - get_context_point from chunk
    - transform the chunk into a pending transformation
@@ -1964,10 +1989,38 @@ let pending_of_chunk chunk subterm =
    - if no pending trans, just insert the chunk pending-transformation
 *)
 
-let insert_chunk pending_term chunk = pending_term
+let insert_chunk flow pending_term chunk = 
+  let ctx_point_nodes = match get_context_point chunk with
+    | Difftype.ID(p,is) | Difftype.RM(p,is) -> is
+    | _ -> raise (Diff.Fail "insert_chunk get_context_point") in
+    (* the 'f' function is responsible to checkin chunk compatibility *)
+  let f t = 
+    match view t with
+      | C("pending", [orig_cp; embed]) -> (
+	  print_endline "[Main] SKIPPING chunk...";
+	  t)
+      | _ -> pending_of_chunk chunk t in
+  let paths = ctx_point_nodes +> List.rev_map (get_path flow) in
+  paths +>
+    List.fold_left (fun acc_t path -> 
+		      locate_subterm flow pending_term path f) pending_term
 
 
-let perform_pending pending_term = pending_term
+let perform_pending pending_term = 
+  let unfold_embedded orig embs = (* TODO: Friday *) [orig] in
+  let rec loop t = match view t with
+    | C("pending",[orig_cp; embedded]) -> unfold_embedded orig_cp embedded
+    | C(ty, ts) -> 
+	let ts' = ts 
+	  +> List.rev_map loop 
+	  +> List.rev
+	  +> List.flatten
+	in [mkC(ty, ts')]
+    | _ -> [t] in
+    match loop pending_term with
+      | [t'] -> t'
+      | _ -> raise (Diff.Fail "perform pending error")
+	  
 
 (* this function applies a semantic patch to a term given a flow representing the term; the idea is to do the following
    - extract the pattern from the spatch
@@ -1976,17 +2029,18 @@ let perform_pending pending_term = pending_term
    - use the traces to annotate the spatch (notice there can be
    several annotated spatches when the pattern matches in more than
    one node; however, notice by the shortest-paths semantics of
-   ... the same pattern can not have overlapping matches
+   ... that the same pattern can not have overlapping matches
 
    - for each anno_spatch: split in chunks
    - for each set of chunks (corresponding to one anno_spatch)
    => for each chunk
    o  locate the chunk in the lhs_term
    o  insert application information from chunk
+   
    - once all chunks in all chunk-set have been handled, perform
    transformations mentioned in the inserted chunks
 *)
-		
+  
 let apply_spatch spatch (term,flow) = 
   let pattern = List.fold_right (fun iop acc_pattern -> match iop with
 				   | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
@@ -1998,14 +2052,14 @@ let apply_spatch spatch (term,flow) =
        | Difftype.ID p when p ==  ddd -> false
        | _ -> true) in
   let init_annotated = stripped_spatch +> List.map (function iop -> match iop with
-				   | Difftype.ID p -> Difftype.ID (p, empty_annotation)
-				   | Difftype.RM p -> Difftype.RM (p, empty_annotation)
-				   | Difftype.ADD p -> Difftype.ADD (p, empty_annotation)) in
+						      | Difftype.ID p -> Difftype.ID (p, empty_annotation)
+						      | Difftype.RM p -> Difftype.RM (p, empty_annotation)
+						      | Difftype.ADD p -> Difftype.ADD (p, empty_annotation)) in
   let annotated_spatches = traces +> List.map (annotate_spatch init_annotated) in
-  let chunkified_spatches = annotated_spatches +> List.map Diff.chunks_of_diff in
+  let chunkified_spatches = annotated_spatches +> List.rev_map Diff.chunks_of_diff in
   let pending_term = chunkified_spatches +> List.fold_left 
     (fun acc_pending_term chunk_set -> 
-       chunk_set +> List.fold_left insert_chunk acc_pending_term
+       chunk_set +> List.fold_left (insert_chunk flow) acc_pending_term
     ) term in
     perform_pending pending_term
 
@@ -2025,6 +2079,9 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
      - extract pattern from spatch
      - use exists_cont_match, |- to try all nodes in the flow for a match
   *)
+
+  (* fold_right is ok to use here as patterns are most likely never
+     much longer than 5 node-patterns/items *)
   let pattern = List.fold_right (fun iop acc_pattern -> match iop with
 				   | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
 				   | Difftype.ADD _ -> acc_pattern
@@ -2032,11 +2089,11 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
   let matched_flows = flows +> List.filter (function flow ->
 					      flow |- pattern
 					   ) in
-  (* find corresponding function in lhs & rhs 
-     - get name of function corresponding to flow
-     - get subterm in lhs which is that function
-     - do for rhs term
-  *)
+    (* find corresponding function in lhs & rhs 
+       - get name of function corresponding to flow
+       - get subterm in lhs which is that function
+       - do for rhs term
+    *)
   let fun_names = matched_flows +> List.map 
     (function flow -> (get_fun_name_gflow flow, flow)) in
   let funs = fun_names +> List.map (function (fname,flow) ->
@@ -2045,12 +2102,15 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
 					   get_fun_in_term fname lhs_term, 
 					   get_fun_in_term fname rhs_term
 					  )) in
-    (* patch all lhs' (there can be more because our pattern might match
-       more than one function) *)
+    (* patch all lhs' (there can be more because our pattern might
+       match more than one function), but for each function there is
+       only one lhs' because we assume that spatch-application is
+       deterministic; cf. no overlapping semantic patterns in each
+       function flow *)
   let patched_lhss = funs +> List.map (function (fname, flow, lhs_def_term, rhs_def_term) ->
-					     (lhs_def_term, 
-					      apply_spatch spatch (lhs_def_term, flow), 
-					      rhs_def_term)
+					 (lhs_def_term, 
+					  apply_spatch spatch (lhs_def_term, flow), 
+					  rhs_def_term)
 				      ) in
     (* check safety of result *)
     patched_lhss +> List.exists (function (left,middle,right) -> 
@@ -2066,11 +2126,10 @@ let find_common_patterns () =
     let gss = lhs_flows_of_term_pairs term_pairs in
     let gss_rhs = List.rev_map (fun (_, (gt',flows)) -> flows) term_pairs in
     let gpats'' = common_patterns_graphs gss in
-      (* figure out which patterns no longer match in the RHS
-       * those patterns potentially deal with changes
-   *)
     let gpats' = filter_changed gss_rhs gpats'' in
+      print_endline "[Main] getting rhs flows";
     let rhs_flows = get_rhs_flows term_pairs in
+      print_endline "[Main] getting COMMON rhs node-patterns";
     let common_rhs_node_patterns = get_common_node_patterns rhs_flows [] in
       print_endline "[Main] *Common* patterns found:";
       print_patterns gpats';
