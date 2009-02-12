@@ -749,11 +749,11 @@ let abstractness p =
 
 let rec useless_abstraction p = is_meta p || 
   match view p with
-    | A("meta", _) -> true
-    | C("stmt", [p']) when useless_abstraction p' -> true
-    | C("stmt", [p']) | C("exprstmt", [p']) | C("exp", [p']) | C("dlist", [p']) when is_meta p' -> true
+    | C("dlist", [p']) | C("stmt", [p']) | C("exprstmt", [p']) | C("exp", [p']) | C("dlist", [p']) when useless_abstraction p' -> true
+    | C("onedecl",[p_var;p_type;p_storage]) ->
+	[p_var; p_type] +> List.for_all useless_abstraction 
     | A("stobis", _) | A("inline",_) -> true
-    | C("storage", [p1;p2]) when is_meta p1 || is_meta p2 -> true
+    | C("storage", [p1;p2]) | C("itype", [p1;p2]) when is_meta p1 || is_meta p2 -> true
     | C("fulltype", _) (* | C("pointer", _) *) -> true
     | C("exp", [{Hashcons.node=A("ident", _)}]) -> true
     | C("exp", [{Hashcons.node=C("const", _)}]) -> true
@@ -1250,129 +1250,129 @@ let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
   reset_meta();
   let mk_pat p = [mkC("CM",[p])] in
   let (<==) sp ps = ps +> List.exists (function sp' -> 
-    sub_pat sp sp' && embedded_pattern sp sp'
+					 sub_pat sp sp' && embedded_pattern sp sp'
 				      ) in
   let (!-) sp = is_frequent_sp sp in
   let (+++) x xs = 
     if List.mem x xs then xs else (
-    if !print_adding then (
-      print_string "[Main] attempting to add ";
-      print_endline (string_of_pattern x);
-     );
-    (*
-      if !filter_patterns
-      then filter_shorter_sub gss sub_pat (x :: xs)
-      else x :: xs
-     *)
-    x :: xs
-   ) in
+      if !print_adding then (
+	print_string "[Main] attempting to add ";
+	print_endline (string_of_pattern x);
+      );
+      (*
+	if !filter_patterns
+	then filter_shorter_sub gss sub_pat (x :: xs)
+	else x :: xs
+      *)
+      x :: xs
+    ) in
   let (++) ps p = p +++ ps
   in
   let valid p' =
     let rec loop p =
       match p with 
-      | [] -> true
-      | p :: seq when loop seq && is_match p -> 
-	  not(List.exists (function p' -> equal_pattern_term p p') seq)
+	| [] -> true
+	| p :: seq when loop seq && is_match p -> 
+	    not(List.exists (function p' -> equal_pattern_term p p') seq)
 	    &&
-          (match get_metas_single p with
-	  | [] -> true
-	  | p_metas -> 
-              (match get_metas_pattern seq with
-              | [] -> true
-              | seq_metas -> not(intersect_lists p_metas seq_metas = []))
-          ) 
-      | skip :: seq when skip == ddd -> loop seq
-      | _ -> false
+              (match get_metas_single p with
+		 | [] -> true
+		 | p_metas -> 
+		     (match get_metas_pattern seq with
+			| [] -> true
+			| seq_metas -> not(intersect_lists p_metas seq_metas = []))
+              ) 
+	| skip :: seq when skip == ddd -> loop seq
+	| _ -> false
     in
-    match p' with
-    | skip :: _ when skip == ddd -> false
-    | _ -> loop p'
+      match p' with
+	| skip :: _ when skip == ddd -> false
+	| _ -> loop p'
   in
   let get_next abs_P_env ext p =
     v_print "[Main] get_next ... ";
     let res = abs_P_env +> List.fold_left (fun acc_p_env (ps, env) -> 
-      let valid_ps = List.filter (function p' -> !- (ext p p')) ps 
-      in
-      if valid_ps = []
-      then acc_p_env
-      else List.rev_map (function p -> (p, env)) valid_ps 
-        :: acc_p_env
+					     let valid_ps = List.filter (function p' -> !- (ext p p')) ps 
+					     in
+					       if valid_ps = []
+					       then acc_p_env
+					       else List.rev_map (function p -> (p, env)) valid_ps 
+						 :: acc_p_env
 					  ) [] in
-    v_print_endline "done";
-    res
+      v_print_endline "done";
+      res
   in
   let ext1 p1 p2 = if p1 = [] then [mkC("CM",[p2])] else p1 @ [mkC("CM", [p2])] in
   let ext2 p1 p2 = if p1 = [] then [mkC("CM",[p2])] else p1 @ (ddd :: [mkC("CM", [p2])]) in
   let rec grow' ext p ps (p', env') =
     (* flush_string "."; *)
     let pp' = renumber_metas_pattern (ext p p') in
-    if !verbose then ( 
-      print_string ("[Main] testing : " ^ List.map Diff.string_of_gtree' pp' +> String.concat " ");
-     );
-    if
-      valid pp'
+      if !verbose then ( 
+	print_string ("[Main] testing : " ^ List.map Diff.string_of_gtree' pp' +> String.concat " ");
+      );
+      if
+	valid pp'
         && (v_print " valid "; is_frequent_sp pp')
         && (v_print "is_freq "; 
 	    if !prune then not(pp' <== ps) else true)
-    then (
-      v_print_endline "not_subseq";
-      let ps' = ps ++ pp' in
-      grow ps' (ext p p', env')
-     )
-    else (
-      v_print_endline "";
-      ps)
+      then (
+	v_print_endline "not_subseq";
+	let ps' = ps ++ pp' in
+	  grow ps' (ext p p', env')
+      )
+      else (
+	v_print_endline "";
+	ps)
   and grow ps (p, env) =
     v_print_string "[Main] getting common cterms after pattern: ";
     v_print_endline (string_of_pattern p);
     let abs_P_env = 
       get_pa env
-	+> List.filter (function (sps,env) ->
-	  gss 
-	    +> for_some !threshold (function flows ->
-	      flows 
-		+> List.exists (function f -> 
-		  sps +> List.exists 
-		    (function sp -> 
-		      f |- p && f |- mk_pat sp
-		    )
-			       )
-				   )	  
-		       ) 
+      +> List.filter (function (sps,env) ->
+			gss 
+			+> for_some !threshold (function flows ->
+						  flows 
+						  +> List.exists (function f -> 
+								    sps +> List.exists 
+								      (function sp -> 
+									 f |- p && f |- mk_pat sp
+								      )
+								 )
+					       )	  
+		     ) 
     in
-    (* produce (meta list * env) list *)
-    (*    v_print "[Main] abstracting ... ";
-	  let abs_P_env = 
-	  pa
-	  (* we need to find a way to limit the size of this list since
-	     there really is no need to try to abstract all those terms
-	     further when they cannot even be an extension of the current
-	     pattern 'p' *)
-	  +> List.rev_map (function t -> 
-	  let metas, env = abstract_term !depth env t in
-	  metas, env
-	  )  in
-     *)
+      (* produce (meta list * env) list *)
+      (*    v_print "[Main] abstracting ... ";
+	    let abs_P_env = 
+	    pa
+      (* we need to find a way to limit the size of this list since
+	    there really is no need to try to abstract all those terms
+	    further when they cannot even be an extension of the current
+	    pattern 'p' *)
+	    +> List.rev_map (function t -> 
+	    let metas, env = abstract_term !depth env t in
+	    metas, env
+	    )  in
+      *)
 
-    v_print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
-    let nextP1 = tail_flatten (get_next abs_P_env ext1 p) in
-    let abs_P_env' = abs_P_env +> List.fold_left (fun acc_ps_env (ps, env) -> 
-      let ps' = ps +> List.filter (function p' ->
-	not(nextP1 +> List.exists (function (p'', env') -> p' = p''))
-				  ) in
-      (ps', env) :: acc_ps_env
-						 ) [] in
-    let nextP2 = tail_flatten (get_next abs_P_env' ext2 p) in
-    v_print_endline ("[Main] from pattern : " ^ string_of_pattern p);
-    v_print_endline ("[Main] potential new patterns : " ^ string_of_int (
-							  List.length nextP1 + List.length nextP2));
-    v_print_newline ();
-    let ps' = 
-      List.fold_left (fun acc_ps pair -> grow' ext1 p acc_ps pair) ps nextP1 in
-    List.fold_left (fun acc_ps pair -> grow' ext2 p acc_ps pair) ps' nextP2
+      v_print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
+      let nextP1 = tail_flatten (get_next abs_P_env ext1 p) in
+      let abs_P_env' = abs_P_env +> List.fold_left (fun acc_ps_env (ps, env) -> 
+						      let ps' = ps +> List.filter (function p' ->
+										     not(nextP1 +> List.exists (function (p'', env') -> p' = p''))
+										  ) in
+							(ps', env) :: acc_ps_env
+						   ) [] in
+      let nextP2 = tail_flatten (get_next abs_P_env' ext2 p) in
+	v_print_endline ("[Main] from pattern : " ^ string_of_pattern p);
+	v_print_endline ("[Main] potential new patterns : " ^ string_of_int (
+			   List.length nextP1 + List.length nextP2));
+	v_print_newline ();
+	let ps' = 
+	  List.fold_left (fun acc_ps pair -> grow' ext1 p acc_ps pair) ps nextP1 in
+	  List.fold_left (fun acc_ps pair -> grow' ext2 p acc_ps pair) ps' nextP2
   in
-  grow [] ([], [])
+    grow [] ([], [])
 
 let patterns_of_graph is_frequent_sp common_np g =
   if !verbose then print_endline ("[Main] considering graph with [" ^ string_of_int (List.length (concrete_of_graph g)) ^ "] cnodes");
