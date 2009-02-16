@@ -1,3 +1,4 @@
+
 open Gtree
 
 
@@ -890,9 +891,7 @@ let dfs_iter xi' f g =
 		    ) in
   aux_dfs [xi']
 
-let extract_pat p = match view p with
-| C("CM", [p]) -> p
-| _ -> raise (Match_failure (Diff.string_of_gtree' p, 772,0))
+let extract_pat p = Diff.extract_pat p
 
 let follows_p p g pa =
   let succ_nodes = ref [] in
@@ -1881,11 +1880,13 @@ let get_path g n =
   let path = ref [] in
   let f xi path' = 
     if xi = n then path := xi :: path' in
-    Ograph_extended.dfs_iter_with_path n f g;
-    !path +> List.filter (function xi -> 
-			    let t = g#nodes#find xi in
-			    Diff.non_phony t && not(is_exit_node t)
-			 )
+    Ograph_extended.dfs_iter_with_path 0 f g;
+    !path 
+    +> List.filter (function xi -> 
+		      let t = g#nodes#find xi in
+			Diff.non_phony t && not(is_exit_node t)
+		   )
+    +> List.rev
 
 type ('a, 'b) annotated = NOAN of 'a | ANNO of 'a * 'b
 let empty_annotation = []
@@ -1897,7 +1898,30 @@ let add_annotation_iop iop a = match iop with
   | Difftype.ADD(p, ann) -> Difftype.ADD(p, add_annotation ann a)
 
 let annotate_spatch spatch trace =
-  let anno_seq sp node_seq = List.map2 add_annotation_iop sp node_seq in
+  let map2 skipf f ls1 ls2 = 
+    let rec loop ls1 ls2 = match ls1, ls2 with
+      | [], [] -> []
+      | e1 :: ls1', _ when skipf e1 -> e1 :: loop ls1' ls2
+      | e1 :: ls1, e2 :: ls2 -> f e1 e2 :: loop ls1 ls2 
+      | _, _ -> raise (Invalid_argument "annotate_spatch")
+    in
+      loop ls1 ls2 in
+  let skip_add p = match p with
+      Difftype.ADD _ -> true | _ -> false in
+  let anno_seq sp node_seq = 
+    try 
+      map2 skip_add add_annotation_iop sp node_seq 
+    with Invalid_argument e -> 
+      print_endline ("annotate_seq sp.len: " ^ 
+		       List.length sp +> string_of_int ^ " node_seq.len " ^
+		       List.length node_seq +> string_of_int);
+      sp +> List.iter (function iop -> (match iop with
+					  | Difftype.ID (p, ann) 
+					  | Difftype.RM (p, ann)
+					  | Difftype.ADD(p, ann) -> Diff.string_of_gtree' p +> print_endline)
+		      );
+      raise (Invalid_argument e)
+  in
     trace +> List.fold_left anno_seq spatch
 
 exception LocateSubterm 
@@ -1905,21 +1929,49 @@ exception Next of int list
 
 let corresponds st t =
   match view st with
-    | C("stmt", [st]) -> ( 
-        match view st, view t with
-        | C("fdef",_), C("head:def", _) 
-        | C("comp{}", _), A("head:seqstart", _) 
-	| A("comp{}", _), A("head:seqstart", _)
-	| C("if",_), C("head:if",_)
-	| C("switch",_), C("head:switch", _)
-	| C("while",_), C("head:while", _)
-	| C("dowhile", _), A("head:do", _)
-	| C("for", _), C("head:for", _)
-	| C("case",_), A("head:case", _)
-	| C("caseRange",_), A("head:case", _) -> true
-        | _ -> false)
-    | _ -> false
-
+    | C("def",[rname;rtype;body]) -> (match view t with
+					| C("head:def", [def]) -> 
+					    (match view def with 
+					       | C("def",[hname;htype;_]) when rname = hname && rtype = htype
+						   -> Some ([body],
+							    function [newbody] -> 
+							      mkC("def",[rname;rtype;newbody])
+							   )
+					       | _ -> raise (Diff.Fail "def-fail"))
+					| _ -> None
+				     )
+    | C("stmt", [st]) ->
+	let s_func st = mkC("stmt", [st]) in
+	  (match view st, view t with
+             | C("comp{}", sts), A("head:seqstart", _) ->
+		 Some (sts, function sts' ->
+			 mkC("comp{}", sts') +> s_func)
+	     | A("comp{}", "NOP"), A("head:seqstart", _) -> 
+		 Some([], function ts -> s_func st)
+	     | C("if",[b;t;f]), C("head:if",_) ->
+		 Some([t;f], function tf' ->
+			mkC("if", b :: tf') +> s_func)
+	     | C("switch",[e;s]), C("head:switch", _) ->
+		 Some ([s], function s' ->
+			 mkC("switch", e :: s') +> s_func)
+	     | C("while",[e;s]), C("head:while", _) ->
+		 Some ([s], function s' ->
+			 mkC("while", e :: s') +> s_func)
+	     | C("dowhile", [s;e]), A("head:do", _) ->
+		 Some ([s], function s' ->
+			 mkC("dowhile", s' @ [e]) +> s_func)
+	     | C("for", [e1;e2;e3;st]), C("head:for", _) ->
+		 Some ([st], function st' ->
+			 mkC("for", e1 :: e2 ::e3 :: st') +> s_func)
+	     | C("case", [e;st]), A("head:case", _) ->
+		 Some ([st], function st' ->
+			 mkC("case", e :: st') +> s_func)
+	     | C("caseRange",[e1;e2;st]), A("head:case", _) -> 
+		 Some ([st], function st' ->
+			 mkC("caseRage", e1 :: e2 :: st') +> s_func)
+             | _ -> None)
+    | _ -> None
+	
 let rec ( *>) t_list func def_arg =
   match t_list with
     | [] -> raise LocateSubterm
@@ -1932,27 +1984,64 @@ let rec ( *>) t_list func def_arg =
 		     )
 
 let locate_subterm g subterm path f =
-  (* this function is used to check whether we are at a context point *)
+(*
+  print_string "[Main] looking in ";
+  print_endline (Diff.verbose_string_of_gtree subterm);
+  print_string "[Main] path ";
+  print_endline (path +> List.map string_of_int +> String.concat " ");
+  let last = List.nth path (List.length path - 1) in
+  print_string "[Main] looking for:";
+  print_endline (Diff.get_val last g +> Diff.verbose_string_of_gtree);
+  *)
+  let is_typed e = match view e with
+    | C("TYPEDEXP", _) -> true
+    | _ -> false in
+  let rec (===) t1 t2 = match view t1, view t2 with
+    | C("pending", ot :: _ ), _ -> ot === t2
+    | C("stmt",[s]), C("dlist", _) ->  s === t2
+    | C("exp",[te;e]), C("exp", [e']) when is_typed te -> e === e'
+    | C(ty1,ts1), C(ty2,ts2) when ty1 = ty2 ->
+	(try 
+	  List.for_all2 (===) ts1 ts2
+	with Invalid_argument e -> (
+	  print_endline "ts1";
+	  ts1 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
+	  print_endline "ts2";
+	  ts2 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
+	  raise (Invalid_argument e))
+	)
+    | _ -> t1 = t2 in
+ (* this function is used to check whether we are at a context point *)
   let is_at_context node_term pending_subterm = 
     match view pending_subterm with
-      | C("pending", orig_cp :: chunk_op) -> orig_cp = node_term
-      | _ -> node_term = pending_subterm in
+      | C("pending", orig_cp :: chunk_op) -> orig_cp === node_term
+      | _ -> pending_subterm === node_term in
+ 
   let rec loop subterm path =
     match path with
-      | [] -> raise LocateSubterm
-      | [n] -> if is_at_context (Diff.get_val n g) subterm
-        then f subterm
-        else raise LocateSubterm
+      | [] -> (raise LocateSubterm)
+      | [n] -> 
+	  let node_term = Diff.get_val n g in
+	  if is_at_context node_term subterm
+          then f node_term (* subterm -- can the subterm can have more info than the node-term *)
+          else (raise LocateSubterm)
       | n' :: path -> 
-	  let t = Diff.get_val n' g in 
-	    if subterm = t
+	  let t = Diff.get_val n' g 
+	  in 
+	    if subterm === t
             then raise (Next path)
-            else if corresponds subterm t
-            then (match view subterm with 
-                    | C(ty, ts) -> mkC(ty,(ts *> loop) path)
-                    | _ -> raise LocateSubterm)
-            else raise LocateSubterm in
+            else (
+	      match corresponds subterm t with
+		| None -> (
+		    raise LocateSubterm)
+		| Some (ts, ins_f) -> 
+			let ts' = (ts *> loop) path in
+			  ins_f ts'
+	    )
+  in
     loop subterm path
+
+
 
 (* this function takes a chunk and a subterm and uses the subterm to
    create a pending-chunk/term to insert instead of the subterm given;
@@ -1968,8 +2057,10 @@ let gtree_of_ann_iop iop = match iop with
 let pending_of_chunk chunk subterm = 
   let embedded_chunk = 
     chunk +> List.map gtree_of_ann_iop
-  in
-    mkC("pending", subterm :: embedded_chunk)
+  in 
+    (
+      mkC("pending", subterm :: embedded_chunk)
+    )
 
 (* this function takes a term with embedded pending transformation
    info and a chunk and locates the chunk in the term and inserts the
@@ -1990,6 +2081,19 @@ let pending_of_chunk chunk subterm =
 *)
 
 let insert_chunk flow pending_term chunk = 
+(*
+  print_endline "[Main] insert_chunk:";
+  print_endline (chunk
+		 +> List.map (function iop -> match iop with
+				| Difftype.ID  (p, _) -> Difftype.ID p
+				| Difftype.RM  (p, _) -> Difftype.RM p
+				| Difftype.ADD (p, _) -> Difftype.ADD p)  
+		 +> List.map Diff.string_of_diff
+		 +> String.concat "\n");
+  print_endline "[End]";
+  print_endline "[Main] into term: ";
+  pending_term +> Diff.string_of_gtree' +> print_endline;
+*) 
   let ctx_point_nodes = match get_context_point chunk with
     | Difftype.ID(p,is) | Difftype.RM(p,is) -> is
     | _ -> raise (Diff.Fail "insert_chunk get_context_point") in
@@ -2007,9 +2111,29 @@ let insert_chunk flow pending_term chunk =
 
 
 let perform_pending pending_term = 
-  let unfold_embedded orig embs = (* TODO: Friday *) [orig] in
+  let get_env orig_cp emb =
+    let ctx = 
+      match List.find (function p -> match view p with 
+			 | C("=",[ctx])  
+			 | C("-",[ctx]) -> true
+			 | _ -> false) emb +> view with
+	| C("=",[p]) | C("-",[p])-> p
+    in
+      Diff.match_term (extract_pat ctx) orig_cp in
+  let unfold_embedded orig embs = 
+    let env = get_env orig embs in
+      List.fold_right 
+	(fun emiop res_ts -> 
+	   match view emiop with
+	     | C("=", [p]) -> (orig :: res_ts) (* should be able to assert(Diff.rev_sub env p = orig *)
+	     | C("-", [p]) -> (res_ts) (* should be able to assert(Diff.rev_sub env p = orig *)
+	     | C("+", [p]) -> (
+		 let interm = Diff.sub env p in
+		   interm :: res_ts)
+	) embs []
+  in
   let rec loop t = match view t with
-    | C("pending",[orig_cp; embedded]) -> unfold_embedded orig_cp embedded
+    | C("pending", orig_cp :: embedded) -> unfold_embedded orig_cp embedded
     | C(ty, ts) -> 
 	let ts' = ts 
 	  +> List.rev_map loop 
@@ -2057,8 +2181,8 @@ let apply_spatch spatch (term,flow) =
 						      | Difftype.ADD p -> Difftype.ADD (p, empty_annotation)) in
   let annotated_spatches = traces +> List.map (annotate_spatch init_annotated) in
   let chunkified_spatches = annotated_spatches +> List.rev_map Diff.chunks_of_diff in
-  let pending_term = chunkified_spatches +> List.fold_left 
-    (fun acc_pending_term chunk_set -> 
+  let pending_term = chunkified_spatches +> 
+    List.fold_left (fun acc_pending_term chunk_set -> 
        chunk_set +> List.fold_left (insert_chunk flow) acc_pending_term
     ) term in
     perform_pending pending_term
@@ -2113,11 +2237,141 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
 					  rhs_def_term)
 				      ) in
     (* check safety of result *)
+    v_print_string "safety check: ";
+    spatch +> List.map Diff.string_of_diff +> String.concat " " +> v_print_endline;
     patched_lhss +> List.exists (function (left,middle,right) -> 
-					   Diff.part_of_edit_dist left middle right)
+				   v_print_endline ("t1\t" ^ Diff.string_of_gtree' left);
+				   v_print_endline ("t2\t" ^ Diff.string_of_gtree' middle);
+				   v_print_endline ("t3\t" ^ Diff.string_of_gtree' right);
+				   if Diff.part_of_edit_dist left middle right
+				   then (v_print_endline "ok"; true)
+				   else (v_print_endline "unsafe"; false)
+				   )
 
-let find_common_patterns () =
-  read_spec(); (* gets names to process in file_pairs *)
+(* decide whether sp1 <= ttf_list *)
+let is_spatch_safe_ttf_list sp ttf_list =
+  ttf_list +> for_some !threshold (function ttf ->
+				     is_spatch_safe_one ttf sp
+				  )
+
+let apply_spatch_ttf spatch (lhs_term, rhs_term, flows) =
+  (* find a matching flow 
+     - extract pattern from spatch
+     - use exists_cont_match, |- to try all nodes in the flow for a match
+  *)
+
+  (* fold_right is ok to use here as patterns are most likely never
+     much longer than 5 node-patterns/items *)
+  let pattern = List.fold_right (fun iop acc_pattern -> match iop with
+				   | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
+				   | Difftype.ADD _ -> acc_pattern
+				) spatch [] in
+  let matched_flows = flows +> List.filter (function flow ->
+					      flow |- pattern
+					   ) in
+    (* find corresponding function in lhs & rhs 
+       - get name of function corresponding to flow
+       - get subterm in lhs which is that function
+       - do for rhs term
+    *)
+  let fun_names = matched_flows +> List.map 
+    (function flow -> (get_fun_name_gflow flow, flow)) in
+  let funs = fun_names +> List.map (function (fname,flow) ->
+				      (fname, 
+				       flow, 
+				       get_fun_in_term fname lhs_term, 
+				       get_fun_in_term fname rhs_term
+				      )) in
+    (* patch all lhs' (there can be more because our pattern might
+       match more than one function), but for each function there is
+       only one lhs' because we assume that spatch-application is
+       deterministic; cf. no overlapping semantic patterns in each
+       function flow *)
+  let patched_lhss = funs +> List.map (function (fname, flow, lhs_def_term, rhs_def_term) ->
+					 (lhs_def_term, 
+					  apply_spatch spatch (lhs_def_term, flow), 
+					  rhs_def_term)
+				      ) in
+    patched_lhss
+
+
+(* decide whether sp1 <= sp2 relative to ttf_list *)
+let get_largest_spatchs ttf_list spatches =
+  (* - for spatch
+     -- for each triple (lhs,rhs,flows) produce 
+        [ (f_lhs, f_mhs) | f_lhs ∈ lhs, [[spatch]](f_lhs) = f_mhs ]
+     - we can then produce a list indexed by spatches:
+        [ (spatch, [(lhs, [(f_lhs, f_mhs) | f_lhs ∈ lhs, [[spatch]](f_lhs)=f_mhs] ) | (lhs,rhs,flows) ∈ ttf_list]
+       we denote this list "applied_spatches"
+     - now sp1 ≼ sp2 (relative to t1,t2,t3) iff
+         δ(t1,t2) + δ(t2,t3) = δ(t1,t3)
+         and we have [[sp2]](t1)=t3, [[sp1]](t1)=t2
+
+     - thus given applied_spatches : (sp * (term * (term * term) list)) list 
+       to decide whether sp1 ≼ sp2 given two entries from the list we must
+       have 
+       (sp1,[(lhs1, fm_list11), ..., (lhsn1, fm_listn1)]), 
+       (sp2,[(lhs1, fm_list12), ..., (lhsn2, fm_listn2)]), 
+       
+       let ∀_x denote "for_some !threshold"
+       
+       sp1≼sp2 <=>
+         ∀_x(lhsi, fmlisti) ∈ applied_spatches(sp1)
+         ∀_x(lhsj, fmlistj) ∈ applied_spatches(sp2)
+
+           lhsi=lhsj => 
+               ∀(f1,m1) ∈ fmlisti, 
+               ∀(f2,m2) ∈ fmlistj => 
+                 f1 = f2 => 
+                   δ(f1,m1) + δ(m1,m2) = δ(f2,m2)
+
+ *)
+  let applied_spatches = spatches
+    +> List.rev_map 
+    (function sp -> 
+       sp,
+       ttf_list +> 
+	 List.rev_map 
+	 (function (lhs,rhs,flows)  ->
+	    lhs, apply_spatch_ttf sp (lhs,rhs,flows)
+	 )
+    )
+  in
+  let is_sub lhss_fmlists1 lhss_fmlists2 = 
+    lhss_fmlists2 +> for_some !threshold 
+      (function (lhs2, fm_lists2) ->
+	 let (_, fm_lists1) = List.find (function (lhs1, _) -> lhs1 = lhs2) lhss_fmlists1 in
+	   fm_lists2 +> List.for_all
+	     (function (f2,m2,_) ->
+		let (_, m1, _) = List.find (function (f1,m1,r1) -> f1 = f2) fm_lists1 in
+		  Diff.part_of_edit_dist f2 m1 m2
+	     )
+      )
+  in
+    (* the largest spatches are those for which all others are either smaller or not-comparable *)
+    applied_spatches 
+    +> List.rev_map
+      (function (sp, lhs_fmlists) ->
+	 if applied_spatches +> List.for_all (function (sp', lhs_fmlists') ->
+					     is_sub lhs_fmlists' lhs_fmlists ||
+					       not(is_sub lhs_fmlists lhs_fmlists')
+					  )
+	 then
+	   (
+	     print_endline "[Main] including as largest: ";
+	     print_endline (sp
+			    +> List.map Diff.string_of_spdiff
+			    +> String.concat "\n");
+	     Some sp 
+	   )
+	 else None
+      )
+    +> List.fold_left (fun acc opt -> match opt with Some sp -> 
+			 sp :: acc | _ -> acc) []
+
+
+  let find_common_patterns () =
+    read_spec(); (* gets names to process in file_pairs *)
   let term_pairs = List.rev (
     List.fold_left (fun acc_pairs (lfile, rfile) ->
 		      read_filepair_cfg lfile rfile :: acc_pairs
@@ -2142,19 +2396,27 @@ let find_common_patterns () =
       let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flows),(rhs_gt,_)) -> 
 				 (lhs_gt, rhs_gt, lhs_flows)
 			      ) in
-      let res_spatches = sp_candidates +> List.filter 
-	  (function spatch ->
-	     ttf_list +> for_some !threshold (function ttf ->
-						is_spatch_safe_one ttf spatch
-					     )
-	  ) in
+      let res_spatches = 
+	sp_candidates 
+	+> List.filter (function sp -> is_spatch_safe_ttf_list sp ttf_list)
+      in
+      let is_transformation_sp sp = 
+	sp +> List.exists (function p ->
+			     match p with
+			       | Difftype.ID _ -> false
+			       | _ -> true) in
+      let largest_spatches =
+	res_spatches 
+	+> List.filter is_transformation_sp
+	+> get_largest_spatchs ttf_list
+      in
 	print_endline ("[Main] *REAL* semantic patches inferred: " ^
-			 List.length res_spatches +> string_of_int);
-	res_spatches
+			 List.length largest_spatches +> string_of_int);
+	largest_spatches
 	+> List.iter (function diff ->
 			print_endline "[spatch:]";
 			print_endline (diff
-				       +> List.map Diff.string_of_diff
+				       +> List.map Diff.string_of_spdiff
 				       +> String.concat "\n");
 		     )
   

@@ -87,6 +87,8 @@ let (+++) x xs = if List.mem x xs then xs else x :: xs
 (* convenience for application *)
 let (+>) o f = f o
 
+let skip = mkA("SKIP","...")
+
 (* check that list l1 is a sublist of l2 *)
 let subset_list l1 l2 =
   List.for_all (function e1 -> (List.mem e1 l2)) l1
@@ -293,6 +295,25 @@ let rec string_of_diff d =
 	    "+ " ^ (string_of_gtree str_of_ctype str_of_catom s')
       | ADD s -> "ADD:  " ^ string_of_gtree str_of_ctype str_of_catom s
       | RM s -> "RM:  " ^ string_of_gtree str_of_ctype str_of_catom s
+
+let extract_pat p = match view p with
+| C("CM", [p]) -> p
+| _ -> raise (Match_failure (string_of_gtree' p, 772,0))
+
+let rec string_of_spdiff d =
+  let make_string_header gt = collect_metas gt in
+    match d with
+      | SEQ(p1,p2) -> "SEQ:  " ^ string_of_spdiff p1 ^ " ; " ^ string_of_spdiff p2
+      | ID s when s == skip -> "\t..."
+      | ID s -> "\t" ^ extract_pat s +> string_of_gtree'
+      | UP(s,s') -> 
+	  "@@\n" ^ String.concat "\n" (make_string_header s) ^
+	    "\n@@\n" ^
+	    "- " ^ (string_of_gtree' s) ^ 
+	    "\n" ^
+	    "+ " ^ (string_of_gtree' s')
+      | ADD s -> "+\t" ^ s +> string_of_gtree'
+      | RM s -> "-\t" ^ extract_pat s +> string_of_gtree'
 
 (* a solution is a list of updates, diff list and the idea is that it will
  * transform an original gt into the updated gt' *)
@@ -1511,9 +1532,8 @@ and safe_part up (t, t'') =
     let t' = apply_noenv up t in
       if !malign_mode
       then 
-(* 	part_of_malign t t' t'' *)
+(* 	part_of_malign t t' t'' (* still too slow *) *)
         part_of_edit_dist t t' t''
-(*	edit_cost t' t'' <= edit_cost t t'' *)
       else 
         merge3 t t' t''
   with (Nomatch | Merge3) -> (
@@ -1716,6 +1736,7 @@ let read_ast file =
   let (pgm2, parse_stats) = 
     Parse_c.parse_print_error_heuristic file in
     pgm2
+
 let i2s i = string_of_int i
 
 let translate_node (n2, ninfo) = match n2 with
@@ -1859,7 +1880,12 @@ let read_ast_cfg file =
     Parse_c.parse_print_error_heuristic file in
     (*  let flows = List.map (function (c,info) -> Ast_to_flow2.ast_to_control_flow c) pgm2 in *)
     (* ast_to_control_flow is given a toplevel entry and turns that into a flow *)
-  let flows = pgm2 +> List.map (function (c,info) -> Ast_to_flow2.ast_to_control_flow c)  in
+  let tops_envs = 
+    pgm2 +> List.map fst +>
+    Type_annoter_c.annotate_program 
+      !Type_annoter_c.initial_env
+      in
+  let flows = tops_envs +> List.map (function (c,info) -> Ast_to_flow2.ast_to_control_flow c)  in
   let  gflows = ref [] in
     flows +> List.iter (do_option (fun f -> 
 				     gflows := (flow_to_gflow f) :: !gflows));

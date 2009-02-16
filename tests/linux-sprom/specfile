@@ -1,7 +1,7 @@
 leds.c.orig leds.c.new
 lo.c.orig lo.c.new
-main.c.orig main.c.new
+#main.c.orig main.c.new
 #main2.c.orig main2.c.new
-#phy.c.orig phy.c.new
+phy.c.orig phy.c.new
 #wa.c.orig wa.c.new
 #xmit.c.orig xmit.c.new
