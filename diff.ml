@@ -403,7 +403,7 @@ let lcs_shared size_f src tgt =
     m
 
 let rec shared_gtree t1 t2 =
-  let localeq a b = if a = b then 1 else 0 in
+  let (+=) a b = if a = b then 1 else 0 in
   let rec comp l1 l2 =
     match l1, l2 with
       | [], _ | _, [] -> 0
@@ -412,9 +412,9 @@ let rec shared_gtree t1 t2 =
       | x :: xs, y :: ys -> shared_gtree x y + comp xs ys in
     match view t1, view t2 with
       | A (ct1, at1), A (ct2, at2) -> 
-          localeq ct1 ct2 + localeq at1 at2
+          (ct1 += ct2) + (at1 += at2)
       | C(ct1, ts1), C(ct2, ts2) ->
-          localeq ct1 ct2 + comp ts1 ts2
+          (ct1 += ct2) + comp ts1 ts2
       | _, _ -> 0
 
 let rec get_diff_nonshared src tgt =
@@ -660,6 +660,14 @@ module PatternTerm = struct
   let hash (p,t) = abs (19 * (19 * p.hkey + t.hkey) + 2)
 end
 
+module Term = struct
+  type t = gtree
+  let equal t t' = t == t'
+  let hash t = t.hkey
+end
+
+module TT = Hashtbl.Make(Term)
+
 module PT = Hashtbl.Make(PatternTerm)
 
 
@@ -684,7 +692,7 @@ let find_match pat t =
 
     with Not_found -> 
       let res = loop t in
-	(PT.replace occursht (pat,t) res; 
+	(PT.add occursht (pat,t) res; 
 	 res)
 
 let is_header head_str = 
@@ -837,7 +845,10 @@ let a_of_type t = mkA("nodetype", t)
 let begin_c t = mkA("begin",t)
 let end_c t = mkA("end",t)
     
+let flatht = TT.create 1000001
+
 let rec flatten_tree gt = 
+  let loop gt =
     match view gt with 
       | A _ -> [gt]
 	  (*| C(t, gts) -> List.fold_left (fun acc gt -> List.rev_append (flatten_tree gt) acc) [] gts*)
@@ -848,9 +859,19 @@ let rec flatten_tree gt =
 *)
       | C(t, gts) -> 
 	  begin_c t ::
-	  List.fold_left
+	    List.fold_left
 	    (fun acc gt -> List.rev_append (flatten_tree gt) acc) 
 	    [end_c t] (List.rev gts)
+  in 
+    try 
+      TT.find flatht gt
+    with Not_found ->
+      let 
+	  res = loop gt in
+	(
+	  TT.add flatht gt res;
+	  res
+	)
 
 let rec linearize_tree gt =
   let rec loop acc gt = 
@@ -998,7 +1019,7 @@ let rec forest_dist f1 f2 =
 
 let minimal_tree_dist t1 t2 = forest_dist [t1] [t2]
 
-let edit_cost gt1 gt2 =
+let rec edit_cost gt1 gt2 =
   let rec node_size gt = match view gt with
     | A _ -> 1
     | C (_, ts) -> ts +> List.fold_left (fun sum t -> sum + node_size t) 1 in
@@ -1006,7 +1027,7 @@ let edit_cost gt1 gt2 =
     | ID _ -> 0
     | RM t | ADD t -> node_size t
     | UP (t1,t2) when t1  = t2 -> 0
-    | UP (t,t') -> 1 (* node_size t + node_size t' *)
+    | UP (t,t') -> node_size t + node_size t'
   in
   let get_cost gt1 g2 =
     (* patience_diff (flatten_tree gt1) (flatten_tree gt2) +> *)
@@ -1021,10 +1042,11 @@ let edit_cost gt1 gt2 =
 	      patience_diff gts1 gts2 +>
 		(* get_diff gts1 gts2 +> *)
 		List.fold_left (fun acc_sum up -> match up with
-				  | UP(t1,t2) -> get_cost_tree t1 t2 + acc_sum
+				  (* | UP(t1,t2) -> get_cost_tree t1 t2 + acc_sum *)
+				  | UP(t1,t2) -> edit_cost t1 t2 + acc_sum
 				  | _ -> up_cost up + acc_sum) 0)
-	| _ -> 1 
-	    (*	| _ -> up_cost (UP(gt1,gt2)) *)
+	(* | _ -> 1  *)
+	| _ -> up_cost (UP(gt1,gt2)) 
   in
     try
       let res = PT.find editht (gt1,gt2) in
@@ -1032,11 +1054,11 @@ let edit_cost gt1 gt2 =
     with Not_found ->
       let 
 	(* res = minimal_tree_dist gt1 gt2 *)
-	res = get_cost_tree gt1 gt2 
-	(* res = get_cost gt1 gt2 *)
+	  res = get_cost_tree gt1 gt2
+	  (* res = get_cost gt1 gt2 *)
       in
 	(
-	  PT.replace editht (gt1,gt2) res;
+	  PT.add editht (gt1,gt2) res;
 	  res
 	)
 	
@@ -2587,9 +2609,27 @@ let rec abs_term_imp terms_changed is_fixed up =
 	 * this can happen, you know! we return simply an atom
 	 *)
 	[mkA(ct, "new file")], env
-    | C (ct, ts) when !abs_subterms <= gsize t -> 
+ (*   | C (ct, ts) when !abs_subterms <= gsize t -> 
 	(fdebug_endline !print_abs ("[Diff] abs_subterms " ^ string_of_gtree' t);
 	 [t], env)
+ *)
+    | C("storage", _) -> [t], env
+    | C("def",_) -> [t], env
+    | C("call", f :: ts) ->
+	cur_depth := !cur_depth - 1;
+        (* generate abstract versions for each t ∈ ts *)
+        let meta_lists, env_acc =
+          List.fold_left (fun (acc_lists, env') t -> 
+			    let meta', env'' = loop build_mode env' t
+			    in (meta' :: acc_lists), env''
+                         ) ([], env) ts in
+          (* generate all permutations of the list of lists *)
+        let meta_perm = gen_perms (List.rev meta_lists) in
+          (* construct new term from lists *)
+	  cur_depth := !cur_depth + 1;
+          t :: List.rev (List.fold_left (fun acc_meta meta_list ->
+					   mkC("call", f :: meta_list) :: acc_meta
+                                        ) [] meta_perm), env_acc
     | C (ct, ts) ->
 	let metas, env = 
           if should_abs t && not(terms_changed t)

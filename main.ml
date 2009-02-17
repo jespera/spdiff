@@ -823,7 +823,7 @@ let abstract_term depth env t =
               t :: List.rev (List.fold_left (fun acc_meta meta_list ->
                 mkC("call", f :: meta_list) :: acc_meta
                                             ) [] meta_perm), env_acc
-	  | C _ when !max_level <= gsize t -> [t], env
+	  (* | C _ when !max_level <= gsize t -> [t], env *)
           | C(ty, ts) ->
               (* generate abstract versions for each t ∈ ts *)
               let meta_lists, env_acc =
