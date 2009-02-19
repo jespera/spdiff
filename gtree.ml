@@ -55,7 +55,7 @@ let rec gsize t =
 let rec zsize t =
   match view t with
   | A ("meta", _) -> 0
-  | A (at, ac) -> String.length ac
+  | A (at, ac) -> 1 (* String.length ac *)
   | C ("TYPEDEXP", [ft;id]) -> zsize ft + zsize id
   | C(ct, ts) -> 1 + List.fold_left 
       (fun a b -> a + zsize b) 1 ts

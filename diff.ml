@@ -185,7 +185,6 @@ let rec string_of_gtree str_of_t str_of_c gt =
       | A ("meta", c) -> string_of_meta gt
 	  (*      | A ("itype", _) -> string_of_itype gt 
       | A (t,c) -> t ^ ":" ^ c *)
-      | A (t,c) -> c
       | C ("fulltype", ti) -> string_of_ftype ti
       | C ("const", [{node=A(_, c)}]) -> c
       | C ("itype", _ ) -> string_of_itype gt
@@ -222,6 +221,7 @@ let rec string_of_gtree str_of_t str_of_c gt =
           str_of_t t ^ "[" ^
           String.concat "," (List.map loop gtrees)
           ^ "]"
+      | A (t,c) -> c
 (*      | A (t,c) -> str_of_t t ^ "<" ^ str_of_c c ^ ">" *)
   in
     loop gt
@@ -1040,7 +1040,7 @@ let rec edit_cost gt1 gt2 =
 	| C(t1,gts1), C(t2,gts2) -> 
 	    (if t1 = t2 then 0 else 1) + (
 	      patience_diff gts1 gts2 +>
-		(* get_diff gts1 gts2 +> *)
+		(*get_diff gts1 gts2 +> *)
 		List.fold_left (fun acc_sum up -> match up with
 				  (* | UP(t1,t2) -> get_cost_tree t1 t2 + acc_sum *)
 				  | UP(t1,t2) -> edit_cost t1 t2 + acc_sum
@@ -1054,8 +1054,8 @@ let rec edit_cost gt1 gt2 =
     with Not_found ->
       let 
 	(* res = minimal_tree_dist gt1 gt2 *)
-	  res = get_cost_tree gt1 gt2
-	  (* res = get_cost gt1 gt2 *)
+	  (* res = get_cost_tree gt1 gt2 *)
+	  res = get_cost gt1 gt2
       in
 	(
 	  PT.add editht (gt1,gt2) res;
@@ -1770,7 +1770,7 @@ let translate_node (n2, ninfo) = match n2 with
   | Control_flow_c.SeqEnd (i, info) -> mkA("head:seqend", "}" ^ i2s i)
   | Control_flow_c.ExprStatement (st, (eopt, info)) -> Visitor_j.trans_statement st
   | Control_flow_c.IfHeader (st, (cond,info)) -> mkC("head:if", [Visitor_j.trans_expr cond])
-  | Control_flow_c.Else info -> mkA("phony", "Else")
+  | Control_flow_c.Else info -> mkA("control", "Else")
   | Control_flow_c.WhileHeader (st, (cond, info)) -> mkC("head:while", [Visitor_j.trans_expr cond])
   | Control_flow_c.DoHeader (st, info) -> mkA("head:do", "do")
   | Control_flow_c.DoWhileTail (expr, info) -> mkC("head:dotail", [Visitor_j.trans_expr expr])
@@ -1788,7 +1788,7 @@ let translate_node (n2, ninfo) = match n2 with
   | Control_flow_c.SwitchHeader (st, (expr, info)) -> mkC("head:switch", [Visitor_j.trans_expr expr])
   | Control_flow_c.MacroIterHeader (st, 
                                    ((mname, aw2s), info)) ->
-      mkC(mname, List.map (fun (a,i) -> Visitor_j.trans_arg a) aw2s)
+      mkC("head:macroit", [mkC(mname, List.map (fun (a,i) -> Visitor_j.trans_arg a) aw2s)])
   | Control_flow_c.EndStatement info -> mkA("phony", "[endstatement]")
 
   | Control_flow_c.Return (st, _) 
@@ -1823,8 +1823,8 @@ let translate_node (n2, ninfo) = match n2 with
       (* no counter part in cocci *)
 	 | Control_flow_c.CaseRange of statement * (expression * expression) wrap
 *)
-	 | Control_flow_c.Label (st, _) 
 	 | Control_flow_c.Goto (st, _) -> Visitor_j.trans_statement st
+	 | Control_flow_c.Label (st, (lab, _)) -> mkA("head:label", lab)
 (*
 
 	 | Control_flow_c.Asm of statement * asmbody wrap
@@ -2613,8 +2613,16 @@ let rec abs_term_imp terms_changed is_fixed up =
 	(fdebug_endline !print_abs ("[Diff] abs_subterms " ^ string_of_gtree' t);
 	 [t], env)
  *)
+    | C("prg", _)
+    | C("prg2", _)
+    | C("def",_) 
+    | C("comp{}", _) 
+    | C("if", _) 
+    | C("while", _)
+    | C("dowhile", _)
+    | C("for", _) 
+    | C("switch", _) 
     | C("storage", _) -> [t], env
-    | C("def",_) -> [t], env
     | C("call", f :: ts) ->
 	cur_depth := !cur_depth - 1;
         (* generate abstract versions for each t ∈ ts *)
@@ -2704,7 +2712,7 @@ let rec abs_term_imp terms_changed is_fixed up =
 
 let abs_term_noenv terms_changed is_fixed should_abs up = 
   fdebug_endline !print_abs ("[Diff] abstracting concrete update with size:" ^
-				string_of_int (Difftype.csize up) ^ " " ^
+				string_of_int (Difftype.csize up) ^ "\n" ^
 				string_of_diff up);
   (*let res, _ = abs_term_size terms_changed is_fixed should_abs up in *)
   let res, _ = abs_term_imp terms_changed is_fixed up in 
