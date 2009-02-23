@@ -15,7 +15,7 @@ type term = gtree
 type up = term diff
 
 type node = gtree
-type edge = Control_flow_c.edge
+type edge = Control_flow_c2.edge
 
 type gflow = (node, edge) Ograph_extended.ograph_mutable
 
@@ -1030,7 +1030,6 @@ let rec edit_cost gt1 gt2 =
     | UP (t,t') -> node_size t + node_size t'
   in
   let get_cost gt1 g2 =
-    (* patience_diff (flatten_tree gt1) (flatten_tree gt2) +> *)
     patience_diff (flatten_tree gt1) (flatten_tree gt2) +>
       List.fold_left (fun acc_sum up -> up_cost up + acc_sum) 0 in
   let rec get_cost_tree gt1 gt2 = 
@@ -1054,8 +1053,8 @@ let rec edit_cost gt1 gt2 =
     with Not_found ->
       let 
 	(* res = minimal_tree_dist gt1 gt2 *)
-	  (* res = get_cost_tree gt1 gt2 *)
-	  res = get_cost gt1 gt2
+	  res = get_cost_tree gt1 gt2
+	  (* res = get_cost gt1 gt2 *)
       in
 	(
 	  PT.add editht (gt1,gt2) res;
@@ -1760,21 +1759,22 @@ let read_ast file =
     pgm2
 
 let i2s i = string_of_int i
+let control_else = mkA("control:else", "Else")
 
 let translate_node (n2, ninfo) = match n2 with
-  | Control_flow_c.TopNode -> mkA("phony","TopNode")
-  | Control_flow_c.EndNode -> mkA("phony","EndNode")
-  | Control_flow_c.FunHeader def -> mkC("head:def", [Visitor_j.trans_def def])
-  | Control_flow_c.Decl decl -> Visitor_j.trans_decl decl
-  | Control_flow_c.SeqStart (s,i,info) -> mkA("head:seqstart", "{" ^ i2s i)
-  | Control_flow_c.SeqEnd (i, info) -> mkA("head:seqend", "}" ^ i2s i)
-  | Control_flow_c.ExprStatement (st, (eopt, info)) -> Visitor_j.trans_statement st
-  | Control_flow_c.IfHeader (st, (cond,info)) -> mkC("head:if", [Visitor_j.trans_expr cond])
-  | Control_flow_c.Else info -> mkA("control", "Else")
-  | Control_flow_c.WhileHeader (st, (cond, info)) -> mkC("head:while", [Visitor_j.trans_expr cond])
-  | Control_flow_c.DoHeader (st, info) -> mkA("head:do", "do")
-  | Control_flow_c.DoWhileTail (expr, info) -> mkC("head:dotail", [Visitor_j.trans_expr expr])
-  | Control_flow_c.ForHeader (st, (((e1opt, _), 
+  | Control_flow_c2.TopNode -> mkA("phony","TopNode")
+  | Control_flow_c2.EndNode -> mkA("phony","EndNode")
+  | Control_flow_c2.FunHeader def -> mkC("head:def", [Visitor_j.trans_def def])
+  | Control_flow_c2.Decl decl -> Visitor_j.trans_decl decl
+  | Control_flow_c2.SeqStart (s,i,info) -> mkA("head:seqstart", "{" ^ i2s i)
+  | Control_flow_c2.SeqEnd (i, info) -> mkA("head:seqend", "}" ^ i2s i)
+  | Control_flow_c2.ExprStatement (st, (eopt, info)) -> Visitor_j.trans_statement st
+  | Control_flow_c2.IfHeader (st, (cond,info)) -> mkC("head:if", [Visitor_j.trans_expr cond])
+  | Control_flow_c2.Else info -> control_else
+  | Control_flow_c2.WhileHeader (st, (cond, info)) -> mkC("head:while", [Visitor_j.trans_expr cond])
+  | Control_flow_c2.DoHeader (st, e, info) -> mkC("head:do", [Visitor_j.trans_expr e])
+  | Control_flow_c2.DoWhileTail (expr, info) -> mkC("head:dowhiletail", [Visitor_j.trans_expr expr])
+  | Control_flow_c2.ForHeader (st, (((e1opt, _), 
                                    (e2opt, _),
                                    (e3opt, _)),info)) -> mkC("head:for",
 							     let handle_empty x = match x with
@@ -1785,75 +1785,79 @@ let translate_node (n2, ninfo) = match n2 with
 								 handle_empty e2opt;
 								 handle_empty e3opt;
 							       ]) 
-  | Control_flow_c.SwitchHeader (st, (expr, info)) -> mkC("head:switch", [Visitor_j.trans_expr expr])
-  | Control_flow_c.MacroIterHeader (st, 
+  | Control_flow_c2.SwitchHeader (st, (expr, info)) -> mkC("head:switch", [Visitor_j.trans_expr expr])
+  | Control_flow_c2.MacroIterHeader (st, 
                                    ((mname, aw2s), info)) ->
       mkC("head:macroit", [mkC(mname, List.map (fun (a,i) -> Visitor_j.trans_arg a) aw2s)])
-  | Control_flow_c.EndStatement info -> mkA("phony", "[endstatement]")
+  | Control_flow_c2.EndStatement info -> mkA("phony", "[endstatement]")
 
-  | Control_flow_c.Return (st, _) 
-  | Control_flow_c.ReturnExpr (st, _) -> Visitor_j.trans_statement st
+  | Control_flow_c2.Return (st, _) 
+  | Control_flow_c2.ReturnExpr (st, _) -> Visitor_j.trans_statement st
       (* BEGIN of TODO
 
       (* ------------------------ *)
-	 | Control_flow_c.IfdefHeader of ifdef_directive
-	 | Control_flow_c.IfdefElse of ifdef_directive
-	 | Control_flow_c.IfdefEndif of ifdef_directive
+	 | Control_flow_c2.IfdefHeader of ifdef_directive
+	 | Control_flow_c2.IfdefElse of ifdef_directive
+	 | Control_flow_c2.IfdefEndif of ifdef_directive
          
 
       (* ------------------------ *)
-	 | Control_flow_c.DefineHeader of string wrap * define_kind
+	 | Control_flow_c2.DefineHeader of string wrap * define_kind
 
-	 | Control_flow_c.DefineExpr of expression 
-	 | Control_flow_c.DefineType of fullType
-	 | Control_flow_c.DefineDoWhileZeroHeader of unit wrap
+	 | Control_flow_c2.DefineExpr of expression 
+	 | Control_flow_c2.DefineType of fullType
+	 | Control_flow_c2.DefineDoWhileZeroHeader of unit wrap
 
-	 | Control_flow_c.Include of includ
+	 | Control_flow_c2.Include of includ
 
       (* obsolete? *)
-	 | Control_flow_c.MacroTop of string * argument wrap2 list * il 
+	 | Control_flow_c2.MacroTop of string * argument wrap2 list * il 
 
       (* ------------------------ *)
-	 | Control_flow_c.Case  of statement * expression wrap
-	 | Control_flow_c.Default of statement * unit wrap
+
+
   *)
-	 | Control_flow_c.Continue (st,_) 
-	 | Control_flow_c.Break    (st,_) 
+	 | Control_flow_c2.Default (st, _) ->
+	     mkA("head:default", "default")
+	 | Control_flow_c2.Case (st,(e,_)) -> 
+	     mkC("head:case", [Visitor_j.trans_expr e])
+	 | Control_flow_c2.Continue (st,_) 
+	 | Control_flow_c2.Break    (st,_) 
    (*
       (* no counter part in cocci *)
-	 | Control_flow_c.CaseRange of statement * (expression * expression) wrap
+	 | Control_flow_c2.CaseRange of statement * (expression * expression) wrap
 *)
-	 | Control_flow_c.Goto (st, _) -> Visitor_j.trans_statement st
-	 | Control_flow_c.Label (st, (lab, _)) -> mkA("head:label", lab)
+	 | Control_flow_c2.Goto (st, _) -> Visitor_j.trans_statement st
+	 | Control_flow_c2.Label (st, (lab, _)) -> mkA("head:label", lab)
 (*
 
-	 | Control_flow_c.Asm of statement * asmbody wrap
-	 | Control_flow_c.MacroStmt of statement * unit wrap
+	 | Control_flow_c2.Asm of statement * asmbody wrap
+	 | Control_flow_c2.MacroStmt of statement * unit wrap
 
       (* ------------------------ *)
       (* some control nodes *)
 
 	 END of TODO *)
 
-  | Control_flow_c.Enter -> mkA("phony", "[enter]")
-  | Control_flow_c.Exit -> mkA("phony", "[exit]")
-  | Control_flow_c.Fake -> mkA("phony", "[fake]")
+  | Control_flow_c2.Enter -> mkA("phony", "[enter]")
+  | Control_flow_c2.Exit -> mkA("phony", "[exit]")
+  | Control_flow_c2.Fake -> mkA("phony", "[fake]")
 
   (* flow_to_ast: In this case, I need to know the  order between the children
    * of the switch in the graph. 
    *)
-  | Control_flow_c.CaseNode i -> mkA("head:case", "[case" ^ i2s i ^"]")
+  | Control_flow_c2.CaseNode i -> mkA("phony", "[case" ^ i2s i ^"]")
 
   (* ------------------------ *)
   (* for ctl:  *)
-  | Control_flow_c.TrueNode -> mkA("phony", "[then]")
-  | Control_flow_c.FalseNode -> mkA("phony", "[else]")
-  | Control_flow_c.InLoopNode (* almost equivalent to TrueNode but just for loops *) -> mkA("phony", "InLoop")
+  | Control_flow_c2.TrueNode -> mkA("phony", "[then]")
+  | Control_flow_c2.FalseNode -> mkA("phony", "[else]")
+  | Control_flow_c2.InLoopNode (* almost equivalent to TrueNode but just for loops *) -> mkA("phony", "InLoop")
 
-  | Control_flow_c.AfterNode -> mkA("phony", "[after]")
-  | Control_flow_c.FallThroughNode -> mkA("phony", "[fallthrough]")
+  | Control_flow_c2.AfterNode -> mkA("phony", "[after]")
+  | Control_flow_c2.FallThroughNode -> mkA("phony", "[fallthrough]")
 
-  | Control_flow_c.ErrorExit -> mkA("phony", "[errorexit]")
+  | Control_flow_c2.ErrorExit -> mkA("phony", "[errorexit]")
   | _ -> mkA("NODE", "N/A")
 
 let print_gflow g =

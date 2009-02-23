@@ -1,8 +1,10 @@
 void foo(void) {
 				int x;
-				if(b)
-					moo();
-				else x = f(x);
+				do {
+								jiffies();
+								anders();
+				} while (!k);
+				x = f(x);
 				x = g(117);
 				return x;
 }

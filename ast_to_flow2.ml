@@ -1,7 +1,7 @@
 open Common
 
 open Ast_c
-open Control_flow_c
+open Control_flow_c2
 
 open Ograph_extended
 open Oassoc
@@ -49,9 +49,9 @@ exception Error of error
 (*****************************************************************************)
 
 let add_node node labels nodestr g = 
-   g#add_node (Control_flow_c.mk_node node labels [] nodestr)
+   g#add_node (Control_flow_c2.mk_node node labels [] nodestr)
 let add_bc_node node labels parent_labels nodestr g = 
-   g#add_node (Control_flow_c.mk_node node labels parent_labels  nodestr)
+   g#add_node (Control_flow_c2.mk_node node labels parent_labels  nodestr)
 let add_arc_opt (starti, nodei) g = 
   starti +> do_option (fun starti -> g#add_arc ((starti, nodei), Direct))
 
@@ -690,7 +690,7 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
         | [i1;i2;i3;i4;i5;i6] -> i1, [i2;i3;i4;i5], i6
         | _ -> raise Impossible
       in
-      let doi = !g +> add_node (DoHeader (stmt, iido))  lbl "do" in
+      let doi = !g +> add_node (DoHeader (stmt, e, iido))  lbl "do" in
       !g +> add_arc_opt (starti, doi);
       let taili = !g +> add_node (DoWhileTail (e, iiwhiletail)) lbl "whiletail"
       in
@@ -1088,13 +1088,13 @@ let ast_to_control_flow e =
       let (elem, str) = 
         match e with 
         | Ast_c.Declaration decl -> 
-            (Control_flow_c.Decl decl),  "decl"
+            (Control_flow_c2.Decl decl),  "decl"
         | Ast_c.CppTop (Ast_c.Include inc) -> 
-            (Control_flow_c.Include inc), "#include"
+            (Control_flow_c2.Include inc), "#include"
         | Ast_c.MacroTop (s, args, ii) -> 
             let (st, (e, ii)) = specialdeclmacro_to_stmt (s, args, ii) in
-            (Control_flow_c.ExprStatement (st, (Some e, ii))), "macrotoplevel"
-          (*(Control_flow_c.MacroTop (s, args,ii), "macrotoplevel") *)
+            (Control_flow_c2.ExprStatement (st, (Some e, ii))), "macrotoplevel"
+          (*(Control_flow_c2.MacroTop (s, args,ii), "macrotoplevel") *)
         | _ -> raise Impossible
       in
       let ei =   !g +> add_node elem    lbl_0 str in
@@ -1180,7 +1180,7 @@ let ast_to_control_flow e =
 (*****************************************************************************)
 
 let annotate_loop_nodes g =
-  let firsti = Control_flow_c.first_node g in
+  let firsti = Control_flow_c2.first_node g in
 
   (* just for opti a little *)
   let already = Hashtbl.create 101 in 
@@ -1235,7 +1235,7 @@ let deadcode_detection g =
       | Exit -> ()     (* if have 'loop: if(x) return; i++; goto loop' *)
       | SeqEnd _ -> () (* todo?: certaines '}' deviennent orphelins *)
       | x -> 
-          (match Control_flow_c.extract_fullstatement node with
+          (match Control_flow_c2.extract_fullstatement node with
           | Some (st, ii) -> raise (Error (DeadCode (Some (pinfo_of_ii ii))))
           | _ -> pr2 "CFG: orphelin nodes, maybe something wierd happened"
           )

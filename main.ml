@@ -1871,8 +1871,8 @@ let get_fun_in_term sname term =
 *)
 
 let is_exit_node t = match view t with
-  | A("head:seqend",_) 
-  | A("head:dotail",_) -> true
+  | C("head:dowhiletail", _)
+  | A("head:seqend",_) -> true
   | _ -> false
 
 let get_path g n = 
@@ -1926,10 +1926,11 @@ let annotate_spatch spatch trace =
 exception LocateSubterm 
 exception Next of int list 
 
-let corresponds st t =
-  let just_one s_st_f = match s_st_f with
+let corresponds st t next_node_val path =
+  let same_path s_st_f = match s_st_f with
     | None -> None
-    | Some (st, f) -> Some ([st,f]) in
+    | Some (st, f) -> Some (st,f,path) 
+  in
     match view st with
       | C("def",[rname;rtype;body]) -> 
 	  (match view t with
@@ -1939,51 +1940,62 @@ let corresponds st t =
 			-> Some ([body],
 				 function [newbody] -> 
 				   mkC("def",[rname;rtype;newbody])
-				) +> just_one
+				) +> same_path
 		    | _ -> raise (Diff.Fail "def-fail"))
 	     | _ -> None
 	  )
+
       | C("stmt", [st]) ->
 	  let s_func st = mkC("stmt", [st]) in
 	    (match view st, view t with
 	       | C("macroit",      [{Hashcons.node=C(t_name, [st])}]), 
 		 C("head:macroit", [{Hashcons.node=C(g_name, _)}]) when t_name = g_name ->
-		   Some([st], function [st'] -> mkC("macroit",[mkC(t_name, [st'])]) +> s_func) +> just_one
+		   Some([st], 
+			function [st'] -> mkC("macroit",[mkC(t_name, [st'])]) +> s_func)
+		   +> same_path
                | C("comp{}", sts), A("head:seqstart", _) ->
 		   Some (sts, function sts' ->
-			   mkC("comp{}", sts') +> s_func) +> just_one
+			   mkC("comp{}", sts') +> s_func) +> same_path
 	       | A("comp{}", "NOP"), A("head:seqstart", _) -> 
-		   Some([], function ts -> s_func st) +> just_one
+		   Some([], function ts -> s_func st) +> same_path
 	       | C("if",[b;t;f]), C("head:if",_) -> 
-		   Some([
-			  [t], (function [t] -> mkC("if", [b;t;f]) +> s_func);
-			  [f], (function [f] -> mkC("if", [b;t;f]) +> s_func)
-			])
-
+		   (match next_node_val with
+		      | None -> raise (Diff.Fail "no next control node val!")
+		      | Some control_node ->
+			  if control_node = Diff.control_else
+			  then (* select false branch and consume control_node from path *)
+			    Some([f],(function [f] -> mkC("if", [b;t;f]) +> s_func), List.tl path)
+			  else (* select true branch and do not consume node from path *)
+			    Some([t],(function [t] -> mkC("if", [b;t;f]) +> s_func)) +> same_path
+		   )
 	       | C("switch",[e;s]), C("head:switch", _) ->
 		   Some ([s], function s' ->
-			   mkC("switch", e :: s') +> s_func) +> just_one
+			   mkC("switch", e :: s') +> s_func) +> same_path
 	       | C("while",[e;s]), C("head:while", _) ->
 		   Some ([s], function s' ->
-			   mkC("while", e :: s') +> s_func) +> just_one
-	       | C("dowhile", [s;e]), A("head:do", _) ->
-		   Some ([s], function s' ->
-			   mkC("dowhile", s' @ [e]) +> s_func) +> just_one
+			   mkC("while", e :: s') +> s_func) +> same_path
+	       | C("dowhile", [s;e]), C("head:do", [e']) when e = e' ->
+			 Some ([s], (function s' ->
+				       mkC("dowhile", s' @ [e]) +> s_func)) +> same_path
 	       | C("for", [e1;e2;e3;st]), C("head:for", _) ->
 		   Some ([st], function st' ->
-			   mkC("for", e1 :: e2 ::e3 :: st') +> s_func) +> just_one
-	       | C("case", [e;st]), A("head:case", _) ->
+			   mkC("for", e1 :: e2 ::e3 :: st') +> s_func) +> same_path
+	       | C("case", [e;st]), C("head:case",[lab_e]) when e = lab_e ->
 		   Some ([st], function st' ->
-			   mkC("case", e :: st') +> s_func) +> just_one
+			   mkC("case", e :: st') +> s_func) +> same_path
+	       | C("default", [st]), A("head:default", _) ->
+		   Some ([st], function [st'] ->
+			   mkC("default", [st']) +> s_func) +> same_path
 	       | C("caseRange",[e1;e2;st]), A("head:case", _) -> 
 		   Some ([st], function st' ->
-			   mkC("caseRage", e1 :: e2 :: st') +> s_func) +> just_one
+			   mkC("caseRage", e1 :: e2 :: st') +> s_func) +> same_path
 	       | C("labeled", [{Hashcons.node=A("lname", s_lab)} as l; st]), 
 		   A("head:label", lab) ->
-		   Some ([st], function [st] -> mkC("labeled", [l; st]) +> s_func) +> just_one
-               | _ -> None)
+		   Some ([st], function [st] -> mkC("labeled", [l; st]) +> s_func) +> same_path
+	       | _ -> None
+	    )
       | _ -> None
-	
+	  
 let rec ( *>) (t_list : gtree list) func def_arg =
   match t_list with
     | [] -> (* raise LocateSubterm *)
@@ -1997,14 +2009,23 @@ let rec ( *>) (t_list : gtree list) func def_arg =
 		     )
 
 let locate_subterm g subterm path f =
-
+  let pathht = Hashtbl.create 101 in
+  let get_val n = 
+    try 
+      Hashtbl.find pathht n
+    with Not_found ->
+      let res = Diff.get_val n g in
+	(
+	  Hashtbl.add pathht n res;
+	  res
+	) in
   v_print_string "[Main] looking in ";
   v_print_endline (Diff.verbose_string_of_gtree subterm);
   v_print_string "[Main] path ";
   v_print_endline (path +> List.map string_of_int +> String.concat " ");
   let last = List.nth path (List.length path - 1) in
   v_print_string "[Main] looking for:";
-  v_print_endline (Diff.get_val last g +> Diff.verbose_string_of_gtree);
+  v_print_endline (get_val last +> Diff.verbose_string_of_gtree);
 
   let is_typed e = match view e with
     | C("TYPEDEXP", _) -> true
@@ -2029,41 +2050,28 @@ let locate_subterm g subterm path f =
     match view pending_subterm with
       | C("pending", orig_cp :: chunk_op) -> orig_cp === node_term
       | _ -> pending_subterm === node_term in
-  let  rec do_list f ts_list =
-    match ts_list with
-      | [] -> raise LocateSubterm
-      | ts :: ts_list' -> 
-	  try f ts with 
-	    | LocateSubterm  -> do_list f  ts_list'
-		(* how about the Next path exception, I think we should pass it on *)
-  in
+  let get_next_node_val path = match path with
+    | [] -> None
+    | n :: _ -> Some (get_val n) in
   let rec loop subterm path =
     match path with
       | [] -> (raise LocateSubterm)
       | [n] -> 
-	  let node_term = Diff.get_val n g in
+	  let node_term = get_val n in
 	  if is_at_context node_term subterm
           then f node_term (* subterm -- can the subterm can have more info than the node-term ? *)
           else (raise LocateSubterm)
       | n' :: path -> 
-	  let t = Diff.get_val n' g 
+	  let t = get_val n' 
 	  in 
 	    if subterm === t
             then raise (Next path)
             else (
-	      match corresponds subterm t with
-		| None -> (
-		    raise LocateSubterm)
-		| Some (ts_list_ins_f) ->
-		    ts_list_ins_f +>
-		      do_list (function (ts,ins_f) -> 
-				 let ts' = 
-				   (ts *> loop) path in
-				   ins_f ts'
-
-			      )
-		       
-		    
+	      match corresponds subterm t (get_next_node_val path) path  with
+		| None -> (raise LocateSubterm)
+		| Some (ts, ins_f, new_path) ->
+		    (ts *> loop) new_path 
+		      +> ins_f
 	    )
   in
     loop subterm path 
@@ -2353,6 +2361,7 @@ let get_largest_spatchs ttf_list spatches =
                    δ(f1,m1) + δ(m1,m2) = δ(f2,m2)
 
  *)
+  v_print_endline "[Main] applying spatches";
   let applied_spatches = spatches
     +> List.rev_map 
     (function sp -> 
@@ -2367,31 +2376,47 @@ let get_largest_spatchs ttf_list spatches =
   let is_sub lhss_fmlists1 lhss_fmlists2 = 
     lhss_fmlists2 +> for_some !threshold 
       (function (lhs2, fm_lists2) ->
-	 let (_, fm_lists1) = List.find (function (lhs1, _) -> lhs1 = lhs2) lhss_fmlists1 in
-	   fm_lists2 +> List.for_all
-	     (function (f2,m2,_) ->
-		let (_, m1, _) = List.find (function (f1,m1,r1) -> f1 = f2) fm_lists1 in
-		  Diff.part_of_edit_dist f2 m1 m2
-	     )
+	 try
+	   let (_, fm_lists1) = List.find (function (lhs1, _) -> lhs1 = lhs2) lhss_fmlists1 in
+	     fm_lists2 +> List.for_all
+	       (function (f2,m2,_) ->
+		  try
+		    let (_, m1, _) = List.find (function (f1,m1,r1) -> f1 = f2) fm_lists1 in
+		      Diff.part_of_edit_dist f2 m1 m2
+		  with Not_found -> 
+		    (v_print_endline  ("Not finding: " ^ Diff.string_of_gtree' f2);
+		     raise Not_found)
+	       )
+	 with Not_found -> false
       )
   in
     (* the largest spatches are those for which all others are either smaller or not-comparable *)
     applied_spatches 
     +> List.rev_map
       (function (sp, lhs_fmlists) ->
+	 v_print_endline "[Main] testing one for largest:";
+	 v_print_endline (sp
+			+> List.map Diff.string_of_spdiff
+			+> String.concat "\n");
+	 
 	 if applied_spatches +> List.for_all (function (sp', lhs_fmlists') ->
-					     is_sub lhs_fmlists' lhs_fmlists ||
-					       not(is_sub lhs_fmlists lhs_fmlists')
-					  )
+						v_print_endline "[Main] against : ";
+						v_print_endline (sp'
+							       +> List.map Diff.string_of_spdiff
+							       +> String.concat "\n");
+						
+						is_sub lhs_fmlists' lhs_fmlists ||
+						  not(is_sub lhs_fmlists lhs_fmlists')
+					     )
 	 then
 	   (
-	     print_endline "[Main] including as largest: ";
-	     print_endline (sp
-			    +> List.map Diff.string_of_spdiff
-			    +> String.concat "\n");
+	     v_print_endline "[Main] including as largest: ";
 	     Some sp 
 	   )
-	 else None
+	 else (
+	   v_print_endline "[Main] not largest";
+	   None
+	 )
       )
     +> List.fold_left (fun acc opt -> match opt with Some sp -> 
 			 sp :: acc | _ -> acc) []
@@ -2423,29 +2448,31 @@ let get_largest_spatchs ttf_list spatches =
       let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flows),(rhs_gt,_)) -> 
 				 (lhs_gt, rhs_gt, lhs_flows)
 			      ) in
-      let res_spatches = 
-	sp_candidates 
-	+> List.filter (function sp -> is_spatch_safe_ttf_list sp ttf_list)
-      in
-      let is_transformation_sp sp = 
-	sp +> List.exists (function p ->
-			     match p with
-			       | Difftype.ID _ -> false
-			       | _ -> true) in
-      let largest_spatches =
-	res_spatches 
-	+> List.filter is_transformation_sp
-	+> get_largest_spatchs ttf_list
-      in
-	print_endline ("[Main] *REAL* semantic patches inferred: " ^
-			 List.length largest_spatches +> string_of_int);
-	largest_spatches
-	+> List.iter (function diff ->
-			print_endline "[spatch:]";
-			print_endline (diff
-				       +> List.map Diff.string_of_spdiff
-				       +> String.concat "\n");
-		     )
+	print_endline "[Main] filtering safe semantic patches";
+	let res_spatches = 
+	  sp_candidates 
+	  +> List.filter (function sp -> is_spatch_safe_ttf_list sp ttf_list)
+	in
+	let is_transformation_sp sp = 
+	  sp +> List.exists (function p ->
+			       match p with
+				 | Difftype.ID _ -> false
+				 | _ -> true) in
+	  print_endline "[Main] filtering largest semantic patches";
+	  let largest_spatches =
+	    res_spatches 
+	    +> List.filter is_transformation_sp
+	    +> get_largest_spatchs ttf_list
+	  in
+	    print_endline ("[Main] *REAL* semantic patches inferred: " ^
+			     List.length largest_spatches +> string_of_int);
+	    largest_spatches
+	    +> List.iter (function diff ->
+			    print_endline "[spatch:]";
+			    print_endline (diff
+					   +> List.map Diff.string_of_spdiff
+					   +> String.concat "\n");
+			 )
   
 	  
 	  
