@@ -25,13 +25,14 @@ let verbose      = ref false
 let only_changes = ref false
 let nesting_depth = ref 1
 let filter_patterns = ref false
+let filter_spatches = ref false
 
 let speclist =
   Arg.align
     [
      "-noncompact",    Arg.Set noncompact,      "bool  also return non-compact solutions";
      "-specfile",      Arg.Set_string mfile,    "str   name of specification file";
-     "-top",           Arg.Set_int max_level,   "int   terms larger than this will not have subterms abstracted";
+(*     "-top",           Arg.Set_int max_level,   "int   terms larger than this will not have subterms abstracted"; *)
      "-depth",         Arg.Set_int depth,       "int   recursion depth at which we still abstract terms";
      "-strict",        Arg.Set strict,          "bool  strict: fv(lhs) = fv(rhs) or nonstrict(default): fv(rhs)<=fv(lhs)";
      "-multiple",      Arg.Set mvars,           "bool  allow equal terms to have different metas";
@@ -55,7 +56,8 @@ let speclist =
      "int   allow inference of patterns nested this deep (slow)";
      "-verbose",       Arg.Set verbose,         "bool  print more intermediate results";
      "-filter_patterns", Arg.Set filter_patterns, "bool  only produce largest patterns";
-     "-malign",        Arg.Set malign,          "bool  use the new subpatch relation definition"
+     "-malign",        Arg.Set malign,          "bool  use the new subpatch relation definition";
+     "-filter_spatches", Arg.Set filter_spatches, "bool  filter non-largest spatches"
    ]
 
 let v_print s = if !verbose then (print_string s; flush stdout)
@@ -1304,7 +1306,8 @@ let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
   let ext2 p1 p2 = if p1 = [] then [mkC("CM",[p2])] else p1 @ (ddd :: [mkC("CM", [p2])]) in
   let rec grow' ext p ps (p', env') =
     (* flush_string "."; *)
-    let pp' = renumber_metas_pattern (ext p p') in
+    let ext_p = ext p p' in
+    let pp' = renumber_metas_pattern ext_p in
       if !verbose then ( 
 	print_string ("[Main] testing : " ^ List.map Diff.string_of_gtree' pp' +> String.concat " ");
       );
@@ -1316,7 +1319,7 @@ let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
       then (
 	v_print_endline "not_subseq";
 	let ps' = ps ++ pp' in
-	  grow ps' (ext p p', env')
+	  grow ps' (ext_p, env')
       )
       else (
 	v_print_endline "";
@@ -1983,6 +1986,10 @@ let corresponds st t next_node_val path =
 	       | C("case", [e;st]), C("head:case",[lab_e]) when e = lab_e ->
 		   Some ([st], function st' ->
 			   mkC("case", e :: st') +> s_func) +> same_path
+	       | C("caseRange", [e1;e2;st]), C("head:caserange", [from_e;to_e])
+		   when e1 = from_e && e2 = to_e ->
+		   Some ([st], function st' ->
+			   mkC("caseRange", e1 :: e2 :: st') +> s_func) +> same_path
 	       | C("default", [st]), A("head:default", _) ->
 		   Some ([st], function [st'] ->
 			   mkC("default", [st']) +> s_func) +> same_path
@@ -2462,7 +2469,10 @@ let get_largest_spatchs ttf_list spatches =
 	  let largest_spatches =
 	    res_spatches 
 	    +> List.filter is_transformation_sp
-	    +> get_largest_spatchs ttf_list
+	    +> (function spatches -> 
+		  if !filter_spatches then get_largest_spatchs ttf_list spatches
+		  else spatches)
+	    +> rm_dups
 	  in
 	    print_endline ("[Main] *REAL* semantic patches inferred: " ^
 			     List.length largest_spatches +> string_of_int);

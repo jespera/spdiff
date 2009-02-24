@@ -1821,11 +1821,14 @@ let translate_node (n2, ninfo) = match n2 with
 	     mkA("head:default", "default")
 	 | Control_flow_c2.Case (st,(e,_)) -> 
 	     mkC("head:case", [Visitor_j.trans_expr e])
+	 | Control_flow_c2.CaseRange (st, ((e1, e2), _ )) ->
+	     mkC("head:caserange", [Visitor_j.trans_expr e1; 
+				    Visitor_j.trans_expr e2])
 	 | Control_flow_c2.Continue (st,_) 
 	 | Control_flow_c2.Break    (st,_) 
    (*
       (* no counter part in cocci *)
-	 | Control_flow_c2.CaseRange of statement * (expression * expression) wrap
+
 *)
 	 | Control_flow_c2.Goto (st, _) -> Visitor_j.trans_statement st
 	 | Control_flow_c2.Label (st, (lab, _)) -> mkA("head:label", lab)
