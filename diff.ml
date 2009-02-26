@@ -80,6 +80,8 @@ let relax = ref false
 let do_dmine = ref false
   (* copy from main.ml; initialized in main.ml *)
 let nesting_depth = ref 0
+  (* copy from main.ml initialized in main-function *)
+let verbose = ref false
 
 (* non-duplicating cons *)
 let (+++) x xs = if List.mem x xs then xs else x :: xs
@@ -183,16 +185,18 @@ let rec string_of_gtree str_of_t str_of_c gt =
   and loop gt =
     match view gt with
       | A ("meta", c) -> string_of_meta gt
-	  (*      | A ("itype", _) -> string_of_itype gt 
-      | A (t,c) -> t ^ ":" ^ c *)
+	  (*
+      | A ("itype", _) -> string_of_itype gt 
+      | A (t,c) -> t ^ ":" ^ c 
+	  *)
       | C ("fulltype", ti) -> string_of_ftype ti
       | C ("const", [{node=A(_, c)}]) -> c
       | C ("itype", _ ) -> string_of_itype gt
       | C ("exp", [e]) -> loop e 
 	  (*| C ("exp", [{node=A("meta", x0)}; e]) -> "(" ^ loop e ^ ":_)"*)
       | C ("exp", [{node=C ("TYPEDEXP", [t])} ; e]) ->
-          (*"(" ^ loop e ^ ":" ^ loop t ^ ")"*) 
-          loop e
+	  (* "(" ^ loop e ^ ":" ^ loop t ^ ")" *)
+	  loop e
       | C ("call", f :: args) ->
           loop f ^ "(" ^ String.concat "," (List.map loop args) ^ ")"
       | C ("binary_arith", [{node=A("aop",op_str)} ;e1;e2]) ->
@@ -3032,7 +3036,6 @@ let read_src_tgt src tgt =
   let gt2 = gtree_of_ast_c (read_ast tgt) in
     gt1, gt2
 
-let verbose = ref false
 
 let get_fun_name_gflow f =
   let head_node = f#nodes#tolist +> List.find (function (i,n) -> match view n with
@@ -3110,7 +3113,7 @@ let get_flow_changes flows1 flows2 =
             (function f' -> get_fun_name_gflow f' = fname) in
             let diff = dfs_diff f f' in
             flow_changes := diff :: !flow_changes;
-            print_diff_flow diff with Not_found -> ()
+            if !verbose then print_diff_flow diff with Not_found -> ()
     )
 
 

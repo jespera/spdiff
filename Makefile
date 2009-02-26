@@ -1,7 +1,7 @@
 ##############################################################################
 # Variables
 ##############################################################################
-TARGET=spdiff
+TARGET=pfind
 
 SRC=hashcons.ml db.ml gtree.ml difftype.ml visitor_j.ml control_flow_c2.ml ast_to_flow2.ml diff.ml main.ml
 
