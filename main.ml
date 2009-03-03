@@ -2285,7 +2285,8 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
 				   v_print_endline ("t1\t" ^ Diff.string_of_gtree' left);
 				   v_print_endline ("t2\t" ^ Diff.string_of_gtree' middle);
 				   v_print_endline ("t3\t" ^ Diff.string_of_gtree' right);
-				   if Diff.part_of_edit_dist left middle right
+				   (* if Diff.part_of_edit_dist left middle right *)
+				   if Diff.msa_cost left middle right
 				   then (v_print_endline "ok"; true)
 				   else (v_print_endline "unsafe"; false)
 				   )
@@ -2389,7 +2390,8 @@ let get_largest_spatchs ttf_list spatches =
 	       (function (f2,m2,_) ->
 		  try
 		    let (_, m1, _) = List.find (function (f1,m1,r1) -> f1 = f2) fm_lists1 in
-		      Diff.part_of_edit_dist f2 m1 m2
+		      (* Diff.part_of_edit_dist f2 m1 m2 *)
+		      Diff.msa_cost f2 m1 m2
 		  with Not_found -> 
 		    (v_print_endline  ("Not finding: " ^ Diff.string_of_gtree' f2);
 		     raise Not_found)
@@ -2429,8 +2431,10 @@ let get_largest_spatchs ttf_list spatches =
 			 sp :: acc | _ -> acc) []
 
 
-  let find_common_patterns () =
-    read_spec(); (* gets names to process in file_pairs *)
+let find_common_patterns () =
+  malign := true;
+  Diff.malign_mode := true;
+  read_spec(); (* gets names to process in file_pairs *)
   let term_pairs = List.rev (
     List.fold_left (fun acc_pairs (lfile, rfile) ->
 		      read_filepair_cfg lfile rfile :: acc_pairs
@@ -2441,48 +2445,48 @@ let get_largest_spatchs ttf_list spatches =
     let gpats'' = common_patterns_graphs gss in
     let gpats' = filter_changed gss_rhs gpats'' in
       print_endline "[Main] getting rhs flows";
-    let rhs_flows = get_rhs_flows term_pairs in
-      print_endline "[Main] getting COMMON rhs node-patterns";
-    let common_rhs_node_patterns = get_common_node_patterns rhs_flows [] in
-      print_endline "[Main] *Common* patterns found:";
-      print_patterns gpats';
-      let is_freq t = common_rhs_node_patterns +> 
-	List.exists (function (gts,env) -> 
-		       gts +> List.exists (function cmp -> Diff.can_match cmp t)
-		    ) 
-      in
-      let sp_candidates = construct_spatches gpats' is_freq in
-      let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flows),(rhs_gt,_)) -> 
-				 (lhs_gt, rhs_gt, lhs_flows)
-			      ) in
-	print_endline "[Main] filtering safe semantic patches";
-	let res_spatches = 
-	  sp_candidates 
-	  +> List.filter (function sp -> is_spatch_safe_ttf_list sp ttf_list)
-	in
-	let is_transformation_sp sp = 
-	  sp +> List.exists (function p ->
-			       match p with
-				 | Difftype.ID _ -> false
-				 | _ -> true) in
-	  print_endline "[Main] filtering largest semantic patches";
-	  let largest_spatches =
-	    res_spatches 
-	    +> List.filter is_transformation_sp
-	    +> (function spatches -> 
-		  if !filter_spatches then get_largest_spatchs ttf_list spatches
-		  else spatches)
-	    +> rm_dups
+      let rhs_flows = get_rhs_flows term_pairs in
+	print_endline "[Main] getting COMMON rhs node-patterns";
+	let common_rhs_node_patterns = get_common_node_patterns rhs_flows [] in
+	  print_endline "[Main] *Common* patterns found:";
+	  print_patterns gpats';
+	  let is_freq t = common_rhs_node_patterns +> 
+	    List.exists (function (gts,env) -> 
+			   gts +> List.exists (function cmp -> Diff.can_match cmp t)
+			) 
 	  in
-	    print_endline ("[Main] *REAL* semantic patches inferred: " ^
-			     List.length largest_spatches +> string_of_int);
-	    largest_spatches
-	    +> List.iter (function diff ->
-			    print_endline "[spatch:]";
-			    print_endline (diff
-					   +> List.map Diff.string_of_spdiff
-					   +> String.concat "\n");
-			 )
+	  let sp_candidates = construct_spatches gpats' is_freq in
+	  let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flows),(rhs_gt,_)) -> 
+						       (lhs_gt, rhs_gt, lhs_flows)
+						    ) in
+	    print_endline "[Main] filtering safe semantic patches";
+	    let res_spatches = 
+	      sp_candidates 
+	      +> List.filter (function sp -> is_spatch_safe_ttf_list sp ttf_list)
+	    in
+	    let is_transformation_sp sp = 
+	      sp +> List.exists (function p ->
+				   match p with
+				     | Difftype.ID _ -> false
+				     | _ -> true) in
+	      print_endline "[Main] filtering largest semantic patches";
+	      let largest_spatches =
+		res_spatches 
+		+> List.filter is_transformation_sp
+		+> (function spatches -> 
+		      if !filter_spatches then get_largest_spatchs ttf_list spatches
+		      else spatches)
+		+> rm_dups
+	      in
+		print_endline ("[Main] *REAL* semantic patches inferred: " ^
+				 List.length largest_spatches +> string_of_int);
+		largest_spatches
+		+> List.iter (function diff ->
+				print_endline "[spatch:]";
+				print_endline (diff
+					       +> List.map Diff.string_of_spdiff
+					       +> String.concat "\n");
+			     )
   
 	  
 	  

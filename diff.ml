@@ -1019,6 +1019,18 @@ let rec forest_dist f1 f2 =
 
 let minimal_tree_dist t1 t2 = forest_dist [t1] [t2]
 
+let rec msa_cost gt1 gt2 gt3 =
+  gt1 = gt2 || gt2 = gt3 ||
+  match view gt1, view gt2, view gt3 with
+    | C(ty1,ts1), C(ty2,ts2), C(ty3,ts3) when 
+	ty1 = ty2 || ty2 = ty3 ->
+	Msa.falign msa_cost 
+	  (Array.of_list ts1)
+	  (Array.of_list ts2)
+	  (Array.of_list ts3)
+    | _ -> false
+	
+
 let rec edit_cost gt1 gt2 =
   let rec node_size gt = match view gt with
     | A _ -> 1
@@ -1554,7 +1566,8 @@ and safe_part up (t, t'') =
       if !malign_mode
       then 
 (* 	part_of_malign t t' t'' (* still too slow *) *)
-        part_of_edit_dist t t' t''
+(*        part_of_edit_dist t t' t'' *)
+	msa_cost t t' t''
       else 
         merge3 t t' t''
   with (Nomatch | Merge3) -> (

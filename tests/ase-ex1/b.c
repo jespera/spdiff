@@ -1,10 +1,8 @@
 int foo(void) {
 				int x;
-				do {
-								jiffies();
-								anders();
-				} while (!k);
+				boonie();
 				x = f(x,GFP);
+				lonnie();
 				x = h(g(117));
 				return x+x;
 }

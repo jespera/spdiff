@@ -3,7 +3,7 @@
 ##############################################################################
 TARGET=spdiff
 
-SRC=hashcons.ml db.ml gtree.ml difftype.ml visitor_j.ml control_flow_c2.ml ast_to_flow2.ml diff.ml main.ml
+SRC=hashcons.ml db.ml gtree.ml difftype.ml visitor_j.ml control_flow_c2.ml ast_to_flow2.ml msa.ml diff.ml main.ml
 
 COCCI=../coccinelle
 
