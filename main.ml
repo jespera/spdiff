@@ -1,4 +1,5 @@
 open Gtree
+open Common
 
 
 let do_dmine     = ref true
@@ -30,14 +31,14 @@ let filter_spatches = ref false
 let speclist =
   Arg.align
     [
-      "-specfile",      Arg.Set_string mfile,    "str   name of specification file";
-      (*     "-top",           Arg.Set_int max_level,   "int   terms larger than this will not have subterms abstracted"; *)
-      "-depth",         Arg.Set_int depth,       "int   recursion depth at which we still abstract terms";
-      "-threshold",     Arg.Set_int threshold,   "int   the minimum number of occurrences required";
-      "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing, 
-      "bool  also parse if0 blocks";
-      "-only_changes",  Arg.Set only_changes,    "bool  only look for patterns in changed functions";
-      "-verbose",       Arg.Set verbose,         "bool  print more intermediate results";
+      "-specfile",      Arg.Set_string mfile,    "<filename>   name of specification file";
+      "-max_level",           Arg.Set_int max_level,   "int   terms larger than this will not have subterms abstracted";
+      "-depth",         Arg.Set_int depth,       "recursion depth at which we still abstract terms";
+      "-threshold",     Arg.Set_int threshold,   "the minimum number of occurrences required";
+      "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing, "also parse if0 blocks";
+      "-only_changes",  Arg.Set only_changes,        "only look for patterns in changed functions";
+      "-verbose",       Arg.Set verbose,             "print more intermediate results";
+      "-macro_file",    Arg.Set_string Config.std_h, "<filename> default macros"
     ]
 
 let v_print s = if !verbose then (print_string s; flush stdout)
@@ -749,7 +750,7 @@ let rec useless_abstraction p = is_meta p ||
  * Either because it simply a meta-variable X or if it is too abstract
  *)
 (* let infeasible p = is_meta p || abstractness p > !default_abstractness  *)
-let infeasible p = false (* useless_abstraction p *)
+let infeasible p = useless_abstraction p
 
 let (=>) = Diff.(=>)
 let cont_match = Diff.cont_match
@@ -816,20 +817,20 @@ and abstract_term depth env t =
 		   (*               }])} :: _) -> [t], env *)
 		   (* | C("exp" as ope, ({Hashcons.node=C("TYPEDEXP", _)} as f) :: ts) *)
 		   (* | C("call" as ope, f :: ts)  *)
-		   (* | C("binary_arith" as ope, f :: ts) -> *)
-		   (*     (\* generate abstract versions for each t ∈ ts *\) *)
-		   (*     let meta_lists, env_acc = *)
-		   (*       List.fold_left (fun (acc_lists, env') t ->  *)
-		   (*         let meta', env'' = loop (depth - 1) env' t *)
-		   (*         in (meta' :: acc_lists), env'' *)
-		   (*                      ) ([], env) ts in *)
-		   (*     (\* generate all permutations of the list of lists *\) *)
-		   (*     let meta_perm = gen_perms (List.rev meta_lists) in *)
-		   (*     (\* construct new term from lists *\) *)
-		   (*     t :: List.rev (List.fold_left (fun acc_meta meta_list -> *)
-		   (*       mkC(ope, f :: meta_list) :: acc_meta *)
-		   (*                                   ) [] meta_perm), env_acc *)
-		   (* | C _ when !max_level <= gsize t -> [t], env *)
+	       | C("binary_arith" as ope, f :: ts) ->
+		   (* generate abstract versions for each t ∈ ts *)
+		   let meta_lists, env_acc =
+		     List.fold_left (fun (acc_lists, env') t ->
+				       let meta', env'' = loop (depth - 1) env' t
+				       in (meta' :: acc_lists), env''
+		                    ) ([], env) ts in
+		     (* generate all permutations of the list of lists *)
+		   let meta_perm = gen_perms (List.rev meta_lists) in
+		     (* construct new term from lists *)
+		     t :: List.rev (List.fold_left (fun acc_meta meta_list ->
+						      mkC(ope, f :: meta_list) :: acc_meta
+		                                   ) [] meta_perm), env_acc
+	       | C _ when !max_level <= gsize t -> [t], env
                | C(ty, ts) ->
 		   (* generate abstract versions for each t ∈ ts *)
 		   let meta_lists, env_acc =
@@ -1466,12 +1467,15 @@ let get_common_node_patterns gss env =
 			 gts 
 			 +> List.rev_map 
 			   (function gt ->
-			      print_string ("[Main] abstracting " ^ 
+			      print_endline ("[Main] abstracting " ^ 
 					      !num +> string_of_int ^ "/" ^
 					      !num_max +> string_of_int);
-			      print_endline ("[Main] c_term: " ^ Diff.string_of_gtree' gt);
+			      print_endline ("[Main] c_term <" ^ 
+					       gt +> gsize +> string_of_int ^
+					       ">: " ^ Diff.string_of_gtree' gt);
 			      let res = abstract_term_hashed !depth gt +> fst in
-				print_endline " done";
+				print_endline ("[Main] number of abs: " ^ 
+					      res +> List.length +> string_of_int);
 				num := !num + 1;
 				res
 			   )
@@ -1966,6 +1970,10 @@ let main () = (
   Diff.verbose       := !verbose;
   Diff.nesting_depth := !nesting_depth;
   Diff.malign_mode   := !malign;
+  if !Config.std_h <> "" then
+    (print_endline ("[Main] have std.h file: " ^ !Config.std_h);
+     Parse_c.init_defs !Config.std_h
+    );
   if !threshold = 0 then do_dmine := false;
   if !mfile = ""
   then raise (Diff.Fail "No specfile given")
