@@ -370,36 +370,28 @@ let rm_dub ls =
       (fun acc e -> if List.mem e acc then acc else e :: acc)
       [] ls)
 
+let max3 a b c = max a (max b c)
+
 let lcs_shared size_f src tgt =
   let slen = List.length src in
   let tlen = List.length tgt in
   let m    = Array.make_matrix (slen + 1) (tlen + 1) 0 in
-    Array.iteri (fun i jarr -> Array.iteri (fun j e -> 
-      (* make sure we stay within the boundaries of the matrix *)
-      let i = if i = 0 then 1 else i in
-      let j = if j = 0 then 1 else j in
-	(* get the values we need to compare in s and t *)
-      let s = List.nth src (i - 1) in
-      let t = List.nth tgt (j - 1) in
-	(* now see how much of s and t is shared *)
-      let size = size_f s t in
-	if size > 0 
-	then
-	  (* some parts of s and t were equal *)
-	  m.(i).(j) <- (try m.(i-1).(j-1) + size with _ -> size)
-	else 
-	  let a = try m.(i).(j-1) with _ -> 0 in
-	  let b = try m.(i-1).(j) with _ -> 0 in
-	    m.(i).(j) <- max a b
-    ) jarr) m; (*
-		 print_endline "M:";
-		 Array.iteri (fun i jarr ->
-		 print_string "[";
-		 Array.iteri (fun j e ->
-		 print_string ((string_of_int m.(i).(j)) ^ " ")
-		 ) jarr;
-		 print_endline "]";
-		 ) m; *)
+    Array.iteri 
+      (fun i jarr -> Array.iteri 
+	 (fun j e -> 
+	    (* make sure we stay within the boundaries of the matrix *)
+	    let i = if i = 0 then 1 else i in
+	    let j = if j = 0 then 1 else j in
+	      (* get the values we need to compare in s and t *)
+	    let s = List.nth src (i - 1) in
+	    let t = List.nth tgt (j - 1) in
+	      (* now see how much of s and t is shared *)
+	    let size = size_f s t in
+	    let c = (try m.(i-1).(j-1) + size with _ -> size) in
+	    let a = try m.(i).(j-1) with _ -> 0 in (* adding is better *)
+	    let b = try m.(i-1).(j) with _ -> 0 in (* removing is better *)
+	      m.(i).(j) <- max3 a b c
+	 ) jarr) m; 
     m
 
 let rec shared_gtree t1 t2 =
@@ -429,21 +421,21 @@ let rec get_diff_nonshared src tgt =
 	  (*     print_endline ("i,j = " ^ string_of_int i ^ "," ^ string_of_int j); *)
 	  if i > 0 && j > 0 && List.nth src (i - 1) = List.nth tgt (j - 1)
 	    (*if i > 0 && j > 0 && *)
-	    (*embedded (List.nth src (i - 1)) (List.nth tgt (j - 1))*)
+	    (*embedded (List.nth src (i - 1)) (List.nth tgt (j - 1)) *)
 	  then
 	    loop (i - 1) (j - 1) @ [ID (List.nth src (i - 1))]
-	  else if j > 0 && (i = 0 || m.(i).(j - 1) >= m.(i - 1).(j))
+	  else if j > 0 && (i = 0 || m.(i).(j - 1) > m.(i - 1).(j))
 	  then 
-	    loop i (j - 1) @ [ADD (List.nth tgt (j - 1))]
-	  else if 
-            i > 0 && (j = 0 || m.(i).(j - 1) < m.(i - 1).(j))
-	  then 
-	    loop (i - 1) j @ [RM (List.nth src (i - 1))]
+ 	    loop i (j - 1) @ [ADD (List.nth tgt (j - 1))]
+ 	  else if 
+            i > 0 && (j = 0 || m.(i).(j - 1) <= m.(i - 1).(j))
+ 	  then 
+ 	    loop (i - 1) j @ [RM (List.nth src (i - 1))]
 	  else (assert(i=j && j=0) ;
 		[]) (* here we should have that i = j = 0*)
 	in loop slen  tlen
 
-let rec get_diff src tgt =
+let rec get_diff_old src tgt =
   match src, tgt with
     | [], _ -> List.map (function e -> ADD e) tgt
     | _, [] -> List.map (function e -> RM e) src
@@ -452,20 +444,13 @@ let rec get_diff src tgt =
 	let slen = List.length src in
 	let tlen = List.length tgt in
 	let rec loop i j =
-	  (*     print_endline ("i,j = " ^ string_of_int i ^ "," ^ string_of_int j); *)
 	  let i' = if i > 0 then i else 1 in
 	  let j' = if j > 0 then j else 1 in
-	    (*print_endline ("d: "^ string_of_int i' ^", " ^ string_of_int j');*)
 	  let s = List.nth src (i' - 1) in
 	  let t = List.nth tgt (j' - 1) in
-	    (*print_endline "d";*)
 	    if i > 0 && j > 0 && (shared_gtree s t > 0)
-	      (*&& (List.nth src (i - 1)) = (List.nth tgt (j - 1))*)
-	      (*if i > 0 && j > 0 && *)
-	      (*embedded (List.nth src (i - 1)) (List.nth tgt (j - 1))*)
 	    then
 	      let up = if s = t then ID s else UP(s,t) in
-		(*loop (i - 1) (j - 1) @ [ID (List.nth src (i - 1))]*)
 		loop (i - 1) (j - 1) @ [up]
 	    else if j > 0 && (i = 0 || m.(i).(j - 1) >= m.(i - 1).(j))
 	    then 
@@ -478,27 +463,66 @@ let rec get_diff src tgt =
 		  []) (* here we should have that i = j = 0*)
 	in loop slen  tlen
 
+let rec get_diff src tgt =
+  match src, tgt with
+    | [], _ -> List.map (function e -> ADD e) tgt
+    | _, [] -> List.map (function e -> RM e) src
+    | _, _ -> 
+	let m = lcs_shared shared_gtree src tgt in
+	let slen = List.length src in
+	let tlen = List.length tgt in
+	let rec loop i j =
+	  if i > 0 && j = 0
+	  then
+	    loop (i - 1) j @ [RM (List.nth src (i - 1))]
+	  else if j > 0 && i = 0
+	  then
+	    loop i (j - 1) @ [ADD (List.nth tgt (j - 1))]
+	  else if i > 0 && j > 0
+	  then
+	    let s = List.nth src (i - 1) in
+	    let t = List.nth tgt (j - 1) in
+	    let score      = m.(i).(j) in
+	    let score_diag = m.(i-1).(j-1) in
+	    let score_up   = m.(i).(j-1) in
+	    let score_left = m.(i-1).(j) in
+	      if score = score_diag + (shared_gtree s t)
+	      then
+		let up = if s = t then ID s else UP(s,t) in
+		  loop (i - 1) (j - 1) @ [up]
+	      else if score = score_left
+	      then
+		loop (i - 1) j @ [RM (List.nth src (i - 1))]
+	      else if score = score_up
+	      then
+		loop i (j - 1) @ [ADD (List.nth tgt (j - 1))]
+	      else raise (Fail "?????")
+	  else
+	    (assert(i=j && j = 0); [])
+	in loop slen  tlen
+	     
+
 (* normalize diff rearranges a diff so that there are no consequtive
  * removals/additions if possible.
  *)
 let normalize_diff diff =
-        let rec get_next_add prefix diff = 
-                match diff with
-                | [] -> None, prefix
-                | ADD t :: diff -> Some (ADD t), prefix @ diff
-                | t :: diff -> get_next_add (prefix @ [t]) diff
-        in 
-        let rec loop diff =
-                match diff with
-                | [] -> []
-                | RM t :: diff' -> 
-                                let add, tail = get_next_add [] diff' in
-                                (match add with
-                                | None -> RM t :: loop tail
-                                | Some add -> RM t :: add :: loop tail)
-                | UP(t,t') :: diff -> RM t :: ADD t' :: loop diff
-                | i :: diff' -> i :: loop diff' in 
-        loop diff
+  let rec get_next_add prefix diff = 
+    match diff with
+      | [] -> None, prefix
+      | ADD t :: diff -> Some (ADD t), prefix @ diff
+      | t :: diff -> get_next_add (prefix @ [t]) diff
+  in 
+  let rec loop diff =
+    match diff with
+      | [] -> []
+      | RM t :: diff' -> 
+          let add, tail = get_next_add [] diff' in
+            (match add with
+               | None -> RM t :: loop tail
+               | Some add -> RM t :: add :: loop tail)
+      | UP(t,t') :: diff -> RM t :: ADD t' :: loop diff
+      | i :: diff' -> i :: loop diff' in 
+    loop diff
 
 (* correlate_diff tries to take sequences of -+ and put them in either
    UP(-,+) or ID. Notice, that permutations of arguments is not
@@ -809,37 +833,37 @@ let rec patience_diff ls1 ls2 =
   (* find the index of the given unique term t in ls *)
   let get_uniq_index ls t = 
     let rec loop ls n = match ls with
-    | [] -> raise (Fail "not found get_uniq_index")
-    | t' :: ls when t = t' -> n
-    | _ :: ls -> loop ls (n + 1)
+      | [] -> raise (Fail "not found get_uniq_index")
+      | t' :: ls when t = t' -> n
+      | _ :: ls -> loop ls (n + 1)
     in
-    loop ls 0 in
-  (* translate a list of terms from ls2 such that each term is replaced with its index in ls1 *)
+      loop ls 0 in
+    (* translate a list of terms from ls2 such that each term is replaced with its index in ls1 *)
   let rec to_nums c_uniq_terms = match c_uniq_terms with
-  | [] -> []
-  | t :: terms -> get_uniq_index ls1 t :: to_nums terms in
+    | [] -> []
+    | t :: terms -> get_uniq_index ls1 t :: to_nums terms in
   let common_uniq = get_common_unique ls1 ls2 in
   let nums = to_nums common_uniq in
-  (* translate a list of nums to their corresponding terms in ls1 *)
+    (* translate a list of nums to their corresponding terms in ls1 *)
   let to_terms ns = List.map (List.nth ls1) ns in
   let lcs = nums +> patience_ref +> to_terms in
-  if lcs = []
-  then (* ordinary diff *) 
-    get_diff ls1 ls2
-  else 
-    let slices1 = get_slices lcs ls1 in
-    let slices2 = get_slices lcs ls2 in
-    let diff_slices = List.map2 patience_diff slices1 slices2 in
-    let rec merge_slice lcs dslices = match dslices with
-    | [] -> []
-    | diff :: dslices -> diff @ merge_lcs lcs dslices
-    and merge_lcs lcs dslices = match lcs with
-    | [] -> (match dslices with
-      | [] -> []
-      | [diff] -> diff
-      | _ -> raise (Fail "merge_lcs : dslice not singular"))
-    | e :: lcs -> ID e :: merge_slice lcs dslices
-    in merge_slice lcs diff_slices
+    if lcs = []
+    then (* ordinary diff *) 
+      get_diff ls1 ls2
+    else 
+      let slices1 = get_slices lcs ls1 in
+      let slices2 = get_slices lcs ls2 in
+      let diff_slices = List.map2 patience_diff slices1 slices2 in
+      let rec merge_slice lcs dslices = match dslices with
+	| [] -> []
+	| diff :: dslices -> diff @ merge_lcs lcs dslices
+      and merge_lcs lcs dslices = match lcs with
+	| [] -> (match dslices with
+		   | [] -> []
+		   | [diff] -> diff
+		   | _ -> raise (Fail "merge_lcs : dslice not singular"))
+	| e :: lcs -> ID e :: merge_slice lcs dslices
+      in merge_slice lcs diff_slices
 
 let a_of_type t = mkA("nodetype", t)
 let begin_c t = mkA("begin",t)
@@ -918,7 +942,20 @@ let get_tree_changes gt1 gt2 =
     else match view gt1, view gt2 with
       | C(t1, gts1), C(t2, gts2) when t1 = t2 ->
           (patience_diff gts1 gts2 +>
-	      correlate_diffs +>
+	     (function dfs -> 
+		dfs +> List.iter (function iop -> 
+				    print_endline (
+				    match iop with
+				    | ID p -> "\t" ^ string_of_gtree' p
+				    | RM p -> "-\t" ^ string_of_gtree' p
+				    | ADD p -> "+\t" ^ string_of_gtree' p
+				    | UP(p,p') -> "~>\t" ^ string_of_gtree' p ^ 
+					"\n\t" ^ string_of_gtree' p')
+				 );
+		print_endline "---";
+		dfs
+	     ) +>
+	     correlate_diffs +>
 	      List.filter is_up)
       | _, _ -> [] in
   let (@@) ls1 ls2 = ls1 +> 

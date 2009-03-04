@@ -1,8 +1,7 @@
 int foo(void) {
 				int x;
-				boonie();
+				fozzi();
 				x = f(x,GFP);
-				lonnie();
-				x = h(g(117));
+				boonie();
 				return x+x;
 }
