@@ -941,22 +941,22 @@ let get_tree_changes gt1 gt2 =
     if gt1 = gt2 then []
     else match view gt1, view gt2 with
       | C(t1, gts1), C(t2, gts2) when t1 = t2 ->
-          (patience_diff gts1 gts2 +>
-	     (function dfs -> 
-		dfs +> List.iter (function iop -> 
-				    print_endline (
-				    match iop with
-				    | ID p -> "\t" ^ string_of_gtree' p
-				    | RM p -> "-\t" ^ string_of_gtree' p
-				    | ADD p -> "+\t" ^ string_of_gtree' p
-				    | UP(p,p') -> "~>\t" ^ string_of_gtree' p ^ 
-					"\n\t" ^ string_of_gtree' p')
-				 );
-		print_endline "---";
-		dfs
-	     ) +>
-	     correlate_diffs +>
-	      List.filter is_up)
+          (patience_diff gts1 gts2
+	     (* (function dfs ->  *)
+	     (* 	dfs +> List.iter (function iop ->  *)
+	     (* 			    print_endline ( *)
+	     (* 			    match iop with *)
+	     (* 			    | ID p -> "\t" ^ string_of_gtree' p *)
+	     (* 			    | RM p -> "-\t" ^ string_of_gtree' p *)
+	     (* 			    | ADD p -> "+\t" ^ string_of_gtree' p *)
+	     (* 			    | UP(p,p') -> "~>\t" ^ string_of_gtree' p ^  *)
+	     (* 				"\n\t" ^ string_of_gtree' p') *)
+	     (* 			 ); *)
+	     (* 	print_endline "---"; *)
+	     (* 	dfs *)
+	     (* ) *)
+	   +> correlate_diffs 
+	   +> List.filter is_up)
       | _, _ -> [] in
   let (@@) ls1 ls2 = ls1 +> 
     List.fold_left (fun acc_ls e -> e +++ acc_ls) ls2 in
@@ -3081,6 +3081,43 @@ let read_src_tgt src tgt =
   let gt1 = gtree_of_ast_c (read_ast src) in
   let gt2 = gtree_of_ast_c (read_ast tgt) in
     gt1, gt2
+
+let is_def gt = match view gt with
+  | C("def", _) -> true
+  | _ -> false
+
+let extract_gt p gt = 
+  let rec loop acc gt = 
+    if p gt then gt :: acc 
+    else match view gt with
+      | A _ -> acc
+      | C(_, ts) -> ts +> List.fold_left loop acc
+  in loop [] gt
+
+let get_fname_ast gt = match view gt with
+  | C("def", gt_name :: _ ) -> (
+      match view gt_name with 
+	| A("fname", name) -> name
+	| _ -> raise (Fail "no fname!")
+    )
+  | _ -> raise (Fail "no fname!!")
+
+let read_src_tgt_def src tgt =
+  let gts1 = gtree_of_ast_c (read_ast src)
+    +> extract_gt is_def in
+  let gts2 = gtree_of_ast_c (read_ast tgt)
+    +> extract_gt is_def in
+    gts1 +> List.rev_map 
+      (function gt1 -> 
+	 let f_name = get_fname_ast gt1 in
+	   (gt1, 
+	    gts2 +> List.find 
+	     (function gt2 -> 
+		get_fname_ast gt2 = f_name
+	     )
+	   )
+      )
+
 
 let verbose = ref false
 

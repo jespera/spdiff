@@ -32,7 +32,7 @@ let speclist =
     [
      "-noncompact",    Arg.Set noncompact,      "bool  also return non-compact solutions";
      "-specfile",      Arg.Set_string mfile,    "str   name of specification file";
-(*     "-top",           Arg.Set_int max_level,   "int   terms larger than this will not have subterms abstracted"; *)
+    "-top",           Arg.Set_int max_level,   "int   terms larger than this will not have subterms abstracted";
      "-depth",         Arg.Set_int depth,       "int   recursion depth at which we still abstract terms";
      "-strict",        Arg.Set strict,          "bool  strict: fv(lhs) = fv(rhs) or nonstrict(default): fv(rhs)<=fv(lhs)";
      "-multiple",      Arg.Set mvars,           "bool  allow equal terms to have different metas";
@@ -75,6 +75,9 @@ let (+>) o f = f o
 let tail_flatten lss =
   lss +> List.fold_left List.rev_append []
 
+let (+++) x xs = if List.mem x xs then xs else x :: xs
+
+
 let filesep = Str.regexp " +"
 let file_pairs = ref []
 
@@ -83,6 +86,12 @@ let read_filepair old_file new_file =
     ("Reading file pair " ^
      old_file ^ " " ^ new_file);
   Diff.read_src_tgt old_file new_file
+
+let read_filepair_defs old_file new_file =
+  print_endline 
+    ("Reading file pair " ^
+     old_file ^ " " ^ new_file);
+  Diff.read_src_tgt_def old_file new_file
 
 let read_filepair_cfg old_file new_file =
   print_endline 
@@ -489,8 +498,9 @@ let spec_main () =
   (* now make diff-pairs is a list of abs-term pairs *)
   let term_pairs = List.rev (
     List.fold_left (fun acc_pairs (lfile, rfile) ->
-      read_filepair lfile rfile :: acc_pairs
-		   ) [] !file_pairs) in
+      read_filepair_defs lfile rfile @ acc_pairs
+		   ) [] !file_pairs) 
+  in
   (* assume that a threshold of 0 means the user did not set it
    * thus, set it to max instead 
    *)
@@ -703,7 +713,6 @@ let is_match m = match view m with
 | C("CM", [p]) -> true
 | _ -> false
 
-let (+++) x xs = if List.mem x xs then xs else x :: xs
 
 let get_metas_single p = 
   let rec loop acc_metas p =
@@ -2500,6 +2509,7 @@ let main () =
   Diff.verbose       := !verbose;
   Diff.nesting_depth := !nesting_depth;
   Diff.malign_mode   := !malign;
+  Diff.abs_subterms  := !max_level;
   if !threshold = 0 then do_dmine := false;
   if !mfile = ""
   then raise (Diff.Fail "No specfile given")
