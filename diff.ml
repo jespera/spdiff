@@ -1066,7 +1066,13 @@ let rec msa_cost gt1 gt2 gt3 =
 	  (Array.of_list ts2)
 	  (Array.of_list ts3)
     | _ -> false
-	
+(*
+  let seq1 = Array.of_list (flatten_tree gt1) in
+  let seq2 = Array.of_list (flatten_tree gt2) in
+  let seq3 = Array.of_list (flatten_tree gt3) in
+  let callb t1 t2 t3 = t1 = t2 || t2 = t3 in
+    Msa.falign callb seq1 seq2 seq3
+*)
 
 let rec edit_cost gt1 gt2 =
   let rec node_size gt = match view gt with
@@ -1603,8 +1609,8 @@ and safe_part up (t, t'') =
       if !malign_mode
       then 
 (* 	part_of_malign t t' t'' (* still too slow *) *)
-(*        part_of_edit_dist t t' t'' *)
-	msa_cost t t' t''
+        part_of_edit_dist t t' t'' 
+(*	msa_cost t t' t'' *)
       else 
         merge3 t t' t''
   with (Nomatch | Merge3) -> (
@@ -2395,7 +2401,7 @@ let get_metas build_mode org_env t =
           debug_msg (">>>>>>>>>>> with size: " ^ string_of_int (gsize t));
           new_meta org_env t)
       | [] -> [], []
-      | (m, t') :: env when (t == t') ->
+      | (m, t') :: env when t = t' ->
           (* below we assume that equal terms need not be abstracted by equal
            * meta-variables
            *)
@@ -2634,14 +2640,19 @@ let renumber_metas_up up =
 let rec abs_term_imp terms_changed is_fixed up =
   let cur_depth = ref !abs_depth in
   let should_abs t = 
-    !cur_depth >= 0
-      (*if !cur_depth >= 0*)
-      (*then (print_endline ("[Diff] allowed at depth: " ^ string_of_int !cur_depth); true)*)
-      (*else (print_endline ("[Diff] not allowed at depth " ^ string_of_int !cur_depth); false)*)
-      (*then (print_endline ("[Diff] allowing " ^ string_of_gtree' t); true)*)
-      (*else (print_endline ("[Diff] current depth " ^ string_of_int !cur_depth); false)*)
+     !cur_depth >= 0 
+    (* if !cur_depth >= 0 *)
+    (* (\* then (print_endline ("[Diff] allowed at depth: " ^ string_of_int !cur_depth); true) *\) *)
+    (* (\* else (print_endline ("[Diff] not allowed at depth " ^ string_of_int !cur_depth); false) *\) *)
+    (* then (print_endline ("[Diff] allowing " ^ string_of_gtree' t); true) *)
+    (* else ( *)
+    (*   print_endline ("[Diff] current depth " ^ string_of_int !cur_depth); *)
+    (*   print_endline (string_of_gtree' t); *)
+    (*   false) *)
   in
-  let rec loop build_mode env t = match view t with
+  let rec loop build_mode env t = 
+    match view t with
+    | _ when !cur_depth <= 0 -> get_metas build_mode env t
     | A (ct, at) -> 
 	if should_abs t
 	then
@@ -2655,11 +2666,11 @@ let rec abs_term_imp terms_changed is_fixed up =
 	    then
               let metas, renv = get_metas build_mode env t in
 		t :: metas, renv
-          else 
-            get_metas build_mode env t
-	  else (
-            debug_msg ("[Diff] not abstracting atom: " ^ string_of_gtree' t);
-            [t], env)
+            else 
+              get_metas build_mode env t
+	else (
+          print_endline ("[Diff] not abstracting atom: " ^ string_of_gtree' t);
+          [t], env)
     | C (ct, []) -> 
 	(* raise (Fail ("whhaaattt: "^ct^"")) *)
 	(* this case has been reached we could have an empty file;
@@ -2724,12 +2735,6 @@ let rec abs_term_imp terms_changed is_fixed up =
 	  reset_meta ();
 	  (*print_endline ("loop :: \n" ^ string_of_diff up);*)
 	  let abs_lhss, lhs_env = loop true [] lhs in
-	    (*List.iter (fun (m,t) -> print_string*)
-	    (*("[" ^ m ^ "~>" ^ string_of_gtree' t ^ "] ")) lhs_env;*)
-	    (*print_newline ();*)
-	    (*print_endline ("lhss : " ^ string_of_int (List.length abs_lhss));*)
-	    (*print_endline "lhss = ";*)
-	    (*List.iter (fun d -> print_endline (string_of_gtree' d)) abs_lhss;*)
 	    assert(not(abs_lhss = []));
 	    (* now we check that the only solution is not "X0" so that we will end
              * up transforming everything into whatever rhs
@@ -2743,16 +2748,6 @@ let rec abs_term_imp terms_changed is_fixed up =
 	      (* now use the environment to abstract the rhs term
 	      *) in
 	    let abs_rhss, rhs_env = loop false lhs_env rhs in
-	      (*print_endline ("rhss : " ^ string_of_int (List.length abs_rhss));*)
-	      (*print_endline "rhss = ";*)
-	      (*List.iter (fun d -> print_endline (string_of_gtree' d)) abs_rhss;*)
-	      (*List.iter (fun (m,t) -> print_string*)
-	      (*("[" ^ m ^ "~>" ^ string_of_gtree' t ^ "] ")) rhs_env;*)
-	      (*print_newline ();*)
-	      (* if the below assertion fails, there is something wrong with the
-	       * environments generated
-	       *)
-	      (*assert(lhs_env = rhs_env);*)
 	      (* we now wish to combine each abs_lhs with a compatible abs_rhs
 	      *)
 	      (* if the rhs had no possible abstractions then we return simply the
@@ -2766,6 +2761,7 @@ let rec abs_term_imp terms_changed is_fixed up =
 	    in
 	      lres, lhs_env (* = rhs_env *)(*}}}*)
       | _ -> raise (Fail "non supported update given to abs_term_size_imp")
+
 
 let abs_term_noenv terms_changed is_fixed should_abs up = 
   fdebug_endline !print_abs ("[Diff] abstracting concrete update with size: " ^
@@ -3266,7 +3262,8 @@ let find_changed_terms freq_fun term_pairs =
 
 
 let filter_safe (gt1, gt2) parts =
-  List.filter (function bp -> safe_part bp (gt1, gt2)
+  List.filter (function bp -> 
+		 safe_part bp (gt1, gt2)
     (* if safe_part bp (gt1, gt2) *)
     (* then true *)
     (* else ( *)
@@ -3297,11 +3294,16 @@ let make_abs terms_changed fixf (gt1, gt2) =
       print_string "[Diff] getting concrete parts ...";
       let cs = get_tree_changes gt1 gt2 in
 	print_endline (cs +> List.length +> string_of_int ^ " found");
-	print_endline "[Diff] filtering safe parts";
-	(*print_endline ("[Diff] get_tree_changes:");*)
+	print_endline ("[Diff] filtering " ^ 
+			 cs +> List.length +> string_of_int ^ " safe parts");
 	(*List.iter (function d -> print_endline (string_of_diff d)) cs;*)
-	List.filter (function up -> safe_part up (gt1, gt2)) cs
-    ) else get_ctf_diffs_safe [] gt1 gt2 in
+	List.filter (function up -> 
+		       print_endline "[Diff] filtering cpart:";
+		       up +> string_of_diff +> print_endline;
+		       safe_part up (gt1, gt2)
+		    ) cs
+    ) else get_ctf_diffs_safe [] gt1 gt2 
+  in
     print_endline ("[Diff] number of concrete parts: " ^ string_of_int (List.length c_parts));
     (* new generalize each such part and add it to our resulting list in case it
      * is not already there and in case it is still a safe part
@@ -3309,142 +3311,15 @@ let make_abs terms_changed fixf (gt1, gt2) =
     print_endline "[Diff] finding abstract parts";
     let a_parts = List.flatten (
       List.map (function c_up ->
-	(filter_safe (gt1, gt2) (abs_term_noenv terms_changed fixf
-				    should_abs_depth c_up)))
+		  let cand_abs = abs_term_noenv 
+		    terms_changed fixf
+		    should_abs_depth c_up in
+		    (filter_safe (gt1, gt2) cand_abs)
+	       )
   	c_parts) in
       a_parts
-	(*print_endline "[Diff] removing duplicates";*)
-	(*let nodup_a_parts = rm_dub a_parts in*)
-	(*let nodup_a_parts = unique a_parts in*)
-	(*print_endline "[Diff] filtering unsafe parts";*)
-	(*let lct = ref (List.length nodup_a_parts) in*)
-	(*let safe_a_parts = List.filter *)
-	(*(function bp -> *)
-	(*if (!lct mod 10000 = 0)*)
-	(*then print_endline (string_of_int !lct);*)
-	(*lct := !lct - 1;*)
-	(*safe_part bp (gt1, gt2))*)
-	(*nodup_a_parts in*)
-	(*print_endline ("[Diff] removed "^*)
-	(*string_of_int (List.length nodup_a_parts - List.length a_parts) ^*)
-	(*" duplicates");*)
-	(*nodup_a_parts*)
-
 	
-(*
-  let make_sol fixf gt1 gt2 =
-  let unabs_solutions = unabstracted_sol gt1 gt2 in
-(*print_endline "unabs solutions";*)
-(*print_sols unabs_solutions;*)
-(*print_endline "starting abstraction";*)
-(*let min_size = find_smallest_level unabs_solutions in*)
-(*print_endline ("minimal term size: " ^ string_of_int min_size);*)
 
-(* the unabs_solutions is now a list of possible patches that could 
-  * update gt1 to gt2; 
-  * 
-*)
-(*print_endline "renumbering metas";*)
-  let all_perms = List.map (function sol ->
-(*print_endline "abstracting the following solution now";*)
-(*print_sol sol;*)
-  gen_perms 
-  (List.map (function up ->
-(*print_endline ("\nhandling :::::" ^string_of_diff up);*)
-(*(match up with (UP(l,_)) ->*)
-(*print_endline ("of size  :::: " ^ (string_of_int (gsize l))));*)
-  List.map renumber_metas_up (
-  let rs = abs_term_noenv fixf should_abs up in
-(*print_endline "\nwith result :::::";*)
-(*List.iter (fun d -> print_endline (string_of_diff d)) rs;*)
-(*print_endline ("\t#no of abstracted update: " ^ *)
-(*string_of_int (List.length rs));*)
-  rs
-  )
-  ) sol)
-  ) unabs_solutions in
-(*print_endline "flattening lists";*)
-  let all_perms = (List.flatten all_perms) in
-(*
-  print_endline ("filtering " ^ string_of_int (List.length all_perms));
-  let c = ref 0 in
-  let all_perms = List.filter 
-  (function patches -> (
-  print_string (" " ^ string_of_int (inc c));
-  flush stdout;
-  if complete_patch gt1 gt2 patches
-  then (
-  print_string "#"; 
-(*
-  print_endline "keeping:";
-  print_sol patches;
-*)
-  true)
-  else (
-  print_string "."; 
-(*
-  print_endline "removing:";
-  print_sol patches;
-*)
-  false))
-  ) all_perms in
-  print_newline ();
-*)
-  all_perms
-*)
-(*
-  let make_sol_old fixf gt1 gt2 =
-  print_endline "dgts :::::::";
-  let dgts = List.filter (function x -> match x with (ID _ | RM _ | ADD _)->
-  false | _ -> true) (get_ctf_diffs always_dive [] gt1 gt2) in
-  List.iter (fun d -> print_endline (string_of_diff d)) dgts;
-  print_newline ();
-  let parted = partition dgts in
-  print_endline "parted::::::";
-  List.iter print_diffs parted;
-  debug_msg "partitioned sizes: ";
-(*
-  *List.iter (fun ec -> 
-  *  debug_msg "<";
-  *  debug_msg (string_of_int (List.length ec));
-  *  debug_msg "> ";
-  *  ) parted;
-  *print_newline ();
-*)
-(*
-  *List.iter 
-  *  (fun ec -> 
-  *    debug_msg "{{";
-  *    List.iter (fun df ->
-  *     debug_msg ((string_of_diff df) ^ " ++ ")) ec;
-  *   debug_msg "\n}}")
-  *  parted;
-*)
-  print_endline "making permuted by selecting one from each eq_class";
-  let all_perms = gen_perms parted in
-  print_endline "sorting reversed";
-  let all_perms = List.map sort_rev all_perms in
-  print_endline "collecting";
-  let all_perms = List.map (fun d -> collect gt1 gt2 d) all_perms in
-  print_endline "removing duplicates";
-  let all_perms = rm_dub all_perms in
-  print_string "number: ";
-  print_endline (string_of_int (List.length all_perms));
-  print_endline "renumbering metas";
-  let all_perms = List.map (function sol ->
-  gen_perms 
-  (List.map (function up ->
-  print_endline ("handling :::::" ^string_of_diff up);
-  List.map renumber_metas_up (abs_term_noenv fixf should_abs up)
-  ) sol)
-  ) all_perms in
-  print_endline "flattening lists";
-  let all_perms = (List.flatten all_perms) in
-  print_endline "filtering";
-  let all_perms = List.filter 
-  (function patches -> complete_patch gt1 gt2 patches) all_perms in
-  all_perms
-*)
 
 (* This function returns a boolean value according to whether it can
  * syntactically* determine two atomic patches to have disjoint

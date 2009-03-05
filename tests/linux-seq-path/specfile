@@ -1,5 +1,5 @@
 md.c.orig md.c.new
-#namespace.c.orig namespace.c.new
+namespace.c.orig namespace.c.new
 #export.c.orig export.c.new
 #nommu.c.orig nommu.c.new
 #task_mmu.c.orig task_mmu.c.new
