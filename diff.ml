@@ -2666,10 +2666,6 @@ let rec abs_term_imp terms_changed is_fixed up =
 	 * this can happen, you know! we return simply an atom
 	 *)
 	[mkA(ct, "new file")], env
- (*   | C (ct, ts) when !abs_subterms <= gsize t -> 
-	(fdebug_endline !print_abs ("[Diff] abs_subterms " ^ string_of_gtree' t);
-	 [t], env)
- *)
     | C("prg", _)
     | C("prg2", _)
     | C("def",_) 
@@ -2679,7 +2675,11 @@ let rec abs_term_imp terms_changed is_fixed up =
     | C("dowhile", _)
     | C("for", _) 
     | C("switch", _) 
+    | C("comp{}", _)
     | C("storage", _) -> [t], env
+    (* | C (ct, ts) when !abs_subterms <= zsize t ->  *)
+    (* 	(fdebug_endline !print_abs ("[Diff] abs_subterms " ^ string_of_gtree' t); *)
+    (* 	 [t], env) *)
     | C("call", f :: ts) ->
 	cur_depth := !cur_depth - 1;
         (* generate abstract versions for each t ∈ ts *)
@@ -2768,8 +2768,8 @@ let rec abs_term_imp terms_changed is_fixed up =
       | _ -> raise (Fail "non supported update given to abs_term_size_imp")
 
 let abs_term_noenv terms_changed is_fixed should_abs up = 
-  fdebug_endline !print_abs ("[Diff] abstracting concrete update with size:" ^
-				string_of_int (Difftype.csize up) ^ "\n" ^
+  fdebug_endline !print_abs ("[Diff] abstracting concrete update with size: " ^
+				string_of_int (Difftype.fsize up) ^ "\n" ^
 				string_of_diff up);
   (*let res, _ = abs_term_size terms_changed is_fixed should_abs up in *)
   let res, _ = abs_term_imp terms_changed is_fixed up in 
@@ -3257,8 +3257,9 @@ let make_abs terms_changed fixf (gt1, gt2) =
   let c_parts = 
     if !malign_mode
     then (
-      print_endline "[Diff] getting concrete parts";
+      print_string "[Diff] getting concrete parts ...";
       let cs = get_tree_changes gt1 gt2 in
+	print_endline (cs +> List.length +> string_of_int ^ " found");
 	print_endline "[Diff] filtering safe parts";
 	(*print_endline ("[Diff] get_tree_changes:");*)
 	(*List.iter (function d -> print_endline (string_of_diff d)) cs;*)
