@@ -518,13 +518,6 @@ let spec_main () =
   print_newline ();
   (* }}} *)
   let fixf = Diff.list_fixed frqnt_st in
-  (*let terms_changed_list = Diff.find_changed_terms fixf term_pairs in*)
-  (*print_string "[Main] terms that changed: ";*)
-  (*List.iter *)
-  (*(function a -> print_string (Diff.string_of_gtree' a); print_string " ")*)
-  (*terms_changed_list;*)
-  (*print_newline ();*)
-  (*let terms_changed = function a -> List.mem a terms_changed_list in*)
   (* now make all (relevant) term updates for each term pair *)
   print_endline (
   "[Main] Constructing all safe parts for " ^ 
@@ -2024,7 +2017,34 @@ let rec ( *>) (t_list : gtree list) func def_arg =
 			| Next arg -> t :: ((t_list *> func) arg) 
 		     )
 
-let locate_subterm g subterm path f =
+exception Label_not_found of string
+exception Goto of string * int list
+
+let rec iterate_lab t_list loop locate_label (lab, path) =
+  let rec cont t_list = 
+    match t_list with
+      | [] -> 
+	  raise (Label_not_found lab)
+      | t :: t_list -> (try 
+			  let t' = locate_label (lab, path) t in
+			    t' :: t_list
+			with
+			  | LocateSubterm -> t :: ((t_list *> loop) path) 
+			  | Next new_path -> t :: ((t_list *> loop) new_path) 
+			  | Label_not_found _ -> t :: cont t_list
+		       )
+  in
+    cont t_list
+
+
+let locate_subterm g orig_subterm path f =
+  let extract_label t = 
+    match view t with 
+      | C("stmt", [
+	    {Hashcons.node=A("goto", lab)}
+	  ]) -> Some lab
+      | _ -> None
+  in
   let pathht = Hashtbl.create 101 in
   let get_val n = 
     try 
@@ -2035,63 +2055,85 @@ let locate_subterm g subterm path f =
 	  Hashtbl.add pathht n res;
 	  res
 	) in
-  v_print_string "[Main] looking in ";
-  v_print_endline (Diff.verbose_string_of_gtree subterm);
-  v_print_string "[Main] path ";
-  v_print_endline (path +> List.map string_of_int +> String.concat " ");
-  let last = List.nth path (List.length path - 1) in
-  v_print_string "[Main] looking for:";
-  v_print_endline (get_val last +> Diff.verbose_string_of_gtree);
+    v_print_string "[Main] looking in ";
+    v_print_endline (Diff.verbose_string_of_gtree orig_subterm);
+    v_print_string "[Main] path ";
+    v_print_endline (path +> List.map string_of_int +> String.concat " ");
+    let last = List.nth path (List.length path - 1) in
+      v_print_string "[Main] looking for:";
+      v_print_endline (get_val last +> Diff.verbose_string_of_gtree);
 
-  let is_typed e = match view e with
-    | C("TYPEDEXP", _) -> true
-    | _ -> false in
-  let rec (===) t1 t2 = match view t1, view t2 with
-    | C("pending", ot :: _ ), _ -> ot === t2
-    | C("stmt",[s]), C("dlist", _) ->  s === t2
-    | C("exp",[te;e]), C("exp", [e']) when is_typed te -> e === e'
-    | C(ty1,ts1), C(ty2,ts2) when ty1 = ty2 ->
-	(try 
-	  List.for_all2 (===) ts1 ts2
-	with Invalid_argument e -> (
-	  print_endline "ts1";
-	  ts1 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
-	  print_endline "ts2";
-	  ts2 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
-	  raise (Invalid_argument e))
-	)
-    | _ -> t1 = t2 in
- (* this function is used to check whether we are at a context point *)
-  let is_at_context node_term pending_subterm = 
-    match view pending_subterm with
-      | C("pending", orig_cp :: chunk_op) -> orig_cp === node_term
-      | _ -> pending_subterm === node_term in
-  let get_next_node_val path = match path with
-    | [] -> None
-    | n :: _ -> Some (get_val n) in
-  let rec loop subterm path =
-    match path with
-      | [] -> (raise LocateSubterm)
-      | [n] -> 
-	  let node_term = get_val n in
-	  if is_at_context node_term subterm
-          then f node_term (* subterm -- can the subterm can have more info than the node-term ? *)
-          else (raise LocateSubterm)
-      | n' :: path -> 
-	  let t = get_val n' 
-	  in 
-	    if subterm === t
-            then raise (Next path)
-            else (
-	      match corresponds subterm t (get_next_node_val path) path  with
-		| None -> (raise LocateSubterm)
-		| Some (ts, ins_f, new_path) ->
-		    (ts *> loop) new_path 
-		      +> ins_f
+      let is_typed e = match view e with
+	| C("TYPEDEXP", _) -> true
+	| _ -> false in
+      let rec (===) t1 t2 = match view t1, view t2 with
+	| C("pending", ot :: _ ), _ -> ot === t2
+	| C("stmt",[s]), C("dlist", _) ->  s === t2
+	| C("exp",[te;e]), C("exp", [e']) when is_typed te -> e === e'
+	| C(ty1,ts1), C(ty2,ts2) when ty1 = ty2 ->
+	    (try 
+	       List.for_all2 (===) ts1 ts2
+	     with Invalid_argument e -> (
+	       print_endline "ts1";
+	       ts1 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
+	       print_endline "ts2";
+	       ts2 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
+	       raise (Invalid_argument e))
 	    )
-  in
-    loop subterm path 
-
+	| _ -> t1 = t2 in
+	(* this function is used to check whether we are at a context point *)
+      let is_at_context node_term pending_subterm = 
+	match view pending_subterm with
+	  | C("pending", orig_cp :: chunk_op) -> orig_cp === node_term
+	  | _ -> pending_subterm === node_term in
+      let get_next_node_val path = match path with
+	| [] -> None
+	| n :: _ -> Some (get_val n) in
+      let rec loop subterm path =
+	match path with
+	  | [] -> (raise LocateSubterm)
+	  | [n] -> 
+	      let node_term = get_val n in
+		if is_at_context node_term subterm
+		then f node_term (* subterm -- can the subterm can have more info than the node-term ? *)
+		else (raise LocateSubterm)
+	  | n' :: path -> 
+	      let t = get_val n' 
+	      in 
+		if subterm === t
+		then 
+		  (match extract_label t with
+		     | Some lab -> raise (Goto (lab, path))
+		     | None     -> raise (Next path)
+		  )
+		else
+		  (
+		    match corresponds subterm t (get_next_node_val path) path  with
+		      | None -> (raise LocateSubterm)
+		      | Some (ts, ins_f, new_path) ->
+			  (ts *> loop) new_path 
+			  +> ins_f
+		  ) 
+      and locate_label (lab, path) t =
+	match view t with 
+	  | C("stmt", [
+		{Hashcons.node=C("labeled", [
+				   {Hashcons.node=A("lname",lab') }; _])}
+	      ]) 
+	      when lab = lab' -> loop t path
+	  | C(ty, ts) -> 
+	      let ts' = iterate_lab ts loop locate_label (lab, path)
+	      in mkC(ty,ts')
+	  | _ -> raise (Label_not_found lab) 
+      in
+      let rec search_label (lab, path) =
+	try locate_label (lab, path) orig_subterm
+	with
+	    Goto (lab', path') -> search_label (lab', path')
+      in
+	try loop orig_subterm path 
+	with Goto (lab, path) ->
+	  search_label (lab, path) 
 
 
 (* this function takes a chunk and a subterm and uses the subterm to
