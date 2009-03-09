@@ -4,10 +4,6 @@ let falign callb s1 s2 s3 =
   let s1_len = Array.length s1 in
   let s2_len = Array.length s2 in 
   let s3_len = Array.length s3 in
-    (* print_endline ("[Msa] lengths " ^ *)
-    (* 		     s1_len +> string_of_int ^ ", " ^ *)
-    (* 		     s2_len +> string_of_int ^ ", " ^ *)
-    (* 		     s3_len +> string_of_int); *)
   let ( ** ) arr x = if x = 0 then None else Some (arr.(x-1)) in
   let acc s i = s.(i-1) in
   let ss1 i = acc s1 i in
