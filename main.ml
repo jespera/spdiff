@@ -2336,14 +2336,19 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
 				   v_print_endline ("t1\t" ^ Diff.string_of_gtree' left);
 				   v_print_endline ("t2\t" ^ Diff.string_of_gtree' middle);
 				   v_print_endline ("t3\t" ^ Diff.string_of_gtree' right);
-				   (* if Diff.part_of_edit_dist left middle right *)
-				   if Diff.msa_cost left middle right
+				   if Diff.part_of_edit_dist left middle right
+				   (* if Diff.msa_cost left middle right *)
 				   then (v_print_endline "ok"; true)
 				   else (v_print_endline "unsafe"; false)
 				   )
 
 (* decide whether sp1 <= ttf_list *)
 let is_spatch_safe_ttf_list sp ttf_list =
+  print_endline "[Main] considering safety of:";
+  sp +>
+  List.iter (function p -> 
+  	Diff.string_of_diff p +> print_endline
+  	);
   ttf_list +> for_some !threshold (function ttf ->
 				     is_spatch_safe_one ttf sp
 				  )
@@ -2441,8 +2446,8 @@ let get_largest_spatchs ttf_list spatches =
 	       (function (f2,m2,_) ->
 		  try
 		    let (_, m1, _) = List.find (function (f1,m1,r1) -> f1 = f2) fm_lists1 in
-		      (* Diff.part_of_edit_dist f2 m1 m2 *)
-		      Diff.msa_cost f2 m1 m2
+		      Diff.part_of_edit_dist f2 m1 m2
+		      (* Diff.msa_cost f2 m1 m2 *)
 		  with Not_found -> 
 		    (v_print_endline  ("Not finding: " ^ Diff.string_of_gtree' f2);
 		     raise Not_found)
@@ -2510,20 +2515,22 @@ let find_common_patterns () =
 	  let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flows),(rhs_gt,_)) -> 
 						       (lhs_gt, rhs_gt, lhs_flows)
 						    ) in
-	    print_endline "[Main] filtering safe semantic patches";
-	    let res_spatches = 
-	      sp_candidates 
-	      +> List.filter (function sp -> is_spatch_safe_ttf_list sp ttf_list)
-	    in
 	    let is_transformation_sp sp = 
 	      sp +> List.exists (function p ->
 				   match p with
 				     | Difftype.ID _ -> false
 				     | _ -> true) in
+	    let trans_patches = sp_candidates +> List.filter is_transformation_sp in
+	    print_endline ("[Main] filtering safe semantic patches ("^ trans_patches +> 
+	    							      List.length +> 
+								      string_of_int ^")");
+	    let res_spatches = 
+	      trans_patches
+	      +> List.filter (function sp -> is_spatch_safe_ttf_list sp ttf_list)
+	    in
 	      print_endline "[Main] filtering largest semantic patches";
 	      let largest_spatches =
 		res_spatches 
-		+> List.filter is_transformation_sp
 		+> (function spatches -> 
 		      if !filter_spatches then get_largest_spatchs ttf_list spatches
 		      else spatches)
