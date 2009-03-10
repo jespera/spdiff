@@ -1825,6 +1825,7 @@ let read_ast file =
 
 let i2s i = string_of_int i
 let control_else = mkA("control:else", "Else")
+let control_inloop = mkA("control:loop", "InLoop")
 
 let translate_node (n2, ninfo) = match n2 with
   | Control_flow_c2.TopNode -> mkA("phony","TopNode")
@@ -1920,8 +1921,9 @@ let translate_node (n2, ninfo) = match n2 with
   (* for ctl:  *)
   | Control_flow_c2.TrueNode -> mkA("phony", "[then]")
   | Control_flow_c2.FalseNode -> mkA("phony", "[else]")
-  | Control_flow_c2.InLoopNode (* almost equivalent to TrueNode but just for loops *) -> mkA("phony", "InLoop")
-
+  | Control_flow_c2.InLoopNode (* almost equivalent to TrueNode but just for loops *) -> 
+      control_inloop
+      (* mkA("phony", "InLoop") *)
   | Control_flow_c2.AfterNode -> mkA("phony", "[after]")
   | Control_flow_c2.FallThroughNode -> mkA("phony", "[fallthrough]")
 
