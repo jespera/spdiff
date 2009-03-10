@@ -84,7 +84,7 @@ let file_pairs = ref []
 let read_filepair old_file new_file =
   print_endline 
     ("Reading file pair " ^
-     old_file ^ " " ^ new_file);
+       old_file ^ " " ^ new_file);
   Diff.read_src_tgt old_file new_file
 
 let read_filepair_defs old_file new_file =
@@ -96,7 +96,7 @@ let read_filepair_defs old_file new_file =
 let read_filepair_cfg old_file new_file =
   print_endline 
     ("Reading file pair " ^
-     old_file ^ " " ^ new_file);
+       old_file ^ " " ^ new_file);
   Diff.read_src_tgt_cfg old_file new_file
 
 let read_spec () =
@@ -105,27 +105,27 @@ let read_spec () =
   let rec loop () =
     let next_line = input_line ins in 
     let next_two  = Str.split filesep next_line in
-    if Str.string_before (List.hd next_two) 1 = "#"
-    then
-      print_endline "Comment"
-    else (
-      print_endline ("Parsed two: " ^ 
-                     List.nth next_two 0 ^ ", " ^
-                     List.nth next_two 1);
-      file_pairs := (
-        List.nth next_two 0,
-        List.nth next_two 1) :: 
-        !file_pairs);
-    loop ()
+      if Str.string_before (List.hd next_two) 1 = "#"
+      then
+	print_endline "Comment"
+      else (
+	print_endline ("Parsed two: " ^ 
+			 List.nth next_two 0 ^ ", " ^
+			 List.nth next_two 1);
+	file_pairs := (
+          List.nth next_two 0,
+          List.nth next_two 1) :: 
+          !file_pairs);
+      loop ()
   in
-  try loop () with
-    End_of_file -> ()
+    try loop () with
+	End_of_file -> ()
 
 let changeset_from_pair fixf gt1 gt2 =
   Diff.unabstracted_sol gt1 gt2
-(*if !abs *)
-(*then Diff.make_sol fixf gt1 gt2*)
-(*else Diff.unabstracted_sol gt1 gt2*)
+    (*if !abs *)
+    (*then Diff.make_sol fixf gt1 gt2*)
+    (*else Diff.unabstracted_sol gt1 gt2*)
 
 (*let changesets = ref []*)
 
@@ -135,10 +135,10 @@ let changeset_from_pair fixf gt1 gt2 =
 let soundness_filter dpairs patches =
   let safe_for_all_up up =
     if List.for_all (fun (gt1, gt2) -> (
-      (*print_endline "considering:";*)
-      (*print_endline (Diff.string_of_gtree' gt1);*)
-      (*print_endline (Diff.string_of_gtree' gt2);*)
-      Diff.safe_update gt1 gt2 up)) dpairs
+		       (*print_endline "considering:";*)
+		       (*print_endline (Diff.string_of_gtree' gt1);*)
+		       (*print_endline (Diff.string_of_gtree' gt2);*)
+		       Diff.safe_update gt1 gt2 up)) dpairs
     then (
       (*print_endline ("OK:" ^ Diff.string_of_diff up); *)
       true)
@@ -149,122 +149,122 @@ let soundness_filter dpairs patches =
   let filter_patch patch =
     List.filter safe_for_all_up patch
   in
-  List.map filter_patch patches
+    List.map filter_patch patches
 
 let print_patch_lists pl =
   List.iter
     (function ups -> 
-      print_endline "patches ****";
-      List.iter
-        (function up ->
-          print_endline (Diff.string_of_diff up);
-          print_endline "||"
-        )
-        ups
+       print_endline "patches ****";
+       List.iter
+         (function up ->
+            print_endline (Diff.string_of_diff up);
+            print_endline "||"
+         )
+         ups
     )
     pl
 
 let get_best_itemset_old ndb =
   print_endline ("[Main] getting best itemset of " ^ 
-                 string_of_int (Diff.DBD.sizeOf ndb) ^ " possible");
+                   string_of_int (Diff.DBD.sizeOf ndb) ^ " possible");
   let supp b = Diff.DBD.get_support_itemset ndb b in
   let f acc_itemset itemset =
     if acc_itemset = [] ||
-    (supp itemset >= supp acc_itemset &&
-     List.length itemset >= List.length acc_itemset)
+      (supp itemset >= supp acc_itemset &&
+	 List.length itemset >= List.length acc_itemset)
     then itemset
     else acc_itemset in
-  Diff.DBD.fold_itemset ndb f []
+    Diff.DBD.fold_itemset ndb f []
 
 let get_best_itemset ndb =
   let items = Diff.DBD.getItems ndb in
-  print_endline ("[Main] there are " ^ string_of_int (List.length items) ^ " unique items");
-  Diff.DBD.fold_unique ndb (
-  fun item freq () ->
-    print_endline ("[Main db] " ^ 
-                   Diff.string_of_diff item ^ ", " ^
-                   string_of_int freq)
- ) ();
-  items
+    print_endline ("[Main] there are " ^ string_of_int (List.length items) ^ " unique items");
+    Diff.DBD.fold_unique ndb (
+      fun item freq () ->
+	print_endline ("[Main db] " ^ 
+			 Diff.string_of_diff item ^ ", " ^
+			 string_of_int freq)
+    ) ();
+    items
 
 let list_at_least n f ls =
   (List.fold_left (fun acc_n e -> 
-    if f e
-    then acc_n + 1
-    else acc_n
+		     if f e
+		     then acc_n + 1
+		     else acc_n
 		  ) 0 ls) >= n
 
 
 let do_datamining abs_patches =
   (*let threshold = List.length abs_patches in*)
   print_endline ("[Main] Finding unit patches with minimum support at least: " ^
-                 (*string_of_int (!threshold - !exceptions));*)
-                 string_of_int !threshold);
+                   (*string_of_int (!threshold - !exceptions));*)
+                   string_of_int !threshold);
   Diff.filter_some abs_patches
 
 
 let bp_of_list ls = 
   let rec loop ls = match ls with
-  | [] -> None
-  | l :: ls -> match loop ls with
-    | None -> Some l
-    | Some bp -> Some (Difftype.SEQ (l, bp))
+    | [] -> None
+    | l :: ls -> match loop ls with
+	| None -> Some l
+	| Some bp -> Some (Difftype.SEQ (l, bp))
   in
-  match loop ls with
-  | None -> raise (Diff.Fail "None?")
-  | Some bp -> bp
+    match loop ls with
+      | None -> raise (Diff.Fail "None?")
+      | Some bp -> bp
 
 let list_of_bp bp = 
   let rec loop bp = match bp with
-  | Difftype.SEQ (Difftype.UP (a, b), bps) -> (Difftype.UP (a,b)) :: loop bps
-  | Difftype.UP _ -> [bp]
-  | _ -> raise (Diff.Fail "list_of_bp format")
+    | Difftype.SEQ (Difftype.UP (a, b), bps) -> (Difftype.UP (a,b)) :: loop bps
+    | Difftype.UP _ -> [bp]
+    | _ -> raise (Diff.Fail "list_of_bp format")
   in
-  loop bp
+    loop bp
 
 let generate_sols_old chgset_orig simple_patches =
   let lcnt = ref 1 in
-  print_string "[Main] generating solutions for ";
-  print_string (string_of_int (List.length simple_patches));
-  print_endline " simple patches";
-  let (^^) a b = List.map (function bs -> a :: bs) b in
-  let make_one a = [[a]] in
-  let rec loop chgset bp =
-    match Diff.get_applicable chgset bp simple_patches with
-    | (_, []) -> make_one bp
-    | (chgset', bps) -> 
-        bp ^^
-        List.flatten (List.map (function bp' -> loop chgset' bp') bps)
-  in
-  List.flatten (List.map (function bp -> 
-    print_string "[Main] generating for ";
-    print_string (string_of_int !lcnt);
-    print_endline " simple patch";
-    lcnt := !lcnt + 1;
-    loop chgset_orig bp) simple_patches)
+    print_string "[Main] generating solutions for ";
+    print_string (string_of_int (List.length simple_patches));
+    print_endline " simple patches";
+    let (^^) a b = List.map (function bs -> a :: bs) b in
+    let make_one a = [[a]] in
+    let rec loop chgset bp =
+      match Diff.get_applicable chgset bp simple_patches with
+	| (_, []) -> make_one bp
+	| (chgset', bps) -> 
+            bp ^^
+              List.flatten (List.map (function bp' -> loop chgset' bp') bps)
+    in
+      List.flatten (List.map (function bp -> 
+				print_string "[Main] generating for ";
+				print_string (string_of_int !lcnt);
+				print_endline " simple patch";
+				lcnt := !lcnt + 1;
+				loop chgset_orig bp) simple_patches)
 
 (* function to detect whether two solutions (a solution is a list of
    bp's) are really equal, but with different orderings of the bp's
  *)
 let redundant_sol sol1 sol2 = 
   List.for_all (function bp1 -> List.mem bp1 sol2) sol1 &&
-  List.for_all (function bp2 -> List.mem bp2 sol1) sol2
+    List.for_all (function bp2 -> List.mem bp2 sol1) sol2
 
 let rec filter_redundant solutions =
   match solutions with
-  | [] -> []
-  | s :: sols -> s :: List.filter (function s' ->
-      not(redundant_sol (list_of_bp s) (list_of_bp s'))) 
-                       (filter_redundant sols)
+    | [] -> []
+    | s :: sols -> s :: List.filter (function s' ->
+				       not(redundant_sol (list_of_bp s) (list_of_bp s'))) 
+        (filter_redundant sols)
 
 let implies b1 b2 = not(b1) || b2
 
 let filter_more_abstract abs_terms =
   let keep_sol p =
     List.for_all (function p' -> 
-      implies (Diff.can_match p p' || Diff.can_match p' p) (gsize p <= gsize p')
+		    implies (Diff.can_match p p' || Diff.can_match p' p) (gsize p <= gsize p')
 		 ) abs_terms in
-  List.filter keep_sol abs_terms
+    List.filter keep_sol abs_terms
 
 let filter_smaller chgset solutions =
   let keep_sol bp = 
@@ -276,18 +276,18 @@ let filter_smaller chgset solutions =
     (*solutions in*)
     List.for_all
       (function bp' ->
-        (Diff.subpatch_changeset chgset bp bp' && bp = bp') ||
-        if Diff.subpatch_changeset chgset bp' bp
-        then (!noncompact || Difftype.csize bp' <= Difftype.csize bp)
-        else true
+         (Diff.subpatch_changeset chgset bp bp' && bp = bp') ||
+           if Diff.subpatch_changeset chgset bp' bp
+           then (!noncompact || Difftype.csize bp' <= Difftype.csize bp)
+           else true
       )
       solutions
   in
-  (*print_string "[Main] filter_small considering ";*)
-  (*print_string (string_of_int (List.length solutions));*)
-  (*print_endline " solutions";*)
-  (*List.map list_of_bp *)
-  (List.filter keep_sol solutions)
+    (*print_string "[Main] filter_small considering ";*)
+    (*print_string (string_of_int (List.length solutions));*)
+    (*print_endline " solutions";*)
+    (*List.map list_of_bp *)
+    (List.filter keep_sol solutions)
 
 let remove_disj found_nxt bp =
   if List.exists (fun bp' -> Diff.disjoint_domains (bp,bp')) found_nxt
@@ -298,139 +298,139 @@ let generate_sols chgset_orig simple_patches =
   (*Diff.no_occurs := List.length chgset_orig - !exceptions;*)
   print_endline ("[Main] min sup = " ^ string_of_int !Diff.no_occurs);
   let unwrap bp = match bp with 
-  | None -> raise (Diff.Fail "unable to unwrap")
-  | Some bp -> bp in
+    | None -> raise (Diff.Fail "unable to unwrap")
+    | Some bp -> bp in
   let extend_bp bp_old bp_new = 
     let rec loop bp_old bp_new =
       match bp_old with
-      | Difftype.UP _ -> Difftype.SEQ(bp_old,bp_new)
-      | Difftype.SEQ (a, b) -> Difftype.SEQ (a, loop b bp_new) 
-      | _ -> raise (Diff.Fail "extend_bp format")
+	| Difftype.UP _ -> Difftype.SEQ(bp_old,bp_new)
+	| Difftype.SEQ (a, b) -> Difftype.SEQ (a, loop b bp_new) 
+	| _ -> raise (Diff.Fail "extend_bp format")
     in
-    match bp_old with
-    | None -> Some bp_new
-    | Some bp_old -> Some (loop bp_old bp_new) in
+      match bp_old with
+	| None -> Some bp_new
+	| Some bp_old -> Some (loop bp_old bp_new) in
   let app_pred cur_bp bp = 
     (
-     (*not(Diff.subpatch_changeset chgset_orig bp cur_bp) &&*)
-     let nbp = unwrap (extend_bp (Some cur_bp) bp) in
-     (*print_endline "[Main] applying 1:";*)
-     (*print_endline (Diff.string_of_diff nbp);*)
-     if !Diff.relax 
-     then (
-       let chgset' = Diff.apply_changeset nbp chgset_orig in
-       (*print_endline "[Main] applying 2:";*)
-       (*print_endline (Diff.string_of_diff cur_bp);*)
-       let chgset''= Diff.apply_changeset cur_bp chgset_orig in
-       not(chgset' = chgset'')
-      ) && Diff.safe_part_changeset nbp chgset_orig 
-     else 
-       Diff.safe_part_changeset nbp chgset_orig 
+      (*not(Diff.subpatch_changeset chgset_orig bp cur_bp) &&*)
+      let nbp = unwrap (extend_bp (Some cur_bp) bp) in
+	(*print_endline "[Main] applying 1:";*)
+	(*print_endline (Diff.string_of_diff nbp);*)
+	if !Diff.relax 
+	then (
+	  let chgset' = Diff.apply_changeset nbp chgset_orig in
+	    (*print_endline "[Main] applying 2:";*)
+	    (*print_endline (Diff.string_of_diff cur_bp);*)
+	  let chgset''= Diff.apply_changeset cur_bp chgset_orig in
+	    not(chgset' = chgset'')
+	) && Diff.safe_part_changeset nbp chgset_orig 
+	else 
+	  Diff.safe_part_changeset nbp chgset_orig 
     )
   in
-  (*  let restrict_bps cur_bp bps =
-      List.filter (function bp ->
-      not(Diff.subpatch_changeset chgset_orig bp cur_bp)
-      ) bps in
-   *)
+    (*  let restrict_bps cur_bp bps =
+	List.filter (function bp ->
+	not(Diff.subpatch_changeset chgset_orig bp cur_bp)
+	) bps in
+    *)
   let next_bps bps cur_bp = match cur_bp with
-  | None -> bps (*simple_patches*)
-  | Some cur_bp -> (
-      (*print_string "[Main] considering next w.r.t.\n\t";*)
-      (*print_endline (Diff.string_of_diff cur_bp);*)
-      let res = List.filter (function bp ->
-        try app_pred cur_bp bp with Diff.Nomatch -> false
-			    ) bps
+    | None -> bps (*simple_patches*)
+    | Some cur_bp -> (
+	(*print_string "[Main] considering next w.r.t.\n\t";*)
+	(*print_endline (Diff.string_of_diff cur_bp);*)
+	let res = List.filter (function bp ->
+				 try app_pred cur_bp bp with Diff.Nomatch -> false
+			      ) bps
 
-          (* (restrict_bps cur_bp bps) (* this is just too slow to be worth
-                                        * it*) *) in
-      (*print_endline "[Updates added";*)
-      (*List.iter (function bp -> print_endline ("\t"^Diff.string_of_diff bp)) res;*)
-      res
-     )
+        (* (restrict_bps cur_bp bps) (* this is just too slow to be worth
+         * it*) *) in
+	(*print_endline "[Updates added";*)
+	(*List.iter (function bp -> print_endline ("\t"^Diff.string_of_diff bp)) res;*)
+	  res
+      )
   in
   let add_sol cur_bp sol = 
     match cur_bp with 
-    | None -> print_endline "[Main] no solutions?"; []
-    | Some cur_bp -> (
-        if !print_adding
-        then (
-          print_string ("[Main] trying solution... (" ^
-                        string_of_int (List.length sol) ^")");
-          flush stdout;
-          print_endline (Diff.string_of_diff cur_bp)
-         );
-        (*        let res = filter_smaller chgset_orig (filter_redundant (cur_bp ::
-         *        sol)) *)
-        let res = filter_smaller chgset_orig (cur_bp :: sol)
-        in
-        if !print_adding
-        then print_endline ("done (" ^ string_of_int (List.length res) ^ ")");
-        res
-       ) in
-  (*  let isComplete bp = Diff.complete_changeset 
-      chgset_orig (list_of_bp bp) in
-   *)
+      | None -> print_endline "[Main] no solutions?"; []
+      | Some cur_bp -> (
+          if !print_adding
+          then (
+            print_string ("[Main] trying solution... (" ^
+                            string_of_int (List.length sol) ^")");
+            flush stdout;
+            print_endline (Diff.string_of_diff cur_bp)
+          );
+          (*        let res = filter_smaller chgset_orig (filter_redundant (cur_bp ::
+           *        sol)) *)
+          let res = filter_smaller chgset_orig (cur_bp :: sol)
+          in
+            if !print_adding
+            then print_endline ("done (" ^ string_of_int (List.length res) ^ ")");
+            res
+	) in
+    (*  let isComplete bp = Diff.complete_changeset 
+	chgset_orig (list_of_bp bp) in
+    *)
   let rec gen sol bps_pool cur_bp =
     (*if try isComplete (unwrap cur_bp) with _ -> false*)
     (*then add_sol cur_bp sol*)
     (*else*)
     (*let bps' = filter_smaller chgset_orig (next_bps bps cur_bp) in*)
     let bps' = next_bps bps_pool cur_bp in
-    if bps' = []
-    then add_sol cur_bp sol
-    else
-      (
-       (*print_endline ("[Main] bps'.length " ^*)
-       (*string_of_int (List.length bps'));*)
-       List.fold_left (fun sol bp ->
-         let nbp = extend_bp cur_bp bp in
-         (* let nbps = restrict_bps (unwrap nbp) bps_pool in *)
-         (* gen sol nbps nbp *)
+      if bps' = []
+      then add_sol cur_bp sol
+      else
+	(
+	  (*print_endline ("[Main] bps'.length " ^*)
+	  (*string_of_int (List.length bps'));*)
+	  List.fold_left (fun sol bp ->
+			    let nbp = extend_bp cur_bp bp in
+			      (* let nbps = restrict_bps (unwrap nbp) bps_pool in *)
+			      (* gen sol nbps nbp *)
 
-         (* remove bp from the list of next bps to select since we know that
-          * the same bp can not be applied twice
-          *)
-         if !prune
-         then 
-           if List.exists (function bp' -> 
-             Diff.subpatch_changeset chgset_orig (unwrap nbp) bp'
-                          ) sol
-           then sol
-           else let bps_new_pool = List.filter (fun bp' -> not(bp = bp')) bps_pool in
-           gen sol bps_new_pool nbp
-         else let bps_new_pool = List.filter (fun bp' -> not(bp = bp')) bps_pool in
-         gen sol bps_new_pool nbp
-		      ) sol bps'
-      )
+			      (* remove bp from the list of next bps to select since we know that
+			       * the same bp can not be applied twice
+			       *)
+			      if !prune
+			      then 
+				if List.exists (function bp' -> 
+						  Diff.subpatch_changeset chgset_orig (unwrap nbp) bp'
+					       ) sol
+				then sol
+				else let bps_new_pool = List.filter (fun bp' -> not(bp = bp')) bps_pool in
+				  gen sol bps_new_pool nbp
+			      else let bps_new_pool = List.filter (fun bp' -> not(bp = bp')) bps_pool in
+				gen sol bps_new_pool nbp
+			 ) sol bps'
+	)
   in
-  if simple_patches = []
-  then (
-    print_endline "[Main] no input to work with";
-    [])
-  else
-    let res = gen [] simple_patches None in
-    print_endline ("[Main] found " ^
-                   string_of_int (List.length res) ^ " solutions");
-    List.map list_of_bp res
+    if simple_patches = []
+    then (
+      print_endline "[Main] no input to work with";
+      [])
+    else
+      let res = gen [] simple_patches None in
+	print_endline ("[Main] found " ^
+			 string_of_int (List.length res) ^ " solutions");
+	List.map list_of_bp res
 
 
 (* a solution is a list of TU patches, not a SEQ value *)
 let print_sol sol =
   print_endline "{{{";
   List.iter (function bp -> 
-    print_endline (Diff.string_of_diff bp);
+	       print_endline (Diff.string_of_diff bp);
 	    ) sol;
   print_endline "}}}"
 
 let print_sols sols =
   let cnt = ref 1 in
-  List.iter (function sol ->
-    print_string "[Main] solution #";
-    print_endline (string_of_int !cnt);
-    print_sol sol;
-    cnt := !cnt + 1
-	    ) sols
+    List.iter (function sol ->
+		 print_string "[Main] solution #";
+		 print_endline (string_of_int !cnt);
+		 print_sol sol;
+		 cnt := !cnt + 1
+	      ) sols
 
 (* if we are relaxed get all the simple patches that are relaxed_safe for
  * the changeset and otherwise we can simply get all the ones that occur
@@ -443,11 +443,11 @@ let get_all_safe changeset abs_patches =
   else 
     List.fold_left
       (fun acc_bps bp_list ->
-        Diff.non_dub_app
-          (List.filter 
-             (function bp -> Diff.safe_part_changeset bp changeset)
-             bp_list)
-          acc_bps
+         Diff.non_dub_app
+           (List.filter 
+              (function bp -> Diff.safe_part_changeset bp changeset)
+              bp_list)
+           acc_bps
       )
       []
       abs_patches
@@ -468,27 +468,27 @@ let get_all_safe changeset abs_patches =
 let strip term_pairs abs_patches =
   let in_eq atomp eq_class =
     match eq_class with
-    | [] -> raise (Diff.Fail "in_eq empty")
-    | atomp' :: _ -> 
-        Diff.subpatch_changeset term_pairs atomp atomp' &&
-        Diff.subpatch_changeset term_pairs atomp' atomp
+      | [] -> raise (Diff.Fail "in_eq empty")
+      | atomp' :: _ -> 
+          Diff.subpatch_changeset term_pairs atomp atomp' &&
+            Diff.subpatch_changeset term_pairs atomp' atomp
   in
   let rec add_atom part atomp =
     match part with
-    | [] -> [[atomp]]
-    | eq_class :: part ->
-        if in_eq atomp eq_class 
-        then 
-          if !noncompact
-          then (atomp :: eq_class) :: part
-          else filter_smaller term_pairs (atomp :: eq_class) :: part
-        else eq_class :: add_atom part atomp
+      | [] -> [[atomp]]
+      | eq_class :: part ->
+          if in_eq atomp eq_class 
+          then 
+            if !noncompact
+            then (atomp :: eq_class) :: part
+            else filter_smaller term_pairs (atomp :: eq_class) :: part
+          else eq_class :: add_atom part atomp
   in
   let pot_res = List.fold_left (fun part atomp ->
-    add_atom part atomp
+				  add_atom part atomp
 			       ) [] abs_patches in
-  (*List.map (fun eq_class -> List.hd (filter_smaller term_pairs eq_class )) pot_res*)
-  List.rev_map (fun eq_class -> List.hd eq_class) pot_res
+    (*List.map (fun eq_class -> List.hd (filter_smaller term_pairs eq_class )) pot_res*)
+    List.rev_map (fun eq_class -> List.hd eq_class) pot_res
 
 
 let spec_main () =
@@ -695,26 +695,26 @@ let prefix_all l ls =
  *)
 let rec gen_perms lists =
   match lists with
-  | [] -> [[]]
-  | l :: ls -> prefix_all l (gen_perms ls)
+    | [] -> [[]]
+    | l :: ls -> prefix_all l (gen_perms ls)
 
 let is_meta m = match view m with 
-| A("meta", _) -> true
-| _ -> false
+  | A("meta", _) -> true
+  | _ -> false
 
 let is_match m = match view m with
-| C("CM", [p]) -> true
-| _ -> false
+  | C("CM", [p]) -> true
+  | _ -> false
 
 
 let get_metas_single p = 
   let rec loop acc_metas p =
     if is_meta p then p +++ acc_metas
     else match view p with
-    | A _ -> acc_metas
-    | C (_,ts) -> List.fold_left (fun acc_metas p -> loop acc_metas p) acc_metas ts
+      | A _ -> acc_metas
+      | C (_,ts) -> List.fold_left (fun acc_metas p -> loop acc_metas p) acc_metas ts
   in
-  loop [] p
+    loop [] p
 
 let get_metas_pattern ps =
   List.fold_left (fun acc_metas p -> 
@@ -744,12 +744,12 @@ let rec num_subterms p =
    f(X) = 1/3
    f(sizeof(X)) = 1/5
    thus, the latter is less abstract than the former
- *)
+*)
 
 let abstractness p =
   let mv = num_metas p in
   let st = num_subterms p in
-  float mv /. float st
+    float mv /. float st
 
 let rec useless_abstraction p = is_meta p || 
   match view p with
@@ -969,7 +969,7 @@ let standalone_term t = match view t with
 | C("return", [m]) -> false
 | C("storage", _) -> false
       (* | C("call", _) -> false *)
-| _ -> true
+  | _ -> true
 
 let get_nested_subterms t = 
   let rec loop depth acc_ts t =
@@ -1095,7 +1095,7 @@ let filter_shorter_sub gss sub_pat pss =
     loop acc_eq_clss in
   (* partition list into eq-classes *)
   let eq_clss = pss +> List.fold_left add_eq [] in
-  eq_clss 
+    eq_clss 
     +> List.rev_map (function eq_cls -> eq_cls +> List.filter (
       function sp -> not(eq_cls +> List.exists (function sp' -> sp <++ sp' && not(sp = sp')))
      ))
