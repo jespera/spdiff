@@ -1,4 +1,5 @@
 open Gtree
+open Common
 
 
 let do_dmine     = ref true
@@ -32,7 +33,7 @@ let speclist =
     [
      "-noncompact",    Arg.Set noncompact,      "bool  also return non-compact solutions";
      "-specfile",      Arg.Set_string mfile,    "str   name of specification file";
-    "-top",           Arg.Set_int max_level,   "int   terms larger than this will not have subterms abstracted";
+     "-top",           Arg.Set_int max_level,   "int   terms larger than this will not have subterms abstracted";
      "-depth",         Arg.Set_int depth,       "int   recursion depth at which we still abstract terms";
      "-strict",        Arg.Set strict,          "bool  strict: fv(lhs) = fv(rhs) or nonstrict(default): fv(rhs)<=fv(lhs)";
      "-multiple",      Arg.Set mvars,           "bool  allow equal terms to have different metas";
@@ -58,7 +59,8 @@ let speclist =
      "-filter_patterns", Arg.Set filter_patterns, "bool  only produce largest patterns";
      "-malign",        Arg.Set malign,          "bool  use the new subpatch relation definition";
      "-filter_spatches", Arg.Set filter_spatches, "bool  filter non-largest spatches"
-   ]
+      "-macro_file",    Arg.Set_string Config.std_h, "<filename> default macros"
+    ]
 
 let v_print s = if !verbose then (print_string s; flush stdout)
 let v_print_string = v_print
@@ -2578,7 +2580,13 @@ let main () =
   Diff.verbose       := !verbose;
   Diff.nesting_depth := !nesting_depth;
   Diff.malign_mode   := !malign;
+
   Diff.abs_subterms  := !max_level;
+
+  if !Config.std_h <> "" then
+    (print_endline ("[Main] have std.h file: " ^ !Config.std_h);
+     Parse_c.init_defs !Config.std_h
+    );
   if !threshold = 0 then do_dmine := false;
   if !mfile = ""
   then raise (Diff.Fail "No specfile given")

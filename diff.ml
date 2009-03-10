@@ -4,6 +4,7 @@ let fdebug_string f x = if f then print_string x else ()
 let fdebug_endline f x = if f then print_endline x else ()
 let debug_newline () = if debug then print_newline () else ()
 
+
 exception Fail of string
 
 open Hashcons
@@ -82,6 +83,12 @@ let do_dmine = ref false
 let nesting_depth = ref 0
   (* copy from main.ml initialized in main-function *)
 let verbose = ref false
+
+let v_print s = if !verbose then (print_string s; flush stdout)
+let v_print_string = v_print
+let v_print_endline s = if !verbose then print_endline s
+let v_print_newline () = v_print_endline ""
+
 
 (* non-duplicating cons *)
 let (+++) x xs = if List.mem x xs then xs else x :: xs
@@ -1963,28 +1970,30 @@ let flow_to_gflow flow =
 
 
 let read_ast_cfg file =
+  v_print_endline "[Diff] parsing...";
   let (pgm2, parse_stats) = 
     Parse_c.parse_print_error_heuristic file in
     (*  let flows = List.map (function (c,info) -> Ast_to_flow2.ast_to_control_flow c) pgm2 in *)
     (* ast_to_control_flow is given a toplevel entry and turns that into a flow *)
-  let tops_envs = 
-    pgm2 +> List.map fst +>
-    Type_annoter_c.annotate_program 
-      !Type_annoter_c.initial_env
-      in
-  let flows = tops_envs +> List.map (function (c,info) -> Ast_to_flow2.ast_to_control_flow c)  in
-  let  gflows = ref [] in
-    flows +> List.iter (do_option (fun f -> 
-				     gflows := (flow_to_gflow f) :: !gflows));
-    (* among the gflows constructed filter out those that are not flows for a
-     * function definition
-     *)
-    (pgm2, !gflows +> List.filter (function gf -> 
-				     gf#nodes#tolist +> List.exists (
-				       function (i,n) -> match view n with
-					 | C("head:def",[{node=C("def",_)}]) -> true
-					 | _ -> false)
-				  ))
+    v_print_endline "[Diff] type annotating";
+    let tops_envs = 
+      pgm2 +> List.map fst +>
+	Type_annoter_c.annotate_program 
+	!Type_annoter_c.initial_env
+    in
+    let flows = tops_envs +> List.map (function (c,info) -> Ast_to_flow2.ast_to_control_flow c)  in
+    let  gflows = ref [] in
+      flows +> List.iter (do_option (fun f -> 
+				       gflows := (flow_to_gflow f) :: !gflows));
+      (* among the gflows constructed filter out those that are not flows for a
+       * function definition
+       *)
+      (pgm2, !gflows +> List.filter (function gf -> 
+				       gf#nodes#tolist +> List.exists (
+					 function (i,n) -> match view n with
+					   | C("head:def",[{node=C("def",_)}]) -> true
+					   | _ -> false)
+				    ))
 
 type environment = (string * gtree) list
 type res = {last : gtree option; skip : int list ; env : environment}

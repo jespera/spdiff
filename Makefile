@@ -13,7 +13,7 @@ LIBS=$(COCCI)/commons/commons.cma $(COCCI)/globals/globals.cma $(COCCI)/parsing_
 #LIBS=$(COCCI)/commons/commons.cma $(COCCI)/globals/globals.cma $(COCCI)/parsing_c/parsing_c.cma $(COCCI)/parsing_c/pretty_print_c.cmo hashcons.cmo db.cmo gtree.cmo difftype.cmo visitor_j.cmo diff.cmo main.cmo
 
 MAKESUBDIRS=$(COCCI)/commons $(COCCI)/globals $(COCCI)/menhirlib $(COCCI)/parsing_cocci $(COCCI)/parsing_c
-INCLUDEDIRS=$(COCCI)/commons $(COCCI)/commons/ocollection $(COCCI)/globals $(COCCI)/parsing_c
+INCLUDEDIRS=$(COCCI)/commons $(COCCI)/globals $(COCCI)/commons/ocollection $(COCCI)/globals $(COCCI)/parsing_c
 
 ##############################################################################
 # Generic variables
