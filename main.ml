@@ -753,7 +753,11 @@ let abstractness p =
 
 let rec useless_abstraction p = is_meta p || 
   match view p with
-    | C("dlist", [p']) | C("stmt", [p']) | C("exprstmt", [p']) | C("exp", [p']) | C("dlist", [p']) when useless_abstraction p' -> true
+    | C("dlist", [p']) 
+    | C("stmt", [p']) 
+    | C("exprstmt", [p']) 
+    | C("exp", [p']) 
+    | C("dlist", [p']) when useless_abstraction p' -> true
     | C("onedecl",[p_var;p_type;p_storage]) ->
 	[p_var; p_type] +> List.for_all useless_abstraction 
     | A("stobis", _) | A("inline",_) -> true
@@ -779,7 +783,23 @@ let g_glob = ref (None : (Diff.gflow * 'a) option )
 let get_indices t g =
   g#nodes#tolist +> List.fold_left (fun acc_i (i,t') -> if t' == t then i :: acc_i else acc_i) []
 
-let abstract_term depth env t =
+let abs_ht = Diff.TT.create 591
+let misses = ref 0
+let common_num = ref 0 
+let common_calls = ref 0
+
+
+
+let rec abstract_term_hashed depth t =
+  try
+    Diff.TT.find abs_ht t
+  with Not_found -> (
+    let res = abstract_term depth [] t in
+      misses := !misses + 1;
+      Diff.TT.replace abs_ht t res;
+      res
+  )
+and abstract_term depth env t =
   let rec rm_dups xs = List.fold_left (fun acc_xs x -> x +++ acc_xs) [] xs in
   let follow_abs t_sub = match !g_glob with
   | None -> false
