@@ -1953,6 +1953,7 @@ let annotate_spatch spatch trace =
 exception LocateSubterm 
 exception Next of int list 
 
+
 let corresponds st t next_node_val path =
   let same_path s_st_f = match s_st_f with
     | None -> None
@@ -1994,7 +1995,7 @@ let corresponds st t next_node_val path =
 			   mkC("comp{}", sts') +> s_func) +> same_path
 	       | A("comp{}", "NOP"), A("head:seqstart", _) -> 
 		   Some([], function ts -> s_func st) +> same_path
-	       | C("if",[b;t;f]), C("head:if",_) -> 
+	       | C("if",[b;t;f]), C("head:if",[c]) when b = c -> 
 		   (match next_node_val with
 		      | None -> raise (Diff.Fail "no next control node val!")
 		      | Some control_node ->
@@ -2004,18 +2005,34 @@ let corresponds st t next_node_val path =
 			  else (* select true branch and do not consume node from path *)
 			    Some([t],(function [t] -> mkC("if", [b;t;f]) +> s_func)) +> same_path
 		   )
-	       | C("switch",[e;s]), C("head:switch", _) ->
+	       | C("switch",[e;s]), C("head:switch", [e']) when e = e' ->
 		   Some ([s], function s' ->
 			   mkC("switch", e :: s') +> s_func) +> same_path
 	       | C("while",[e;s]), C("head:while", _) ->
-		   Some ([s], function s' ->
-			   mkC("while", e :: s') +> s_func) +> same_path
+		   (match next_node_val with
+		      | None -> raise (Diff.Fail "no next control node in while")
+		      | Some control_node ->
+			  if control_node = Diff.control_inloop
+			  then
+			    Some ([s],(function s' ->
+					  mkC("while", e :: s') +> s_func),
+				  List.tl path)
+			  else raise (Next path)
+		   )
 	       | C("dowhile", [s;e]), C("head:do", [e']) when e = e' ->
 		   Some ([s], (function s' ->
 				 mkC("dowhile", s' @ [e]) +> s_func)) +> same_path
 	       | C("for", [e1;e2;e3;st]), C("head:for", _) ->
-		   Some ([st], function st' ->
-			   mkC("for", e1 :: e2 ::e3 :: st') +> s_func) +> same_path
+		   (match next_node_val with
+		      | None -> raise (Diff.Fail "no next control node in for")
+		      | Some control_node ->
+			  if control_node = Diff.control_inloop
+			  then 
+			    Some ([st], (function st' ->
+					   mkC("for", e1 :: e2 ::e3 :: st') +> s_func),
+				  List.tl path)
+			  else raise (Next path)
+		   )
 	       | C("case", [e;st]), C("head:case",[lab_e]) when e = lab_e ->
 		   Some ([st], function st' ->
 			   mkC("case", e :: st') +> s_func) +> same_path
@@ -2099,7 +2116,7 @@ let locate_subterm g orig_subterm path f =
 	| _ -> false in
       let rec (===) t1 t2 = match view t1, view t2 with
 	| C("pending", ot :: _ ), _ -> ot === t2
-	| C("stmt",[s]), C("dlist", _) ->  s === t2
+	| C("stmt",[s]), (C("dlist", _) | C("mdecl", _)) ->  s === t2
 	| C("exp",[te;e]), C("exp", [e']) when is_typed te -> e === e'
 	| C(ty1,ts1), C(ty2,ts2) when ty1 = ty2 ->
 	    (try 
