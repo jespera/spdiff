@@ -508,80 +508,66 @@ let spec_main () =
      *)
     if !threshold = 0
     then threshold := List.length term_pairs;
-    (* we must now find the frequent subterms; 
-     * that is, the subterms that occur in all term pair LHS'es *)
     Diff.no_occurs := !threshold;
-    (* {{{  Common subterms printing *)
-    Diff.fdebug_endline !Diff.print_abs "[Main] Common subterms: ";
-    let frqnt_st = Diff.make_fixed_list term_pairs in
-      List.iter (function st -> 
-		   print_string (Diff.string_of_gtree' st);
-		   print_string " ") frqnt_st;
-      print_newline ();
-      (* }}} *)
-      let fixf = Diff.list_fixed frqnt_st in
-	(* now make all (relevant) term updates for each term pair *)
-	print_endline (
-	  "[Main] Constructing all safe parts for " ^ 
-	    string_of_int (List.length term_pairs) ^ " term pairs");
-	let tcount = ref 1 in
-	let abs_patches = List.rev_map (function (t, t'') ->
-					  print_endline ("[Main] Making safe parts for pair " ^ string_of_int !tcount);
-					  tcount := !tcount + 1;
-					  (* print_endline (Diff.string_of_diff (Difftype.UP(t,t'')));  *)
-					  let terms_changed_list = Diff.find_changed_terms_pair fixf (t,t'') in
-					  let terms_changed = function a -> List.mem a terms_changed_list in
-					    print_string "[Main] terms that changed: ";
-					    List.iter
-					      (function a -> print_string (Diff.string_of_gtree' a); print_string " ")
-					      terms_changed_list;
-					    print_newline ();
-					    let r = Diff.make_abs terms_changed fixf (t, t'') in
-					      print_endline "[Main] abstracted one pair";
-					      r
-				       ) term_pairs in
-	  (*{{{*)
+    print_string "[Main] making all lists of all subterms...";
+    let subterms_lists = term_pairs +> List.rev_map 
+      (function x -> x +> fst +> Diff.make_all_subterms) in
+      print_newline();
+      (* now make all (relevant) term updates for each term pair *)
+      print_endline (
+	"[Main] Constructing all safe parts for " ^ 
+	  string_of_int (List.length term_pairs) ^ " term pairs");
+      let tcount = ref 1 in
+      let abs_patches = List.rev_map (function (t, t'') ->
+					print_endline ("[Main] Making safe parts for pair " ^ string_of_int !tcount);
+					tcount := !tcount + 1;
+					let r = Diff.make_abs_on_demand term_pairs subterms_lists (t, t'') in
+					  print_endline ("[Main] abstracted one pair into " ^ 
+							   r +> List.length +> string_of_int ^ " abstract");
+					  r
+				     ) term_pairs in
+	(*{{{*)
+	if !print_raw
+	then (
+	  print_endline "Those were the safe parts";
+	  print_endline "{{{";
+	  List.iter (fun ds ->
+		       List.iter (fun d -> 
+				    print_endline (Diff.string_of_diff d);
+				    print_newline ()
+				 ) ds;
+		       print_endline " ++ ";
+		    ) abs_patches;
+	  print_endline "}}}"
+	);
+	(* we now have lists of safe updates as out itemset; create the database to
+	 * mine now; we use the db.ml functions for that
+	 *)
+	(*do_datamining abs_patches*)(*}}}*)
+	print_endline "[Main] filtering all safe patches."; 
+	let filtered_patches = 
+	  if !do_dmine
+	  then do_datamining abs_patches
+	  else get_all_safe term_pairs abs_patches
+	in
 	  if !print_raw
 	  then (
-	    print_endline "Those were the safe parts";
+	    print_endline "Raw list of simple updates";
 	    print_endline "{{{";
-	    List.iter (fun ds ->
-			 List.iter (fun d -> 
-				      print_endline (Diff.string_of_diff d);
-				      print_newline ()
-				   ) ds;
+	    List.iter (fun d ->
+			 print_endline (Diff.string_of_diff d);
 			 print_endline " ++ ";
-		      ) abs_patches;
+		      ) filtered_patches;
 	    print_endline "}}}"
 	  );
-	  (* we now have lists of safe updates as out itemset; create the database to
-	   * mine now; we use the db.ml functions for that
-	   *)
-	  (*do_datamining abs_patches*)(*}}}*)
-	  print_endline "[Main] filtering all safe patches."; 
-	  let filtered_patches = 
-	    if !do_dmine
-	    then do_datamining abs_patches
-	    else get_all_safe term_pairs abs_patches
+	  print_endline "[Main] generating solutions...";
+	  let stripped_patches = 
+	    if !strip_eq
+	    then strip term_pairs filtered_patches 
+	    else filtered_patches
 	  in
-	    if !print_raw
-	    then (
-	      print_endline "Raw list of simple updates";
-	      print_endline "{{{";
-	      List.iter (fun d ->
-			   print_endline (Diff.string_of_diff d);
-			   print_endline " ++ ";
-			) filtered_patches;
-	      print_endline "}}}"
-	    );
-	    print_endline "[Main] generating solutions...";
-	    let stripped_patches = 
-	      if !strip_eq
-	      then strip term_pairs filtered_patches 
-	      else filtered_patches
-	    in
-	    let solutions = generate_sols term_pairs stripped_patches in
-	      print_sols solutions
+	  let solutions = generate_sols term_pairs stripped_patches in
+	    print_sols solutions
 
 (* ---------------------------------------------------------- *
  * imported from graph.ml                                     *

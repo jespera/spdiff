@@ -172,7 +172,7 @@ let rec string_of_gtree str_of_t str_of_c gt =
             (match view cexpopt with
               | A("constExp", "none") -> "[]"
               | C("constExp", [e]) -> "[" ^ loop e ^ "]"
-	      | A("meta", x0) -> string_of_meta cvct
+	      | A("meta", x0) -> string_of_meta cexpopt
             )
       | C("funtype", rt :: pars) -> 
           let ret_type_string = string_of_ftype [rt] in
@@ -200,8 +200,8 @@ let rec string_of_gtree str_of_t str_of_c gt =
       | C ("exp", [e]) -> loop e 
 	  (*| C ("exp", [{node=A("meta", x0)}; e]) -> "(" ^ loop e ^ ":_)"*)
       | C ("exp", [{node=C ("TYPEDEXP", [t])} ; e]) ->
-	  (* "(" ^ loop e ^ ":" ^ loop t ^ ")" *)
-	  loop e
+	  "(" ^ loop e ^ ":" ^ loop t ^ ")" 
+	  (* loop e *)
       | C ("call", f :: args) ->
           loop f ^ "(" ^ String.concat "," (List.map loop args) ^ ")"
       | C ("binary_arith", [{node=A("aop",op_str)} ;e1;e2]) ->
@@ -3356,7 +3356,6 @@ let make_abs_on_demand term_pairs subterms_lists (gt1, gt2) =
 	print_endline (cs +> List.length +> string_of_int ^ " found");
 	print_endline ("[Diff] filtering " ^ 
 			 cs +> List.length +> string_of_int ^ " safe parts");
-	(*List.iter (function d -> print_endline (string_of_diff d)) cs;*)
 	List.filter (function up -> 
 		       print_endline "[Diff] filtering cpart:";
 		       up +> string_of_diff +> print_endline;
@@ -3390,10 +3389,19 @@ let make_abs_on_demand term_pairs subterms_lists (gt1, gt2) =
 	    let new_m = mkM () in
 	      new_m, (t, new_m) :: env
     in		
+    let rm_dup_env ls = 
+      List.fold_left
+	(fun acc (p,env) -> 
+	   if List.exists (function (p',_) -> p' = p) acc 
+	   then acc 
+	   else (p, env) :: acc)
+	[] ls
+    in
     let abs_term_list t ts =
       ts
       +> List.rev_map (function t' ->  reset_meta (); abs_term_one [] t t') 
       +> List.filter (function (t,env) -> not(is_meta t))
+      +> rm_dup_env
     in
     let abs_term_lists t ts_lists =
       ts_lists
@@ -3402,6 +3410,8 @@ let make_abs_on_demand term_pairs subterms_lists (gt1, gt2) =
     let get_patterns term =
       let count_ht = Hashtbl.create 591 in
       let add_abs (t, env) =
+	(* print_endline "[Diff] adding pattern:"; *)
+	(* t +> string_of_gtree' +> print_endline; *)
 	try 
 	  let (cnt, env') = Hashtbl.find count_ht t in
 	    Hashtbl.replace count_ht t (cnt + 1, env') 
@@ -3411,18 +3421,23 @@ let make_abs_on_demand term_pairs subterms_lists (gt1, gt2) =
 	abs_term_lists term subterms_lists
 	+> List.iter 
 	  (function abs_env_list ->
-	     abs_env_list +> List.iter add_abs
+	     abs_env_list 
+	     +> List.iter add_abs
 	  )
       in
 	begin
 	  count term;
 	  Hashtbl.fold 
 	    (fun pattern (occurs, env) acc ->
-	       if occurs >= !no_occurs
+	       v_print_endline ("[Diff] pattern occurrences: " ^ occurs +> string_of_int);
+	       pattern +> string_of_gtree' +> v_print_endline;
+	       if occurs >= !no_occurs - 1 (* because intersection with itself gives no new pattern *)
 	       then
 		 (pattern, env) :: acc
-	       else 
-		 acc
+	       else (
+		 v_print_endline ("Infrequent pattern ("^occurs +> string_of_int^"):");
+		 pattern +> string_of_gtree' +> v_print_endline; 
+		 acc)
 	    ) count_ht []
 	end
     in
@@ -3431,14 +3446,25 @@ let make_abs_on_demand term_pairs subterms_lists (gt1, gt2) =
 	(fun acc_parts c_up ->
 	   match c_up with
 	     | UP(lhs,rhs) -> 
-		 get_patterns lhs
-		 +> List.fold_left 
+		 let p_env = get_patterns lhs in
+		   v_print_endline ("[Diff] for UP(" ^
+		   		    lhs +> string_of_gtree' ^ ", " ^
+		   		    rhs +> string_of_gtree'
+		   		  ^ ") we found the following patterns:");
+		   p_env +> List.iter (function (p,_) -> p +> string_of_gtree' +> v_print_endline);
+		   p_env +> List.fold_left 
 		   (fun acc_parts (p,env) -> 
 		      let p' = sub_term env rhs in
 		      let up = UP(p,p') in
 			if safe_part up (gt1, gt2)
-			then up +++ acc_parts
-			else acc_parts
+			then (
+			  (* print_endline "[Diff] found *safe* part:"; *)
+			  (* up +> string_of_diff +> print_endline; *)
+			  up +++ acc_parts
+			)
+			else (
+			  acc_parts
+			)
 		   ) acc_parts
 	     | _ -> raise (Fail "non supported update ...")
 	) []
