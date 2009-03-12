@@ -2398,13 +2398,14 @@ let metactx = ref 0
 let reset_meta () = metactx := 0
 let inc x = let v = !x in (x := v + 1; v)
 let ref_meta () = inc metactx
+let mkM () = mkA("meta", "X" ^ ref_meta() +> string_of_int)
 let new_meta env t =
   let m = "X" ^ string_of_int (ref_meta ()) in
     (*print_endline *)
     (*("binding " ^ m ^ "->" ^ *)
     (*string_of_gtree str_of_ctype str_of_catom t);*)
     [make_gmeta m], [(m,t)]
-
+let is_meta v = match view v with | A("meta", _) -> true | _ -> false
 
 let get_metas build_mode org_env t = 
   let rec loop env =
@@ -3298,7 +3299,6 @@ let commutes chgset bp bp' =
     eq_changeset chgset bp1 bp2
 
 let make_abs terms_changed fixf (gt1, gt2) =
-  (* inital type annotation *)
   (* first make the list of concrete safe parts *)
   
   let c_parts = 
@@ -3331,7 +3331,117 @@ let make_abs terms_changed fixf (gt1, gt2) =
 	       )
   	c_parts) in
       a_parts
-	
+
+let sub_term env t =
+  if env = [] then t else
+    let rec loop t' = 
+      try List.assoc t' env with Not_found ->
+	(match view t' with
+	   | C(ty,ts) -> mkC(ty, ts
+			       +> List.fold_left 
+			       (fun acc_ts t ->
+				  loop t :: acc_ts
+			       ) [] 
+			       +> List.rev)
+	   | _ -> t'
+	) in
+      loop t
+
+let make_abs_on_demand term_pairs subterms_lists (gt1, gt2) =
+  let c_parts = 
+    if !malign_mode
+    then (
+      print_string "[Diff] getting concrete parts ...";
+      let cs = get_tree_changes gt1 gt2 in
+	print_endline (cs +> List.length +> string_of_int ^ " found");
+	print_endline ("[Diff] filtering " ^ 
+			 cs +> List.length +> string_of_int ^ " safe parts");
+	(*List.iter (function d -> print_endline (string_of_diff d)) cs;*)
+	List.filter (function up -> 
+		       print_endline "[Diff] filtering cpart:";
+		       up +> string_of_diff +> print_endline;
+		       safe_part up (gt1, gt2)
+		    ) cs
+    ) else get_ctf_diffs_safe [] gt1 gt2 
+  in
+    print_endline ("[Diff] number of concrete parts: " ^ string_of_int (List.length c_parts));
+    (* new generalize each such part and add it to our resulting list in case it
+     * is not already there and in case it is still a safe part
+     *)
+    print_endline "[Diff] finding abstract parts using \"on-demand\" method";
+    let rec abs_term_one env t t' =
+      (* 
+	 env : term * term list -- maps term from first term to metavariables in new term
+	 t   : term
+	 t'  : term   -- terms from which to produce abstraction
+      *)
+      if t = t' 
+      then t, env 
+      else match view t, view t' with
+	| C(ty1, ts1), C(ty2, ts2) when 
+ 	    ty1 = ty2 && List.length ts1 = List.length ts2 -> 
+ 	    let ts', env' = List.fold_left2 
+ 	      (fun (acc_ts, env) t1 t2 -> 
+  		 let t1', env' = abs_term_one env t1 t2 in
+		   (t1' :: acc_ts, env')
+  	      ) ([], env) ts1 ts2 in
+	      mkC(ty1, List.rev ts'), env'
+	| _, _ -> try List.assoc t env, env with Not_found -> 
+	    let new_m = mkM () in
+	      new_m, (t, new_m) :: env
+    in		
+    let abs_term_list t ts =
+      ts
+      +> List.rev_map (function t' ->  reset_meta (); abs_term_one [] t t') 
+      +> List.filter (function (t,env) -> not(is_meta t))
+    in
+    let abs_term_lists t ts_lists =
+      ts_lists
+      +> List.rev_map (abs_term_list t)
+    in
+    let get_patterns term =
+      let count_ht = Hashtbl.create 591 in
+      let add_abs (t, env) =
+	try 
+	  let (cnt, env') = Hashtbl.find count_ht t in
+	    Hashtbl.replace count_ht t (cnt + 1, env') 
+	with Not_found ->
+	  Hashtbl.replace count_ht t (1, env) in
+      let rec count term =
+	abs_term_lists term subterms_lists
+	+> List.iter 
+	  (function abs_env_list ->
+	     abs_env_list +> List.iter add_abs
+	  )
+      in
+	begin
+	  count term;
+	  Hashtbl.fold 
+	    (fun pattern (occurs, env) acc ->
+	       if occurs >= !no_occurs
+	       then
+		 (pattern, env) :: acc
+	       else 
+		 acc
+	    ) count_ht []
+	end
+    in
+      c_parts 
+      +> List.fold_left
+	(fun acc_parts c_up ->
+	   match c_up with
+	     | UP(lhs,rhs) -> 
+		 get_patterns lhs
+		 +> List.fold_left 
+		   (fun acc_parts (p,env) -> 
+		      let p' = sub_term env rhs in
+		      let up = UP(p,p') in
+			if safe_part up (gt1, gt2)
+			then up +++ acc_parts
+			else acc_parts
+		   ) acc_parts
+	     | _ -> raise (Fail "non supported update ...")
+	) []
 
 
 (* This function returns a boolean value according to whether it can
