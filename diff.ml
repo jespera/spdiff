@@ -3446,9 +3446,20 @@ let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
 	begin
 	  if !not_counted
 	  then begin
-	    print_string "[Diff] initial term abstraction..."
-	    unique_subterms +> List.iter count;
-	    not_counted := false;
+	    print_string "[Diff] initial term abstraction...";
+	       let n = ref 0 in
+	       let m = List.length unique_subterms in
+		 unique_subterms +> List.iter (function uniq_t -> begin
+						 ANSITerminal.save_cursor ();
+						 ANSITerminal.print_string 
+						   [ANSITerminal.on_default](
+						   !n +> string_of_int ^"/"^
+						     m +> string_of_int);
+						 ANSITerminal.restore_cursor();
+						 n := !n + 1;
+						 count uniq_t
+					       end);
+		 not_counted := false;
 	  end;
 	  Hashtbl.fold 
 	    (fun pattern occurs acc ->
