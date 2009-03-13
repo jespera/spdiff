@@ -48,6 +48,8 @@ module DBM = Db(GT)
 module DBD = Db(DiffT)
 
 (* user definable references here ! *)
+  (* copy from main.ml initialized in main-function *)
+let verbose = ref false
 (* use new and fancy malign algo to decide subpatch relation *)
 let malign_mode = ref false
   (* terms are only abstracted until we reach this depth in the term *)
@@ -81,8 +83,11 @@ let relax = ref false
 let do_dmine = ref false
   (* copy from main.ml; initialized in main.ml *)
 let nesting_depth = ref 0
-  (* copy from main.ml initialized in main-function *)
-let verbose = ref false
+  (* have we not already initialized the table of abstracted terms *)
+let not_counted = ref true
+  (* hashtable for counting patterns *)
+let count_ht = Hashtbl.create 591
+
 
 let v_print s = if !verbose then (print_string s; flush stdout)
 let v_print_string = v_print
@@ -626,6 +631,12 @@ let rev_lookup env t =
   in
   loop env 
 
+
+(* replace subterms of t that are bound in env with the binding metavariable
+   so subterm becomes m if m->subterm is in env
+   assumes that m1->st & m2->st then m1 = m2
+   i.e. each metavariable denote DIFFERENT subterms
+*)
 let rec rev_sub env t =
   match rev_lookup env t with
   | Some m -> mkA("meta", m)
@@ -3347,7 +3358,8 @@ let sub_term env t =
 	) in
       loop t
 
-let make_abs_on_demand term_pairs subterms_lists (gt1, gt2) =
+
+let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
   let c_parts = 
     if !malign_mode
     then (
@@ -3357,8 +3369,8 @@ let make_abs_on_demand term_pairs subterms_lists (gt1, gt2) =
 	print_endline ("[Diff] filtering " ^ 
 			 cs +> List.length +> string_of_int ^ " safe parts");
 	List.filter (function up -> 
-		       print_endline "[Diff] filtering cpart:";
-		       up +> string_of_diff +> print_endline;
+		       v_print_endline "[Diff] filtering cpart:";
+		       up +> string_of_diff +> v_print_endline;
 		       safe_part up (gt1, gt2)
 		    ) cs
     ) else get_ctf_diffs_safe [] gt1 gt2 
@@ -3387,6 +3399,9 @@ let make_abs_on_demand term_pairs subterms_lists (gt1, gt2) =
 	      mkC(ty1, List.rev ts'), env'
 	| _, _ -> try List.assoc t env, env with Not_found -> 
 	    let new_m = mkM () in
+	      (* a limitation here is that we assume equal subterms to
+		 always be abstracted by equal metavariables
+	      *)
 	      new_m, (t, new_m) :: env
     in		
     let rm_dup_env ls = 
@@ -3398,45 +3413,56 @@ let make_abs_on_demand term_pairs subterms_lists (gt1, gt2) =
 	[] ls
     in
     let abs_term_list t ts =
-      ts
-      +> List.rev_map (function t' ->  reset_meta (); abs_term_one [] t t') 
-      +> List.filter (function (t,env) -> not(is_meta t))
-      +> rm_dup_env
+      let res = ts
+	+> List.rev_map (function t' ->  reset_meta (); abs_term_one [] t t' +> fst) 
+	+> List.filter (function t -> not(is_meta t))
+	+> rm_dub in
+	(* print_string ("abs_term_list " ^ string_of_gtree' t); *)
+	(* print_endline (" on ts.length = " ^ ts +> List.length +> string_of_int); *)
+	(* res +> List.iter (function (t,_) -> t +> string_of_gtree' +> print_endline); *)
+	res
     in
     let abs_term_lists t ts_lists =
       ts_lists
       +> List.rev_map (abs_term_list t)
     in
     let get_patterns term =
-      let count_ht = Hashtbl.create 591 in
-      let add_abs (t, env) =
+      let add_abs t =
 	(* print_endline "[Diff] adding pattern:"; *)
-	(* t +> string_of_gtree' +> print_endline; *)
+	(* t +> string_of_gtree' +> print_endline;  *)
 	try 
-	  let (cnt, env') = Hashtbl.find count_ht t in
-	    Hashtbl.replace count_ht t (cnt + 1, env') 
+	  let cnt = Hashtbl.find count_ht t in
+	    Hashtbl.replace count_ht t (cnt + 1)
 	with Not_found ->
-	  Hashtbl.replace count_ht t (1, env) in
+	  Hashtbl.replace count_ht t 1 in
       let rec count term =
 	abs_term_lists term subterms_lists
 	+> List.iter 
-	  (function abs_env_list ->
-	     abs_env_list 
+	  (function abs_list ->
+	     abs_list 
 	     +> List.iter add_abs
 	  )
       in
 	begin
-	  count term;
+	  if !not_counted
+	  then begin
+	    print_string "[Diff] initial term abstraction..."
+	    unique_subterms +> List.iter count;
+	    not_counted := false;
+	  end;
 	  Hashtbl.fold 
-	    (fun pattern (occurs, env) acc ->
-	       v_print_endline ("[Diff] pattern occurrences: " ^ occurs +> string_of_int);
-	       pattern +> string_of_gtree' +> v_print_endline;
-	       if occurs >= !no_occurs - 1 (* because intersection with itself gives no new pattern *)
+	    (fun pattern occurs acc ->
+	       (* print_endline ("[Diff] pattern occurrences: " ^ occurs +> string_of_int); *)
+	       (* pattern +> string_of_gtree' +> print_endline; *)
+	       if occurs >= !no_occurs 
 	       then
-		 (pattern, env) :: acc
+		 try
+		   let env = match_term pattern term in
+		     (pattern, env) :: acc
+		 with Nomatch -> acc
 	       else (
-		 v_print_endline ("Infrequent pattern ("^occurs +> string_of_int^"):");
-		 pattern +> string_of_gtree' +> v_print_endline; 
+		 (* print_endline ("Infrequent pattern ("^occurs +> string_of_int^"):"); *)
+		 (* pattern +> string_of_gtree' +> print_endline;  *)
 		 acc)
 	    ) count_ht []
 	end
@@ -3446,29 +3472,43 @@ let make_abs_on_demand term_pairs subterms_lists (gt1, gt2) =
 	(fun acc_parts c_up ->
 	   match c_up with
 	     | UP(lhs,rhs) -> 
+		 v_print_endline ("[Diff] get patterns for:" ^ 
+				    lhs +> string_of_gtree');
 		 let p_env = get_patterns lhs in
-		   v_print_endline ("[Diff] for UP(" ^
-		   		    lhs +> string_of_gtree' ^ ", " ^
-		   		    rhs +> string_of_gtree'
-		   		  ^ ") we found the following patterns:");
-		   p_env +> List.iter (function (p,_) -> p +> string_of_gtree' +> v_print_endline);
+		   if !print_abs
+		   then (
+		     print_endline ("[Diff] for UP(" ^
+		   		      lhs +> string_of_gtree' ^ ", " ^
+		   		      rhs +> string_of_gtree'
+		   		    ^ ") we found the following patterns:");
+		     p_env +> List.iter
+		       (function (p,_) -> p +> string_of_gtree' +> print_endline);
+		   );
 		   p_env +> List.fold_left 
-		   (fun acc_parts (p,env) -> 
-		      let p' = sub_term env rhs in
-		      let up = UP(p,p') in
-			if safe_part up (gt1, gt2)
-			then (
-			  (* print_endline "[Diff] found *safe* part:"; *)
-			  (* up +> string_of_diff +> print_endline; *)
-			  up +++ acc_parts
-			)
-			else (
-			  acc_parts
-			)
-		   ) acc_parts
+		     (fun acc_parts (p,env) -> 
+			let p' = rev_sub env rhs in
+			let up = UP(p,p') in
+			  if safe_part up (gt1, gt2)
+			  then (
+			    if !print_abs
+			    then (
+			      print_endline "[Diff] found *safe* part:";
+			      up +> string_of_diff +> print_endline; 
+			    );
+			    up +++ acc_parts
+			  )
+			  else (
+			    if !print_abs 
+			    then (
+			      print_endline "[Diff] *UNsafe* part:";
+			      up +> string_of_diff +> print_endline; 
+			    );
+			    acc_parts
+			  )
+		     ) acc_parts
 	     | _ -> raise (Fail "non supported update ...")
 	) []
-
+	
 
 (* This function returns a boolean value according to whether it can
  * syntactically* determine two atomic patches to have disjoint
