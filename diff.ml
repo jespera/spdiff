@@ -3450,12 +3450,16 @@ let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
 	       let n = ref 0 in
 	       let m = List.length unique_subterms in
 		 unique_subterms +> List.iter (function uniq_t -> begin
-						 ANSITerminal.save_cursor ();
-						 ANSITerminal.print_string 
-						   [ANSITerminal.on_default](
-						   !n +> string_of_int ^"/"^
-						     m +> string_of_int);
-						 ANSITerminal.restore_cursor();
+						 if !n mod 100 = 0
+						 then begin
+						   ANSITerminal.save_cursor ();
+						   ANSITerminal.print_string 
+						     [ANSITerminal.on_default](
+						       !n +> string_of_int ^"/"^
+							 m +> string_of_int);
+						   ANSITerminal.restore_cursor();
+						   flush stdout;
+						 end;
 						 n := !n + 1;
 						 count uniq_t
 					       end);
