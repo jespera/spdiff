@@ -85,8 +85,6 @@ let do_dmine = ref false
 let nesting_depth = ref 0
   (* have we not already initialized the table of abstracted terms *)
 let not_counted = ref true
-  (* hashtable for counting patterns *)
-let count_ht = Hashtbl.create 591
 
 
 let v_print s = if !verbose then (print_string s; flush stdout)
@@ -714,6 +712,9 @@ module TT = Hashtbl.Make(Term)
 
 module PT = Hashtbl.Make(PatternTerm)
 
+
+(* hashtable for counting patterns *)
+let count_ht = TT.create 591
 
 
 let occursht = PT.create 591
@@ -3431,10 +3432,10 @@ let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
 	(* print_endline "[Diff] adding pattern:"; *)
 	(* t +> string_of_gtree' +> print_endline;  *)
 	try 
-	  let cnt = Hashtbl.find count_ht t in
-	    Hashtbl.replace count_ht t (cnt + 1)
+	  let cnt = TT.find count_ht t in
+	    TT.replace count_ht t (cnt + 1)
 	with Not_found ->
-	  Hashtbl.replace count_ht t 1 in
+	  TT.replace count_ht t 1 in
       let rec count term =
 	abs_term_lists term subterms_lists
 	+> List.iter 
@@ -3465,7 +3466,7 @@ let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
 					       end);
 		 not_counted := false;
 	  end;
-	  Hashtbl.fold 
+	  TT.fold 
 	    (fun pattern occurs acc ->
 	       (* print_endline ("[Diff] pattern occurrences: " ^ occurs +> string_of_int); *)
 	       (* pattern +> string_of_gtree' +> print_endline; *)
