@@ -746,6 +746,9 @@ let is_header head_str =
   head_str.[2] = 'a' &&
   head_str.[3] = 'd'
 
+let is_head_node n = match view n with
+  | A(hd,_ ) | C(hd, _ ) -> is_header hd
+
 let non_phony p = match view p with
   | A("phony", _) 
   | C("phony", _)
@@ -3424,8 +3427,9 @@ let get_patterns subterms_lists unique_subterms term =
 	print_string "[Diff] initial term abstraction...";
 	let n = ref 0 in
 	let m = List.length unique_subterms in
+	let mod_m = if m / 100 = 0 then 1 else m / 100 in
 	  unique_subterms +> List.iter (function uniq_t -> begin
-					  if !n mod 100 = 0
+					  if !n mod mod_m = 0
 					  then begin
 					    ANSITerminal.save_cursor ();
 					    ANSITerminal.print_string 
@@ -3439,6 +3443,7 @@ let get_patterns subterms_lists unique_subterms term =
 					  count uniq_t
 					end);
 	  not_counted := false;
+	  print_newline ();
       end;
       TT.fold 
 	(fun pattern occurs acc ->
@@ -3527,10 +3532,13 @@ let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
 *)
 
 let abstract_term subterms_lists unique_terms env t =
+  v_print_endline ("[Diff] abstract_term: " ^
+		   string_of_gtree' t);
   let extend_env env_p = 
     env_p +> List.fold_left
       (fun acc_env (m,t) -> match rev_lookup env t with
-	 | None -> acc_env
+	 | None -> 
+	     (m, t) :: acc_env
 	 | Some m' -> (m',t) :: acc_env ) []
   in
     get_patterns subterms_lists unique_terms t 
@@ -3550,9 +3558,14 @@ let abstract_term subterms_lists unique_terms env t =
        *)
        let ext_env = extend_env env_p in
 	 (rev_sub ext_env t, ext_env) :: acc_ps_envs
-	 
+	   
     ) []
 
+let abstract_all_terms subterms_lists unique_terms env =
+  unique_terms 
+  +> List.rev_map (abstract_term subterms_lists unique_terms env)
+  +> tail_flatten
+  +> rm_dub
     
 
 (* This function returns a boolean value according to whether it can

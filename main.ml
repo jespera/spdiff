@@ -529,14 +529,15 @@ let spec_main () =
 	  "[Main] Constructing all safe parts for " ^ 
 	    string_of_int (List.length term_pairs) ^ " term pairs");
 	let tcount = ref 1 in
-	let abs_patches = List.rev_map (function (t, t'') ->
-					  print_endline ("[Main] Making safe parts for pair " ^ string_of_int !tcount);
-					  tcount := !tcount + 1;
-					  let r = Diff.make_abs_on_demand term_pairs subterms_lists unique_subterms (t, t'') in
-					    print_endline ("[Main] abstracted one pair into " ^ 
-							     r +> List.length +> string_of_int ^ " abstract");
-					    r
-				       ) term_pairs in
+	let abs_patches = List.rev_map 
+	  (function (t, t'') ->
+	     print_endline ("[Main] Making safe parts for pair " ^ string_of_int !tcount);
+	     tcount := !tcount + 1;
+	     let r = Diff.make_abs_on_demand term_pairs subterms_lists unique_subterms (t, t'') in
+	       print_endline ("[Main] abstracted one pair into " ^ 
+				r +> List.length +> string_of_int ^ " abstract");
+	       r
+	  ) term_pairs in
 	  (*{{{*)
 	  if !print_raw
 	  then (
@@ -636,7 +637,10 @@ let fold_botup term upfun initial_result =
 
 let string_of_pattern p =
   let loc p = match view p with
-    | C("CM", [t]) -> Diff.verbose_string_of_gtree t
+    | C("CM", [t]) -> 
+	if !verbose
+	then Diff.verbose_string_of_gtree t
+	else Diff.string_of_gtree' t
     | skip when skip == view ddd -> "..."
     | gt -> raise (Match_failure (Diff.string_of_gtree' p, 604,0)) in
     String.concat " " (List.map loc p)
@@ -1312,25 +1316,30 @@ let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
   in
   let get_next abs_P_env ext p =
     v_print "[Main] get_next ... ";
-    let res = abs_P_env +> List.fold_left (fun acc_p_env (ps, env) -> 
-					     let valid_ps = List.filter (function p' -> !- (ext p p')) ps 
-					     in
-					       if valid_ps = []
-					       then acc_p_env
-					       else List.rev_map (function p -> (p, env)) valid_ps 
-						 :: acc_p_env
-					  ) [] in
+    let res = abs_P_env 
+      +> List.filter
+      (fun (pat, env) -> !- (ext p pat)) in
       v_print_endline "done";
       res
   in
-  let ext1 p1 p2 = if p1 = [] then [mkC("CM",[p2])] else p1 @ [mkC("CM", [p2])] in
-  let ext2 p1 p2 = if p1 = [] then [mkC("CM",[p2])] else p1 @ (ddd :: [mkC("CM", [p2])]) in
+    (* ext1 = p1 p2  -- immediate successort *)
+  let ext1 p1 p2 = 
+    if p1 = [] 
+    then [mkC("CM",[p2])] 
+    else p1 @ [mkC("CM", [p2])] in
+    (* ext2 = p1 ... p2 -- all-paths quantifier *)
+  let ext2 p1 p2 = 
+    if p1 = [] 
+    then [mkC("CM",[p2])] 
+    else p1 @ (ddd :: [mkC("CM", [p2])]) in
   let rec grow' ext p ps (p', env') =
     (* flush_string "."; *)
     let ext_p = ext p p' in
     let pp' = renumber_metas_pattern ext_p in
       if !verbose then ( 
-	print_string ("[Main] testing : " ^ List.map Diff.string_of_gtree' pp' +> String.concat " ");
+	print_string ("[Main] testing : " ^ 
+			List.map Diff.string_of_gtree' pp'
+		      +> String.concat " ");
       );
       if
 	valid pp'
@@ -1350,42 +1359,31 @@ let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
     v_print_endline (string_of_pattern p);
     let abs_P_env = 
       get_pa env
-      +> List.filter (function (sps,env) ->
+      +> List.filter (function (pat,env) ->
 			gss 
-			+> for_some !threshold (function flows ->
-						  flows 
-						  +> List.exists (function f -> 
-								    sps +> List.exists 
-								      (function sp -> 
-									 f |- p && f |- mk_pat sp
-								      )
-								 )
-					       )	  
+			+> for_some !threshold 
+			  (function flows ->
+			     flows 
+			     +> List.exists 
+			       (function f -> 
+				       f |- p && f |- mk_pat pat
+			       )
+			  )	  
 		     ) 
     in
-      (* produce (meta list * env) list *)
-      (*    v_print "[Main] abstracting ... ";
-	    let abs_P_env = 
-	    pa
-      (* we need to find a way to limit the size of this list since
-	    there really is no need to try to abstract all those terms
-	    further when they cannot even be an extension of the current
-	    pattern 'p' *)
-	    +> List.rev_map (function t -> 
-	    let metas, env = abstract_term !depth env t in
-	    metas, env
-	    )  in
-      *)
-
       v_print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
-      let nextP1 = tail_flatten (get_next abs_P_env ext1 p) in
-      let abs_P_env' = abs_P_env +> List.fold_left (fun acc_ps_env (ps, env) -> 
-						      let ps' = ps +> List.filter (function p' ->
-										     not(nextP1 +> List.exists (function (p'', env') -> p' = p''))
-										  ) in
-							(ps', env) :: acc_ps_env
-						   ) [] in
-      let nextP2 = tail_flatten (get_next abs_P_env' ext2 p) in
+      let nextP1 = get_next abs_P_env ext1 p in
+	(* there is no need to look for matches of "p...p'" in case
+	   there were no matches of "p p'" because 
+	   |- p p' => |- p...p'
+	   thus, if we found a p' such that |- p p' we do not look for p ... p'
+	*)
+      let abs_P_env' = abs_P_env
+	+> List.filter
+	(fun (pat, env) -> 
+	   not(nextP1 +> List.exists (function (p'', env') -> pat = p''))
+	) in
+      let nextP2 = get_next abs_P_env' ext2 p in
 	v_print_endline ("[Main] from pattern : " ^ string_of_pattern p);
 	v_print_endline ("[Main] potential new patterns : " ^ string_of_int (
 			   List.length nextP1 + List.length nextP2));
@@ -1397,7 +1395,9 @@ let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
     grow [] ([], [])
 
 let patterns_of_graph is_frequent_sp common_np g =
-  if !verbose then print_endline ("[Main] considering graph with [" ^ string_of_int (List.length (concrete_of_graph g)) ^ "] cnodes");
+  if !verbose then print_endline ("[Main] considering graph with [" ^ 
+				    string_of_int (List.length (concrete_of_graph g)) ^ 
+				    "] cnodes");
   (*
     let pa = concrete_of_graph g in
   *)
@@ -1436,16 +1436,18 @@ let get_common_node_patterns gss env =
   v_print_endline "[Main] finding common cterms";
   let concrete_terms = 
     gss 
-    +> List.rev_map (function flows ->
-		       flows 
-		       +> List.rev_map (function f -> 
-					  concrete_of_graph f 
-					  +> List.rev_map get_nested_subterms
-					  +> tail_flatten
-				       )
-		       +> tail_flatten
-		       +> rm_dups
-		    )
+    +> List.rev_map 
+      (function flows ->
+	 flows 
+	 +> List.rev_map 
+	   (function f -> 
+	      concrete_of_graph f 
+	      +> List.rev_map get_nested_subterms
+	      +> tail_flatten
+	   )
+	 +> tail_flatten
+	 +> rm_dups
+      )
   in 
     v_print_string ("[Main] abstracting cterms (ct = " ^
 		      string_of_int (List.length concrete_terms) ^")") ;
@@ -1482,14 +1484,28 @@ let common_patterns_graphs gss =
       Diff.no_occurs := !threshold;
       List.for_all)
     else for_some !threshold in
+  let subterms_lists = gss
+    +> List.rev_map (function [f] -> 
+		       concrete_of_graph f
+		       +> List.filter (function n -> not(Diff.is_head_node n))
+		    )
+  in
+  let unique_subterms = subterms_lists 
+    +> tail_flatten 
+    +> Diff.rm_dub in
   let (|-) g sp = List.exists (cont_match g sp) (nodes_of_graph g) in
   let (!-) sp = gss +> loc_pred (function fs -> 
 				   fs +> List.exists (function f -> f |- sp)
 				) in
   let is_frequent_sp_some sp = !- sp in
   let is_subpattern sp1 sp2 = subpattern_some gss sp1 sp2 in
+  let new_get_pa = 
+    function env ->
+      Diff.abstract_all_terms subterms_lists unique_subterms env 
+      +> List.filter (function (p,e) -> not(infeasible p))
+  in
   let get_pa = get_common_node_patterns gss in
-    find_seq_patterns_new is_subpattern is_frequent_sp_some gss get_pa
+    find_seq_patterns_new is_subpattern is_frequent_sp_some gss new_get_pa
     +> rm_dups
     +> (function pss -> 
 	  if !filter_patterns
@@ -1497,14 +1513,17 @@ let common_patterns_graphs gss =
 	  else pss)
       
 let get_fun_name_gflow f =
-  let head_node = f#nodes#tolist +> List.find (function (i,n) -> match view n with
-						 | C("head:def", [{Hashcons.node=C("def",_)}]) -> true
-						 | _ -> false) in
+  let head_node = 
+    f#nodes#tolist 
+    +> List.find (function (i,n) -> match view n with
+		    | C("head:def", [{Hashcons.node=C("def",_)}]) -> true
+		    | _ -> false) in
     match view (snd head_node) with
-      | C("head:def",[{Hashcons.node=C("def",name::_)}]) -> (match view name with
-							       | A("fname",name_str) -> name_str
-							       | _ -> raise (Diff.Fail "impossible match get_fun_name_gflow")
-							    )
+      | C("head:def",[{Hashcons.node=C("def",name::_)}]) -> 
+	  (match view name with
+	     | A("fname",name_str) -> name_str
+	     | _ -> raise (Diff.Fail "impossible match get_fun_name_gflow")
+	  )
       | _ -> raise (Diff.Fail "get_fun_name?")
 	  
 
@@ -1536,8 +1555,8 @@ let equal_flows f1 f2 =
  * term
  *)
 let get_change_matches spatterns term =
-  print_endline "[Main] getting patterns that relate to: ";
-  print_endline (Diff.string_of_gtree' term);
+  v_print_endline "[Main] getting patterns that relate to: ";
+  v_print_endline (Diff.string_of_gtree' term);
   spatterns +> List.filter 
     (function spat ->
        (* recall that spat is a list of term-patterns *)
@@ -1553,15 +1572,12 @@ let get_change_matches spatterns term =
  * terms
  *)
 let get_change_matches_terms spatterns terms =
-  print_endline "[Main] filtering patterns that are related to changed terms";
+  v_print_endline "[Main] filtering patterns that are related to changed terms";
   let changes = terms 
     +> List.rev_map (get_change_matches spatterns) in
-    print_endline "flattening";
-    let tmp = tail_flatten changes in
-      print_endline "rm_dups";
-      let tmp1 = rm_dups tmp in
-	print_endline "done";
-	tmp1
+  let tmp = tail_flatten changes in
+  let tmp1 = rm_dups tmp in
+    tmp1
 
 
 (* filter_changed uses the "flow-changes" information to extract a list of terms
@@ -1572,7 +1588,7 @@ let filter_changed gss gpats =
   if !only_changes 
   then (
     print_endline "[Main] looking for changed patterns";
-    print_endline "[Main] the following are the terms that have been detected as changed";
+    v_print_endline "[Main] the following are the terms that have been detected as changed";
     let c_terms = !Diff.flow_changes +> 
       List.fold_left (fun acc_changed_terms diff -> 
 			diff 
@@ -1583,7 +1599,7 @@ let filter_changed gss gpats =
 					       | Difftype.RM t -> t +++ acc_changed_terms
 					  ) acc_changed_terms
 		     ) [] in
-      c_terms +> List.iter (fun ct -> print_endline (Diff.string_of_gtree' ct));
+      c_terms +> List.iter (fun ct -> v_print_endline (Diff.string_of_gtree' ct));
       get_change_matches_terms gpats c_terms
 	(*
 	  gpats +> List.filter (function sp -> 
@@ -1608,26 +1624,37 @@ let filter_changed gss gpats =
 
 let lhs_flows_of_term_pairs term_pairs =
   print_endline "[Main] getting lhs flows";
-  List.rev_map (fun ((gt,flows), (gt',flows')) -> 
-		  if !only_changes 
-		  then
-		    let filtered_lhs_flows = flows +> List.filter 
-		      (function f -> 
-			 (* is f changed in RHS ? *)
-			 let f_name = try get_fun_name_gflow f with Not_found -> raise (Diff.Fail ("function not found")) in
-			   if not(flows' +> List.exists (equal_flows f))
-			   then (
-			     print_endline ("[Main] function " ^ f_name ^ " changed");
-			     true)
-			   else (
-			     false
-			   )
-		      )
-		    in
-		      filtered_lhs_flows
-		  else flows
-	       ) term_pairs 
-
+  let res = 
+    List.rev_map (fun ((gt,flows), (gt',flows')) -> 
+		    if !only_changes 
+		    then
+		      let filtered_lhs_flows = flows +> List.filter 
+			(function f -> 
+			   (* is f changed in RHS ? *)
+			   let f_name = try get_fun_name_gflow f 
+			   with Not_found -> 
+			     raise (Diff.Fail ("function not found")) 
+			   in
+			     if not(flows' +> List.exists (equal_flows f))
+			     then (
+			       print_endline ("[Main] function " ^ f_name ^ " changed");
+			       true)
+			     else (
+			       false
+			     )
+			)
+		      in
+			filtered_lhs_flows
+		    else flows
+		 ) term_pairs
+  in
+    res 
+    +> List.rev_map 
+      (function flows -> 
+	 flows +> List.rev_map 
+	   (function f -> [f])
+      ) 
+    +> tail_flatten
 
 (* at this point we have a set/list of spatterns that we know to match
    on some term that is believed to have been involved in a change; the
@@ -1782,14 +1809,14 @@ let construct_spatches patterns is_freq =
      *)
   let build_from_chunk spatches_env chunk = 
     let potential_chunks = use_chunk chunk  in
-      print_endline ("[Main] potential chunks: " ^
+      v_print_endline ("[Main] potential chunks: " ^
 		       List.length potential_chunks +> string_of_int);
       potential_chunks +> List.iter (function diff -> 
-				       print_endline "[Chunk]";
-				       print_endline (diff 
+				       v_print_endline "[Chunk]";
+				       v_print_endline (diff 
 						      +> List.map Diff.string_of_diff
 						      +> String.concat "\n");
-				       print_endline "[End]"
+				       v_print_endline "[End]"
 				    );
       potential_chunks 
       +> List.filter is_transformation_chunk
@@ -1823,22 +1850,22 @@ let construct_spatches patterns is_freq =
     in
       good_chunks  
       +> List.iter (function diff -> 
-		      print_endline "[Chunk]";
-		      print_endline (diff 
+		      v_print_endline "[Chunk]";
+		      v_print_endline (diff 
 				     +> List.map Diff.string_of_diff
 				     +> String.concat "\n");
-		      print_endline "[End]"
+		      v_print_endline "[End]"
                    );
       (* for each pattern, we wish to try and construct a (or many) spatch
        * from it; we iterate over each chunk to try and see whether the chunk
        * allows us to add rm/add instructions to the pattern
        *)
-      print_endline "[Main] making init_spatches";
+      v_print_endline "[Main] making init_spatches";
       let init_spatches_env = 
 	patterns 
 	+> List.rev_map (function sp -> 
 			   sp +> List.map (function p -> Difftype.ID p), []) in
-	print_endline ("[Main] building spatches based on " ^
+	v_print_endline ("[Main] building spatches based on " ^
 			 List.length good_chunks +> string_of_int 
 		       ^ " chunks");
 	let spatches_env =
@@ -2389,10 +2416,10 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
 
 (* decide whether sp1 <= ttf_list *)
 let is_spatch_safe_ttf_list sp ttf_list =
-  print_endline "[Main] considering safety of:";
+  v_print_endline "[Main] considering safety of:";
   sp +>
     List.iter (function p -> 
-  		 Diff.string_of_diff p +> print_endline
+  		 Diff.string_of_diff p +> v_print_endline
   	      );
   ttf_list +> for_some !threshold (function ttf ->
 				     is_spatch_safe_one ttf sp
@@ -2547,49 +2574,51 @@ let find_common_patterns () =
     let gpats' = filter_changed gss_rhs gpats'' in
       print_endline "[Main] getting rhs flows";
       let rhs_flows = get_rhs_flows term_pairs in
+	print_endline "[Main] *Common* patterns found:";
+	print_patterns gpats';
 	print_endline "[Main] getting COMMON rhs node-patterns";
 	let common_rhs_node_patterns = get_common_node_patterns rhs_flows [] in
-	  print_endline "[Main] *Common* patterns found:";
-	  print_patterns gpats';
-	  let is_freq t = common_rhs_node_patterns +> 
-	    List.exists (function (gts,env) -> 
-			   gts +> List.exists (function cmp -> Diff.can_match cmp t)
-			) 
+	let is_freq t = common_rhs_node_patterns +> 
+	  List.exists (function (gts,env) -> 
+			 gts +> List.exists (function cmp -> Diff.can_match cmp t)
+		      ) 
+	in
+	let sp_candidates = construct_spatches gpats' is_freq in
+	let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flows),(rhs_gt,_)) -> 
+						     (lhs_gt, rhs_gt, lhs_flows)
+						  ) in
+	let is_transformation_sp sp = 
+	  sp +> List.exists (function p ->
+			       match p with
+				 | Difftype.ID _ -> false
+				 | _ -> true) in
+	let trans_patches = sp_candidates +> List.filter is_transformation_sp in
+	  print_endline ("[Main] filtering safe semantic patches ("^ trans_patches +> 
+	    		   List.length +> 
+			   string_of_int ^")");
+	  let res_spatches = 
+	    trans_patches
+	    +> List.filter (function sp -> is_spatch_safe_ttf_list sp ttf_list)
 	  in
-	  let sp_candidates = construct_spatches gpats' is_freq in
-	  let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flows),(rhs_gt,_)) -> 
-						       (lhs_gt, rhs_gt, lhs_flows)
-						    ) in
-	  let is_transformation_sp sp = 
-	    sp +> List.exists (function p ->
-				 match p with
-				   | Difftype.ID _ -> false
-				   | _ -> true) in
-	  let trans_patches = sp_candidates +> List.filter is_transformation_sp in
-	    print_endline ("[Main] filtering safe semantic patches ("^ trans_patches +> 
-	    		     List.length +> 
-			     string_of_int ^")");
-	    let res_spatches = 
-	      trans_patches
-	      +> List.filter (function sp -> is_spatch_safe_ttf_list sp ttf_list)
+	    print_endline ("[Main] filtering largest semantic patches ("^
+	      res_spatches +> List.length +> string_of_int
+	    ^")");
+	    let largest_spatches =
+	      res_spatches 
+	      +> (function spatches -> 
+		    if !filter_spatches then get_largest_spatchs ttf_list spatches
+		    else spatches)
+	      +> rm_dups
 	    in
-	      print_endline "[Main] filtering largest semantic patches";
-	      let largest_spatches =
-		res_spatches 
-		+> (function spatches -> 
-		      if !filter_spatches then get_largest_spatchs ttf_list spatches
-		      else spatches)
-		+> rm_dups
-	      in
-		print_endline ("[Main] *REAL* semantic patches inferred: " ^
-				 List.length largest_spatches +> string_of_int);
-		largest_spatches
-		+> List.iter (function diff ->
-				print_endline "[spatch:]";
-				print_endline (diff
-					       +> List.map Diff.string_of_spdiff
-					       +> String.concat "\n");
-			     )
+	      print_endline ("[Main] *REAL* semantic patches inferred: " ^
+			       List.length largest_spatches +> string_of_int);
+	      largest_spatches
+	      +> List.iter (function diff ->
+			      print_endline "[spatch:]";
+			      print_endline (diff
+					     +> List.map Diff.string_of_spdiff
+					     +> String.concat "\n");
+			   )
 		  
 		  
 		  
