@@ -49,6 +49,7 @@ module DBD = Db(DiffT)
 
 (* user definable references here ! *)
   (* copy from main.ml initialized in main-function *)
+let patterns = ref false
 let verbose = ref false
 (* use new and fancy malign algo to decide subpatch relation *)
 let malign_mode = ref false
@@ -3452,8 +3453,8 @@ let get_patterns subterms_lists unique_subterms term =
 	   if occurs >= !no_occurs 
 	   then
 	     try
-	       let env = match_term pattern term in
-		 (pattern, env) :: acc
+		 let env = match_term pattern term in
+		   (pattern, env) :: acc
 	     with Nomatch -> acc
 	   else (
 	     (* print_endline ("Infrequent pattern ("^occurs +> string_of_int^"):"); *)
@@ -3526,6 +3527,27 @@ let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
 	   | _ -> raise (Fail "non supported update ...")
       ) []
 
+let rec useless_abstraction p = is_meta p || 
+  match view p with
+    | C("dlist", [p']) 
+    | C("stmt", [p']) 
+    | C("exprstmt", [p']) 
+    | C("exp", [p']) 
+    | C("dlist", [p']) when useless_abstraction p' -> true
+    | C("onedecl",[p_var;p_type;p_storage]) ->
+	[p_var; p_type] +> List.for_all useless_abstraction 
+    | A("stobis", _) | A("inline",_) -> true
+    | C("storage", [p1;p2]) | C("itype", [p1;p2]) when is_meta p1 || is_meta p2 -> true
+    | C("fulltype", _) (* | C("pointer", _) *) -> true
+    | C("exp", [{Hashcons.node=A("ident", _)}]) -> true
+    | C("exp", [{Hashcons.node=C("const", _)}]) -> true
+    | _ -> false
+
+(* The following function is used to decide when an abstraction is infeasible.
+ * Either because it simply a meta-variable X or if it is too abstract
+ *)
+(* let infeasible p = is_meta p || abstractness p > !default_abstractness  *)
+let infeasible p = useless_abstraction p
 
 (* abstract term respecting bindings given in env;
    return all found abstractions of the term and the correspond env
@@ -3534,12 +3556,16 @@ let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
 let abstract_term subterms_lists unique_terms env t =
   v_print_endline ("[Diff] abstract_term: " ^
 		   string_of_gtree' t);
-  let extend_env env_p = 
-    env_p +> List.fold_left
-      (fun acc_env (m,t) -> match rev_lookup env t with
-	 | None -> 
-	     (m, t) :: acc_env
-	 | Some m' -> (m',t) :: acc_env ) []
+  let extend_env env_p =
+    if not(env = [])
+    then
+      env_p +> List.fold_left
+	(fun acc_env (m,t) -> match rev_lookup env t with
+	   | None -> 
+	       (m, t) :: acc_env
+	   | Some m' -> (m',t) :: acc_env ) []
+    else
+      env_p
   in
     get_patterns subterms_lists unique_terms t 
     +> List.fold_left 
@@ -3557,7 +3583,18 @@ let abstract_term subterms_lists unique_terms env t =
 
        *)
        let ext_env = extend_env env_p in
-	 (rev_sub ext_env t, ext_env) :: acc_ps_envs
+       let p' = rev_sub ext_env t in
+	 if infeasible p'
+	 then
+	   acc_ps_envs
+	 else begin
+	   if !patterns && !print_abs
+	   then print_endline ("[Diff] node pattern: " ^ p' +> string_of_gtree');
+	   if List.exists (function p'',_ -> p' = p'') acc_ps_envs
+	   then acc_ps_envs
+	   else
+	     (p', ext_env) :: acc_ps_envs
+	 end
 	   
     ) []
 

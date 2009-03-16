@@ -21,6 +21,7 @@ let noncompact   = ref false
 let prune        = ref false
 let strip_eq     = ref false
 let patterns     = ref false
+let spatch       = ref false
 let default_abstractness = ref 2.0
 let verbose      = ref false
 let only_changes = ref false
@@ -50,6 +51,7 @@ let speclist =
       "-prune",         Arg.Set prune,           "bool  try to prune search space by various means";
       "-strip_eq",      Arg.Set strip_eq,        "bool  use eq_classes for initial atomic patches";
       "-patterns",      Arg.Set patterns,        "bool  look for common patterns in LHS files";
+      "-spatch",        Arg.Set spatch,          "bool  find semantic patches (not generic)";
       "-abstractness",  Arg.Set_float default_abstractness,
       "float abstractness(explain)";
       "-only_changes",  Arg.Set only_changes,    "bool  only look for patterns in changed functions";
@@ -754,27 +756,7 @@ let abstractness p =
   let st = num_subterms p in
     float mv /. float st
 
-let rec useless_abstraction p = is_meta p || 
-  match view p with
-    | C("dlist", [p']) 
-    | C("stmt", [p']) 
-    | C("exprstmt", [p']) 
-    | C("exp", [p']) 
-    | C("dlist", [p']) when useless_abstraction p' -> true
-    | C("onedecl",[p_var;p_type;p_storage]) ->
-	[p_var; p_type] +> List.for_all useless_abstraction 
-    | A("stobis", _) | A("inline",_) -> true
-    | C("storage", [p1;p2]) | C("itype", [p1;p2]) when is_meta p1 || is_meta p2 -> true
-    | C("fulltype", _) (* | C("pointer", _) *) -> true
-    | C("exp", [{Hashcons.node=A("ident", _)}]) -> true
-    | C("exp", [{Hashcons.node=C("const", _)}]) -> true
-    | _ -> false
-
-(* The following function is used to decide when an abstraction is infeasible.
- * Either because it simply a meta-variable X or if it is too abstract
- *)
-(* let infeasible p = is_meta p || abstractness p > !default_abstractness  *)
-let infeasible p = useless_abstraction p
+let infeasible p = Diff.infeasible p
 
 let (=>) = Diff.(=>)
 let cont_match = Diff.cont_match
@@ -2572,54 +2554,56 @@ let find_common_patterns () =
     let gss_rhs = List.rev_map (fun (_, (gt',flows)) -> flows) term_pairs in
     let gpats'' = common_patterns_graphs gss in
     let gpats' = filter_changed gss_rhs gpats'' in
-      print_endline "[Main] getting rhs flows";
-      let rhs_flows = get_rhs_flows term_pairs in
-	print_endline "[Main] *Common* patterns found:";
-	print_patterns gpats';
-	print_endline "[Main] getting COMMON rhs node-patterns";
-	let common_rhs_node_patterns = get_common_node_patterns rhs_flows [] in
-	let is_freq t = common_rhs_node_patterns +> 
-	  List.exists (function (gts,env) -> 
-			 gts +> List.exists (function cmp -> Diff.can_match cmp t)
-		      ) 
-	in
-	let sp_candidates = construct_spatches gpats' is_freq in
-	let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flows),(rhs_gt,_)) -> 
-						     (lhs_gt, rhs_gt, lhs_flows)
-						  ) in
-	let is_transformation_sp sp = 
-	  sp +> List.exists (function p ->
-			       match p with
-				 | Difftype.ID _ -> false
-				 | _ -> true) in
-	let trans_patches = sp_candidates +> List.filter is_transformation_sp in
-	  print_endline ("[Main] filtering safe semantic patches ("^ trans_patches +> 
-	    		   List.length +> 
-			   string_of_int ^")");
-	  let res_spatches = 
-	    trans_patches
-	    +> List.filter (function sp -> is_spatch_safe_ttf_list sp ttf_list)
+      print_endline "[Main] *Common* patterns found:";
+      print_patterns gpats';
+	if not(!patterns)
+	then begin
+	  print_endline "[Main] getting rhs flows";
+	  let rhs_flows = get_rhs_flows term_pairs in
+	  print_endline "[Main] getting COMMON rhs node-patterns";
+	  let common_rhs_node_patterns = get_common_node_patterns rhs_flows [] in
+	  let is_freq t = common_rhs_node_patterns +> 
+	    List.exists (function (gts,env) -> 
+			   gts +> List.exists (function cmp -> Diff.can_match cmp t)
+			) 
 	  in
-	    print_endline ("[Main] filtering largest semantic patches ("^
-	      res_spatches +> List.length +> string_of_int
-	    ^")");
-	    let largest_spatches =
-	      res_spatches 
-	      +> (function spatches -> 
-		    if !filter_spatches then get_largest_spatchs ttf_list spatches
-		    else spatches)
-	      +> rm_dups
+	  let sp_candidates = construct_spatches gpats' is_freq in
+	  let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flows),(rhs_gt,_)) -> 
+						       (lhs_gt, rhs_gt, lhs_flows)
+						    ) in
+	  let is_transformation_sp sp = 
+	    sp +> List.exists (function p ->
+				 match p with
+				   | Difftype.ID _ -> false
+				   | _ -> true) in
+	  let trans_patches = sp_candidates +> List.filter is_transformation_sp in
+	    print_endline ("[Main] filtering safe semantic patches ("^ trans_patches +> 
+	    		     List.length +> 
+			     string_of_int ^")");
+	    let res_spatches = 
+	      trans_patches
+	      +> List.filter (function sp -> is_spatch_safe_ttf_list sp ttf_list)
 	    in
-	      print_endline ("[Main] *REAL* semantic patches inferred: " ^
-			       List.length largest_spatches +> string_of_int);
-	      largest_spatches
-	      +> List.iter (function diff ->
-			      print_endline "[spatch:]";
-			      print_endline (diff
-					     +> List.map Diff.string_of_spdiff
-					     +> String.concat "\n");
-			   )
-		  
+	      print_endline ("[Main] filtering largest semantic patches ("^
+			       res_spatches +> List.length +> string_of_int
+			     ^")");
+	      let largest_spatches =
+		res_spatches 
+		+> (function spatches -> 
+		      if !filter_spatches then get_largest_spatchs ttf_list spatches
+		      else spatches)
+		+> rm_dups
+	      in
+		print_endline ("[Main] *REAL* semantic patches inferred: " ^
+				 List.length largest_spatches +> string_of_int);
+		largest_spatches
+		+> List.iter (function diff ->
+				print_endline "[spatch:]";
+				print_endline (diff
+					       +> List.map Diff.string_of_spdiff
+					       +> String.concat "\n");
+			     )
+	end		  
 		  
 		  
 let main () =
@@ -2632,7 +2616,7 @@ let main () =
   Diff.verbose       := !verbose;
   Diff.nesting_depth := !nesting_depth;
   Diff.malign_mode   := !malign;
-
+  Diff.patterns      := !patterns;
   Diff.abs_subterms  := !max_level;
 
   if !Config.std_h <> "" then
@@ -2642,7 +2626,7 @@ let main () =
   if !threshold = 0 then do_dmine := false;
   if !mfile = ""
   then raise (Diff.Fail "No specfile given")
-  else if !patterns 
+  else if !spatch || !patterns
   then find_common_patterns ()
   else spec_main ()
 
