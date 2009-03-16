@@ -3360,6 +3360,104 @@ let sub_term env t =
       loop t
 
 
+let rec abs_term_one env t t' =
+  (* 
+     env : term * term list -- maps term from first term to metavariables in new term
+     t   : term
+     t'  : term   -- terms from which to produce abstraction
+  *)
+  if t = t' 
+  then t, env 
+  else match view t, view t' with
+    | C(ty1, ts1), C(ty2, ts2) when 
+ 	ty1 = ty2 && List.length ts1 = List.length ts2 -> 
+ 	let ts', env' = List.fold_left2 
+ 	  (fun (acc_ts, env) t1 t2 -> 
+  	     let t1', env' = abs_term_one env t1 t2 in
+	       (t1' :: acc_ts, env')
+  	  ) ([], env) ts1 ts2 in
+	  mkC(ty1, List.rev ts'), env'
+    | _, _ -> try List.assoc t env, env with Not_found -> 
+	let new_m = mkM () in
+	  (* a limitation here is that we assume equal subterms to
+	     always be abstracted by equal metavariables
+	  *)
+	  new_m, (t, new_m) :: env
+
+
+let abs_term_list t ts =
+  let res = ts
+    +> List.rev_map (function t' ->  reset_meta (); abs_term_one [] t t' +> fst) 
+    +> List.filter (function t -> not(is_meta t))
+    +> rm_dub in
+    (* print_string ("abs_term_list " ^ string_of_gtree' t); *)
+    (* print_endline (" on ts.length = " ^ ts +> List.length +> string_of_int); *)
+    (* res +> List.iter (function (t,_) -> t +> string_of_gtree' +> print_endline); *)
+    res
+
+
+let abs_term_lists t ts_lists =
+  ts_lists
+  +> List.rev_map (abs_term_list t)
+
+
+let get_patterns subterms_lists unique_subterms term =
+  let add_abs t =
+    (* print_endline "[Diff] adding pattern:"; *)
+    (* t +> string_of_gtree' +> print_endline;  *)
+    try 
+      let cnt = TT.find count_ht t in
+	TT.replace count_ht t (cnt + 1)
+    with Not_found ->
+      TT.replace count_ht t 1 in
+  let rec count term =
+    abs_term_lists term subterms_lists
+    +> List.iter 
+      (function abs_list ->
+	 abs_list 
+	 +> List.iter add_abs
+      )
+  in
+    begin
+      if !not_counted
+      then begin
+	print_string "[Diff] initial term abstraction...";
+	let n = ref 0 in
+	let m = List.length unique_subterms in
+	  unique_subterms +> List.iter (function uniq_t -> begin
+					  if !n mod 100 = 0
+					  then begin
+					    ANSITerminal.save_cursor ();
+					    ANSITerminal.print_string 
+					      [ANSITerminal.on_default](
+						!n +> string_of_int ^"/"^
+						  m +> string_of_int);
+					    ANSITerminal.restore_cursor();
+					    flush stdout;
+					  end;
+					  n := !n + 1;
+					  count uniq_t
+					end);
+	  not_counted := false;
+      end;
+      TT.fold 
+	(fun pattern occurs acc ->
+	   (* print_endline ("[Diff] pattern occurrences: " ^ occurs +> string_of_int); *)
+	   (* pattern +> string_of_gtree' +> print_endline; *)
+	   if occurs >= !no_occurs 
+	   then
+	     try
+	       let env = match_term pattern term in
+		 (pattern, env) :: acc
+	     with Nomatch -> acc
+	   else (
+	     (* print_endline ("Infrequent pattern ("^occurs +> string_of_int^"):"); *)
+	     (* pattern +> string_of_gtree' +> print_endline;  *)
+	     acc)
+	) count_ht []
+    end
+
+
 let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
   let c_parts = 
     if !malign_mode
@@ -3381,150 +3479,81 @@ let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
      * is not already there and in case it is still a safe part
      *)
     print_endline "[Diff] finding abstract parts using \"on-demand\" method";
-    let rec abs_term_one env t t' =
-      (* 
-	 env : term * term list -- maps term from first term to metavariables in new term
-	 t   : term
-	 t'  : term   -- terms from which to produce abstraction
-      *)
-      if t = t' 
-      then t, env 
-      else match view t, view t' with
-	| C(ty1, ts1), C(ty2, ts2) when 
- 	    ty1 = ty2 && List.length ts1 = List.length ts2 -> 
- 	    let ts', env' = List.fold_left2 
- 	      (fun (acc_ts, env) t1 t2 -> 
-  		 let t1', env' = abs_term_one env t1 t2 in
-		   (t1' :: acc_ts, env')
-  	      ) ([], env) ts1 ts2 in
-	      mkC(ty1, List.rev ts'), env'
-	| _, _ -> try List.assoc t env, env with Not_found -> 
-	    let new_m = mkM () in
-	      (* a limitation here is that we assume equal subterms to
-		 always be abstracted by equal metavariables
-	      *)
-	      new_m, (t, new_m) :: env
-    in		
-    let rm_dup_env ls = 
-      List.fold_left
-	(fun acc (p,env) -> 
-	   if List.exists (function (p',_) -> p' = p) acc 
-	   then acc 
-	   else (p, env) :: acc)
-	[] ls
-    in
-    let abs_term_list t ts =
-      let res = ts
-	+> List.rev_map (function t' ->  reset_meta (); abs_term_one [] t t' +> fst) 
-	+> List.filter (function t -> not(is_meta t))
-	+> rm_dub in
-	(* print_string ("abs_term_list " ^ string_of_gtree' t); *)
-	(* print_endline (" on ts.length = " ^ ts +> List.length +> string_of_int); *)
-	(* res +> List.iter (function (t,_) -> t +> string_of_gtree' +> print_endline); *)
-	res
-    in
-    let abs_term_lists t ts_lists =
-      ts_lists
-      +> List.rev_map (abs_term_list t)
-    in
-    let get_patterns term =
-      let add_abs t =
-	(* print_endline "[Diff] adding pattern:"; *)
-	(* t +> string_of_gtree' +> print_endline;  *)
-	try 
-	  let cnt = TT.find count_ht t in
-	    TT.replace count_ht t (cnt + 1)
-	with Not_found ->
-	  TT.replace count_ht t 1 in
-      let rec count term =
-	abs_term_lists term subterms_lists
-	+> List.iter 
-	  (function abs_list ->
-	     abs_list 
-	     +> List.iter add_abs
-	  )
-      in
-	begin
-	  if !not_counted
-	  then begin
-	    print_string "[Diff] initial term abstraction...";
-	       let n = ref 0 in
-	       let m = List.length unique_subterms in
-		 unique_subterms +> List.iter (function uniq_t -> begin
-						 if !n mod 100 = 0
-						 then begin
-						   ANSITerminal.save_cursor ();
-						   ANSITerminal.print_string 
-						     [ANSITerminal.on_default](
-						       !n +> string_of_int ^"/"^
-							 m +> string_of_int);
-						   ANSITerminal.restore_cursor();
-						   flush stdout;
-						 end;
-						 n := !n + 1;
-						 count uniq_t
-					       end);
-		 not_counted := false;
-	  end;
-	  TT.fold 
-	    (fun pattern occurs acc ->
-	       (* print_endline ("[Diff] pattern occurrences: " ^ occurs +> string_of_int); *)
-	       (* pattern +> string_of_gtree' +> print_endline; *)
-	       if occurs >= !no_occurs 
-	       then
-		 try
-		   let env = match_term pattern term in
-		     (pattern, env) :: acc
-		 with Nomatch -> acc
-	       else (
-		 (* print_endline ("Infrequent pattern ("^occurs +> string_of_int^"):"); *)
-		 (* pattern +> string_of_gtree' +> print_endline;  *)
-		 acc)
-	    ) count_ht []
-	end
-    in
-      c_parts 
-      +> List.fold_left
-	(fun acc_parts c_up ->
-	   match c_up with
-	     | UP(lhs,rhs) -> 
-		 v_print_endline ("[Diff] get patterns for:" ^ 
-				    lhs +> string_of_gtree');
-		 let p_env = get_patterns lhs in
-		   if !print_abs
-		   then (
-		     print_endline ("[Diff] for UP(" ^
-		   		      lhs +> string_of_gtree' ^ ", " ^
-		   		      rhs +> string_of_gtree'
-		   		    ^ ") we found the following patterns:");
-		     p_env +> List.iter
-		       (function (p,_) -> p +> string_of_gtree' +> print_endline);
-		   );
-		   p_env +> List.fold_left 
-		     (fun acc_parts (p,env) -> 
-			let p' = rev_sub env rhs in
-			let up = UP(p,p') in
-			  if safe_part up (gt1, gt2)
+    c_parts 
+    +> List.fold_left
+      (fun acc_parts c_up ->
+	 match c_up with
+	   | UP(lhs,rhs) -> 
+	       v_print_endline ("[Diff] get patterns for:" ^ 
+				  lhs +> string_of_gtree');
+	       let p_env = get_patterns subterms_lists unique_subterms lhs in
+		 if !print_abs
+		 then (
+		   print_endline ("[Diff] for UP(" ^
+		   		    lhs +> string_of_gtree' ^ ", " ^
+		   		    rhs +> string_of_gtree'
+		   		  ^ ") we found the following patterns:");
+		   p_env +> List.iter
+		     (function (p,_) -> p +> string_of_gtree' +> print_endline);
+		 );
+		 p_env +> List.fold_left 
+		   (fun acc_parts (p,env) -> 
+		      let p' = rev_sub env rhs in
+		      let up = UP(p,p') in
+			if safe_part up (gt1, gt2)
+			then (
+			  if !print_abs
 			  then (
-			    if !print_abs
-			    then (
-			      print_endline "[Diff] found *safe* part:";
-			      up +> string_of_diff +> print_endline; 
-			    );
-			    up +++ acc_parts
-			  )
-			  else (
-			    if !print_abs 
-			    then (
-			      print_endline "[Diff] *UNsafe* part:";
-			      up +> string_of_diff +> print_endline; 
-			    );
-			    acc_parts
-			  )
-		     ) acc_parts
-	     | _ -> raise (Fail "non supported update ...")
-	) []
-	
+			    print_endline "[Diff] found *safe* part:";
+			    up +> string_of_diff +> print_endline; 
+			  );
+			  up +++ acc_parts
+			)
+			else (
+			  if !print_abs 
+			  then (
+			    print_endline "[Diff] *UNsafe* part:";
+			    up +> string_of_diff +> print_endline; 
+			  );
+			  acc_parts
+			)
+		   ) acc_parts
+	   | _ -> raise (Fail "non supported update ...")
+      ) []
+
+
+(* abstract term respecting bindings given in env;
+   return all found abstractions of the term and the correspond env
+*)
+
+let abstract_term subterms_lists unique_terms env t =
+  let extend_env env_p = 
+    env_p +> List.fold_left
+      (fun acc_env (m,t) -> match rev_lookup env t with
+	 | None -> acc_env
+	 | Some m' -> (m',t) :: acc_env ) []
+  in
+    get_patterns subterms_lists unique_terms t 
+    +> List.fold_left 
+    (fun acc_ps_envs (p, env_p) -> 
+       (* p is an abstraction of t and
+	  env_p gives bindings from metavars to the
+	  subterms in t;
+	  extend env with env_p into env' such that:
+	  m->t ∈ env_p & m'->t ∈ env =>
+	  m'->t ∈ env'
+
+	  furthermore the pattern p to return uses metavariables from
+	  env_p, but it should use those from env'; thus, traverse p
+	  and for each subterm use rev_lookup to use a different metavar
+
+       *)
+       let ext_env = extend_env env_p in
+	 (rev_sub ext_env t, ext_env) :: acc_ps_envs
+	 
+    ) []
+
+    
 
 (* This function returns a boolean value according to whether it can
  * syntactically* determine two atomic patches to have disjoint
