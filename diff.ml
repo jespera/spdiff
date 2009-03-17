@@ -3599,10 +3599,11 @@ let abstract_term subterms_lists unique_terms env t =
     ) []
 
 let abstract_all_terms subterms_lists unique_terms env =
-  unique_terms 
-  +> List.rev_map (abstract_term subterms_lists unique_terms env)
-  +> tail_flatten
-  +> rm_dub
+  let res = unique_terms 
+    +> List.rev_map (abstract_term subterms_lists unique_terms env)
+    +> tail_flatten
+    +> rm_dub in
+    res
     
 
 (* This function returns a boolean value according to whether it can

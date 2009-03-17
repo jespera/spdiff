@@ -1297,7 +1297,7 @@ let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
 	| _ -> loop p'
   in
   let get_next abs_P_env ext p =
-    v_print "[Main] get_next ... ";
+    v_print_string "[Main] get_next ... ";
     let res = abs_P_env 
       +> List.filter
       (fun (pat, env) -> !- (ext p pat)) in
@@ -1341,17 +1341,17 @@ let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
     v_print_endline (string_of_pattern p);
     let abs_P_env = 
       get_pa env
-      +> List.filter (function (pat,env) ->
-			gss 
-			+> for_some !threshold 
-			  (function flows ->
-			     flows 
-			     +> List.exists 
-			       (function f -> 
-				       f |- p && f |- mk_pat pat
-			       )
-			  )	  
-		     ) 
+      (* +> List.filter (function (pat,env) -> *)
+      (* 			gss  *)
+      (* 			+> for_some !threshold  *)
+      (* 			  (function flows -> *)
+      (* 			     flows  *)
+      (* 			     +> List.exists  *)
+      (* 			       (function f ->  *)
+      (* 				       f |- p && f |- mk_pat pat *)
+      (* 			       ) *)
+      (* 			  )	   *)
+      (* 		     )  *)
     in
       v_print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
       let nextP1 = get_next abs_P_env ext1 p in
@@ -1475,6 +1475,7 @@ let common_patterns_graphs gss =
   let unique_subterms = subterms_lists 
     +> tail_flatten 
     +> Diff.rm_dub in
+  let get_first_p sp = List.hd sp in
   let (|-) g sp = List.exists (cont_match g sp) (nodes_of_graph g) in
   let (!-) sp = gss +> loc_pred (function fs -> 
 				   fs +> List.exists (function f -> f |- sp)
