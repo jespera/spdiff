@@ -1341,17 +1341,17 @@ let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
     v_print_endline (string_of_pattern p);
     let abs_P_env = 
       get_pa env
-      (* +> List.filter (function (pat,env) -> *)
-      (* 			gss  *)
-      (* 			+> for_some !threshold  *)
-      (* 			  (function flows -> *)
-      (* 			     flows  *)
-      (* 			     +> List.exists  *)
-      (* 			       (function f ->  *)
-      (* 				       f |- p && f |- mk_pat pat *)
-      (* 			       ) *)
-      (* 			  )	   *)
-      (* 		     )  *)
+      +> List.filter (function (pat,env) -> not(sub_pat (mk_pat pat) p)
+      	     (* 		  gss *)
+      	     (* 		+> for_some !threshold *)
+      	     (* (function flows -> *)
+      	     (* 	flows *)
+      	     (* 	+> List.exists *)
+      	     (* 	  (function f -> *)
+      	     (* 	     f |- p && f |- mk_pat pat *)
+      	     (* 	  ) *)
+      	     (* ) *)
+      		     )
     in
       v_print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
       let nextP1 = get_next abs_P_env ext1 p in
