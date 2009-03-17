@@ -1,0 +1,14 @@
+*.cm*
+*.annot
+*.swp
+*.o
+*~
+scratch
+*.dot
+*.pdf
+out
+err_out
+spdiff
+spdiff.opt
+.*
+
