@@ -64,6 +64,8 @@ let speclist =
       "-macro_file",    Arg.Set_string Config.std_h, "<filename> default macros"
     ]
 
+exception Impossible of int
+
 let v_print s = if !verbose then (print_string s; flush stdout)
 let v_print_string = v_print
 let v_print_endline s = if !verbose then print_endline s
@@ -1002,10 +1004,11 @@ let subpattern g sp1 sp2 =
   let trcs1 = get_pattern_traces g sp1 in
   let trcs2 = get_pattern_traces g sp2 in
   let subseq = sp1 <++ sp2 in
-  let embed  = trcs1 +> List.for_all (function trace1 ->
-					trcs2 +> List.exists (function trace2 -> 
-								embedded_trace g trace1 trace2
-							     )) in
+  let embed  = trcs1 +> List.for_all 
+    (function trace1 ->
+       trcs2 +> List.exists (function trace2 -> 
+			       embedded_trace g trace1 trace2
+			    )) in
     if  embed 
       (* &&
 	 subseq *)
@@ -1457,6 +1460,8 @@ let get_common_node_patterns gss env =
       abs_P_env
 
 
+
+
 let common_patterns_graphs gss =
   (* detect whether a threshold was given *)
   let loc_pred = 
@@ -1467,15 +1472,16 @@ let common_patterns_graphs gss =
       List.for_all)
     else for_some !threshold in
   let subterms_lists = gss
-    +> List.rev_map (function [f] -> 
-		       concrete_of_graph f
-		       +> List.filter (function n -> not(Diff.is_head_node n))
+    +> List.rev_map (function 
+		       | [f] -> 
+			   concrete_of_graph f
+			   +> List.filter (function n -> not(Diff.is_head_node n))
+		       | _ -> raise (Impossible 1)
 		    )
   in
   let unique_subterms = subterms_lists 
     +> tail_flatten 
     +> Diff.rm_dub in
-  let get_first_p sp = List.hd sp in
   let (|-) g sp = List.exists (cont_match g sp) (nodes_of_graph g) in
   let (!-) sp = gss +> loc_pred (function fs -> 
 				   fs +> List.exists (function f -> f |- sp)
@@ -1487,7 +1493,7 @@ let common_patterns_graphs gss =
       Diff.abstract_all_terms subterms_lists unique_subterms env 
       +> List.filter (function (p,e) -> not(infeasible p))
   in
-  let get_pa = get_common_node_patterns gss in
+  (* let get_pa = get_common_node_patterns gss in *)
     find_seq_patterns_new is_subpattern is_frequent_sp_some gss new_get_pa
     +> rm_dups
     +> (function pss -> 
@@ -1580,6 +1586,7 @@ let filter_changed gss gpats =
 					     match di with
 					       | Difftype.ID t 
 					       | Difftype.RM t -> t +++ acc_changed_terms
+					       | _ -> raise (Impossible 2)
 					  ) acc_changed_terms
 		     ) [] in
       c_terms +> List.iter (fun ct -> v_print_endline (Diff.string_of_gtree' ct));
@@ -1650,12 +1657,12 @@ let rec get_context_point chunk =
     | c :: _ -> c
 
 let construct_spatches patterns is_freq =
-  let local_extract diff =
-    let local i = match i with
-      | Difftype.ID (i,t) -> Difftype.ID t
-      | Difftype.ADD (i,t) -> Difftype.ADD t
-      | Difftype.RM (i,t) -> Difftype.RM t in
-      List.map local diff in
+  (* let local_extract diff = *)
+  (*   let local i = match i with *)
+  (*     | Difftype.ID (i,t) -> Difftype.ID t *)
+  (*     | Difftype.ADD (i,t) -> Difftype.ADD t *)
+  (*     | Difftype.RM (i,t) -> Difftype.RM t in *)
+  (*     List.map local diff in *)
     (* The idea is to refine a spatch given a chunk under a certain
      * environment. What kinds of chunks are there and what are appropriate
      * actions for them?
@@ -1698,6 +1705,7 @@ let construct_spatches patterns is_freq =
       | [] -> []
       | Difftype.ADD _ :: chunk -> get_after chunk
       | (Difftype.ID _ | Difftype.RM _) :: chunk ->  chunk
+      | _ -> raise (Impossible 3)
   in
     (* the following function does the real work: given a spatch, an env,
      * and a chunk it finds the context-point of the chunk and inserts the
@@ -1722,8 +1730,9 @@ let construct_spatches patterns is_freq =
     let at_context_point pp chunk_context env =
       match pp, chunk_context_point with
 	| (Difftype.ID p | Difftype.RM p) , (Difftype.ID t | Difftype.RM t) -> 
-	    (try Some (Diff.match_term (extract_pat p) t) with _ -> None
-	       | _ -> None) in
+	    (try Some (Diff.match_term (extract_pat p) t) with _ -> None) 
+	| _ -> raise (Impossible 4) 
+    in
     let embed_context_point pp chunk_context_point =
       match pp, chunk_context_point with
 	| Difftype.ID p, Difftype.ID _ -> Difftype.ID p
@@ -1733,7 +1742,9 @@ let construct_spatches patterns is_freq =
       match iops with
 	| [] -> suffix
 	| Difftype.ADD t :: iops -> 
-	    insert_ops env (Difftype.ADD (Diff.rev_sub env t) :: suffix) iops in
+	    insert_ops env (Difftype.ADD (Diff.rev_sub env t) :: suffix) iops 
+	| _ -> raise (Impossible 5)
+    in
     let rec loop prefix_spatch suffix_spatch =
       match suffix_spatch with
 	| [] -> (List.rev prefix_spatch, [])
@@ -1825,6 +1836,7 @@ let construct_spatches patterns is_freq =
 			| Difftype.RM context_point -> 
 			    (* does the context-point match anything in at least some pattern *)
 			    not(get_change_matches patterns context_point = [])
+			| _ -> raise (Impossible 6)
 		     )
       +> List.rev_map (function chunk -> 
 			 chunk +> List.filter (function it -> match it with
@@ -1929,6 +1941,7 @@ let add_annotation_iop iop a = match iop with
   | Difftype.ID (p, ann) -> Difftype.ID(p, add_annotation ann a)
   | Difftype.RM (p, ann) -> Difftype.RM(p, add_annotation ann a)
   | Difftype.ADD(p, ann) -> Difftype.ADD(p, add_annotation ann a)
+  | _ -> raise (Impossible 7)
 
 let annotate_spatch spatch trace =
   let map2 skipf f ls1 ls2 = 
@@ -1951,7 +1964,8 @@ let annotate_spatch spatch trace =
       sp +> List.iter (function iop -> (match iop with
 					  | Difftype.ID (p, ann) 
 					  | Difftype.RM (p, ann)
-					  | Difftype.ADD(p, ann) -> Diff.string_of_gtree' p +> print_endline)
+					  | Difftype.ADD(p, ann) -> Diff.string_of_gtree' p +> print_endline
+					  | _ -> raise (Impossible 8))
 		      );
       raise (Invalid_argument e)
   in
@@ -1973,8 +1987,10 @@ let corresponds st t next_node_val path =
 		 (match view def with 
 		    | C("def",[hname;htype;_]) when rname = hname && rtype = htype
 			-> Some ([body],
-				 function [newbody] -> 
-				   mkC("def",[rname;rtype;newbody])
+				 function 
+				   | [newbody] -> 
+				       mkC("def",[rname;rtype;newbody])
+				   | _ -> raise (Impossible 9)
 				) +> same_path
 		    | _ -> raise (Diff.Fail "def-fail"))
 	     | _ -> None
@@ -1991,8 +2007,11 @@ let corresponds st t next_node_val path =
 			  if control_node = Diff.control_inloop
 			  then
 			    Some([st], 
-				 (function [st'] -> 
-				   mkC("macroit",[mkC(t_name, [st'])]) +> s_func),
+				 (function 
+				    | [st'] -> 
+					mkC("macroit",[mkC(t_name, [st'])]) +> s_func
+				    | _ -> raise (Impossible 10))
+			   ,
 				   List.tl path
 				)
 			  else raise (Next path)
@@ -2008,9 +2027,13 @@ let corresponds st t next_node_val path =
 		      | Some control_node ->
 			  if control_node = Diff.control_else
 			  then (* select false branch and consume control_node from path *)
-			    Some([f],(function [f] -> mkC("if", [b;t;f]) +> s_func), List.tl path)
+			    Some([f],(function 
+					| [f] -> mkC("if", [b;t;f]) +> s_func
+					| _ -> raise (Impossible 11)), List.tl path)
 			  else (* select true branch and do not consume node from path *)
-			    Some([t],(function [t] -> mkC("if", [b;t;f]) +> s_func)) +> same_path
+			    Some([t],(function 
+					| [t] -> mkC("if", [b;t;f]) +> s_func
+					| _ -> raise (Impossible 12))) +> same_path
 		   )
 	       | C("switch",[e;s]), C("head:switch", [e']) when e = e' ->
 		   Some ([s], function s' ->
@@ -2048,14 +2071,18 @@ let corresponds st t next_node_val path =
 		   Some ([st], function st' ->
 			   mkC("caseRange", e1 :: e2 :: st') +> s_func) +> same_path
 	       | C("default", [st]), A("head:default", _) ->
-		   Some ([st], function [st'] ->
-			   mkC("default", [st']) +> s_func) +> same_path
+		   Some ([st], function 
+			   | [st'] ->
+			       mkC("default", [st']) +> s_func
+			   | _ -> raise (Impossible 13)) +> same_path
 	       | C("caseRange",[e1;e2;st]), A("head:case", _) -> 
 		   Some ([st], function st' ->
 			   mkC("caseRage", e1 :: e2 :: st') +> s_func) +> same_path
 	       | C("labeled", [{Hashcons.node=A("lname", s_lab)} as l; st]), 
 		   A("head:label", lab) ->
-		   Some ([st], function [st] -> mkC("labeled", [l; st]) +> s_func) +> same_path
+		   Some ([st], function 
+			   | [st] -> mkC("labeled", [l; st]) +> s_func
+			   | _ -> raise (Impossible 14)) +> same_path
 	       | _ -> None
 	    )
       | _ -> None
@@ -2201,6 +2228,7 @@ let gtree_of_ann_iop iop = match iop with
   | Difftype.ID(p,_) -> mkC("=",[p])
   | Difftype.RM(p,_) -> mkC("-",[p])
   | Difftype.ADD(p,_)-> mkC("+",[p])
+  | _ -> raise (Impossible 15)
 
 let pending_of_chunk chunk subterm = 
   let embedded_chunk = 
@@ -2249,7 +2277,7 @@ let insert_chunk flow pending_term chunk =
   let f t = 
     match view t with
       | C("pending", [orig_cp; embed]) -> (
-	  print_endline "[Main] SKIPPING chunk...";
+ 	  print_endline "[Main] SKIPPING chunk...";
 	  t)
       | _ -> pending_of_chunk chunk t in
   let paths = ctx_point_nodes +> List.rev_map (get_path flow) in
@@ -2266,6 +2294,7 @@ let perform_pending pending_term =
 			 | C("-",[ctx]) -> true
 			 | _ -> false) emb +> view with
 	| C("=",[p]) | C("-",[p])-> p
+	| _ -> raise (Impossible 16)
     in
       Diff.match_term (extract_pat ctx) orig_cp in
   let unfold_embedded orig embs = 
@@ -2278,6 +2307,8 @@ let perform_pending pending_term =
 	     | C("+", [p]) -> (
 		 let interm = Diff.sub env p in
 		   interm :: res_ts)
+	     | _ -> raise (Impossible 17)
+
 	) embs []
   in
   let rec loop t = match view t with
@@ -2317,6 +2348,7 @@ let apply_spatch spatch (term,flow) =
   let pattern = List.fold_right (fun iop acc_pattern -> match iop with
 				   | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
 				   | Difftype.ADD _ -> acc_pattern
+				   | _ -> raise (Impossible 16)
 				) spatch [] in
   let traces = get_pattern_traces flow pattern in
   let stripped_spatch = spatch +> List.filter 
@@ -2326,7 +2358,9 @@ let apply_spatch spatch (term,flow) =
   let init_annotated = stripped_spatch +> List.map (function iop -> match iop with
 						      | Difftype.ID p -> Difftype.ID (p, empty_annotation)
 						      | Difftype.RM p -> Difftype.RM (p, empty_annotation)
-						      | Difftype.ADD p -> Difftype.ADD (p, empty_annotation)) in
+						      | Difftype.ADD p -> Difftype.ADD (p, empty_annotation)
+						      | _ -> raise (Impossible 17)) in
+  
   let annotated_spatches = traces +> List.map (annotate_spatch init_annotated) in
   let chunkified_spatches = annotated_spatches +> List.rev_map Diff.chunks_of_diff in
   let pending_term = chunkified_spatches +> 
@@ -2357,6 +2391,7 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
   let pattern = List.fold_right (fun iop acc_pattern -> match iop with
 				   | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
 				   | Difftype.ADD _ -> acc_pattern
+				   | _ -> raise (Impossible 18)
 				) spatch [] in
   let matched_flows = flows +> List.filter (function flow ->
 					      flow |- pattern
@@ -2419,6 +2454,7 @@ let apply_spatch_ttf spatch (lhs_term, rhs_term, flows) =
   let pattern = List.fold_right (fun iop acc_pattern -> match iop with
 				   | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
 				   | Difftype.ADD _ -> acc_pattern
+				   | _ -> raise (Impossible 19)
 				) spatch [] in
   let matched_flows = flows +> List.filter (function flow ->
 					      flow |- pattern
