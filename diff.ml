@@ -947,7 +947,7 @@ let get_tree_changes_old gt1 gt2 =
     let next = f prev in
       if next = prev then prev else fix (=) f next
   in
-  let unwrap up = match up with UP(a,b) -> (a,b) in
+  (* let unwrap up = match up with UP(a,b) -> (a,b) in *)
   let f ups = 
     ups +>
       List.rev_map get_ups +>
@@ -962,7 +962,7 @@ let get_tree_changes_old gt1 gt2 =
 
 let get_tree_changes gt1 gt2 =
   let is_up op = match op with UP _ -> true | _ -> false in
-  let get_ups (UP(gt1,gt2) as up) = 
+  let get_ups (UP(gt1,gt2)) = 
     if gt1 = gt2 then []
     else match view gt1, view gt2 with
       | C(t1, gts1), C(t2, gts2) when t1 = t2 ->
@@ -2410,11 +2410,16 @@ let make_compat_pairs lhs rhs_list acc =
 
 let make_gmeta name = mkA ("meta", name)
 
+exception Impossible of int
+
 let metactx = ref 0
 let reset_meta () = metactx := 0
 let inc x = let v = !x in (x := v + 1; v)
 let ref_meta () = inc metactx
 let mkM () = mkA("meta", "X" ^ ref_meta() +> string_of_int)
+let meta_name m = match view m with
+  | A("meta", n) -> n
+  | _ -> raise (Impossible 42)
 let new_meta env t =
   let m = "X" ^ string_of_int (ref_meta ()) in
     (*print_endline *)
@@ -2422,6 +2427,8 @@ let new_meta env t =
     (*string_of_gtree str_of_ctype str_of_catom t);*)
     [make_gmeta m], [(m,t)]
 let is_meta v = match view v with | A("meta", _) -> true | _ -> false
+
+let rev_assoc a l = List.find (function (m,b) -> b = a) l +> fst
 
 let get_metas build_mode org_env t = 
   let rec loop env =
@@ -3366,7 +3373,7 @@ let sub_term env t =
 
 let rec abs_term_one env t t' =
   (* 
-     env : term * term list -- maps term from first term to metavariables in new term
+     env : string * term list -- maps metaname from first term to metavariables in new term
      t   : term
      t'  : term   -- terms from which to produce abstraction
   *)
@@ -3381,18 +3388,19 @@ let rec abs_term_one env t t' =
 	       (t1' :: acc_ts, env')
   	  ) ([], env) ts1 ts2 in
 	  mkC(ty1, List.rev ts'), env'
-    | _, _ -> try List.assoc t env, env with Not_found -> 
+    | _, _ -> try mkA("meta", rev_assoc t env), env with Not_found -> 
 	let new_m = mkM () in
+	let m_name = meta_name new_m in
 	  (* a limitation here is that we assume equal subterms to
 	     always be abstracted by equal metavariables
 	  *)
-	  new_m, (t, new_m) :: env
+	  new_m,  (m_name, t) :: env
 
 
-let abs_term_list t ts =
+let abs_term_list env t ts =
   let res = ts
-    +> List.rev_map (function t' ->  reset_meta (); abs_term_one [] t t' +> fst) 
-    +> List.filter (function t -> not(is_meta t))
+    +> List.rev_map (function t' ->  reset_meta (); abs_term_one env t t') 
+    +> List.filter (function p, env -> not(is_meta p))
     +> rm_dub in
     (* print_string ("abs_term_list " ^ string_of_gtree' t); *)
     (* print_endline (" on ts.length = " ^ ts +> List.length +> string_of_int); *)
@@ -3400,22 +3408,22 @@ let abs_term_list t ts =
     res
 
 
-let abs_term_lists t ts_lists =
+let abs_term_lists env t ts_lists =
   ts_lists
-  +> List.rev_map (abs_term_list t)
+  +> List.rev_map (abs_term_list env t)
 
 
-let get_patterns subterms_lists unique_subterms term =
-  let add_abs t =
+let get_patterns subterms_lists unique_subterms env term =
+  let add_abs (p, env) =
     (* print_endline "[Diff] adding pattern:"; *)
     (* t +> string_of_gtree' +> print_endline;  *)
     try 
-      let cnt = TT.find count_ht t in
-	TT.replace count_ht t (cnt + 1)
+      let cnt = TT.find count_ht p in
+	TT.replace count_ht p (cnt + 1)
     with Not_found ->
-      TT.replace count_ht t 1 in
+      TT.replace count_ht p 1 in
   let rec count term =
-    abs_term_lists term subterms_lists
+    abs_term_lists env term subterms_lists
     +> List.iter 
       (function abs_list ->
 	 abs_list 
@@ -3450,12 +3458,18 @@ let get_patterns subterms_lists unique_subterms term =
 	(fun pattern occurs acc ->
 	   (* print_endline ("[Diff] pattern occurrences: " ^ occurs +> string_of_int); *)
 	   (* pattern +> string_of_gtree' +> print_endline; *)
-	   if occurs >= !no_occurs 
+	   if occurs >= !no_occurs
 	   then
 	     try
-		 let env = match_term pattern term in
-		   (pattern, env) :: acc
-	     with Nomatch -> acc
+	       let env_p = match_term pattern term
+	       in
+		 (pattern, env_p) :: acc
+	     with Nomatch ->
+	       acc
+	     (* try *)
+	     (* 	 let env = match_term pattern term in *)
+	     (* 	   (pattern, env) :: acc *)
+	     (* with Nomatch -> acc *)
 	   else (
 	     (* print_endline ("Infrequent pattern ("^occurs +> string_of_int^"):"); *)
 	     (* pattern +> string_of_gtree' +> print_endline;  *)
@@ -3492,7 +3506,7 @@ let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
 	   | UP(lhs,rhs) -> 
 	       v_print_endline ("[Diff] get patterns for:" ^ 
 				  lhs +> string_of_gtree');
-	       let p_env = get_patterns subterms_lists unique_subterms lhs in
+	       let p_env = get_patterns subterms_lists unique_subterms [] lhs in
 		 if !print_abs
 		 then (
 		   print_endline ("[Diff] for UP(" ^
@@ -3556,18 +3570,7 @@ let infeasible p = useless_abstraction p
 let abstract_term subterms_lists unique_terms env t =
   v_print_endline ("[Diff] abstract_term: " ^
 		   string_of_gtree' t);
-  let extend_env env_p =
-    if not(env = [])
-    then
-      env_p +> List.fold_left
-	(fun acc_env (m,t) -> match rev_lookup env t with
-	   | None -> 
-	       (m, t) :: acc_env
-	   | Some m' -> (m',t) :: acc_env ) []
-    else
-      env_p
-  in
-    get_patterns subterms_lists unique_terms t 
+    get_patterns subterms_lists unique_terms env t 
     +> List.fold_left 
     (fun acc_ps_envs (p, env_p) -> 
        (* p is an abstraction of t and
@@ -3582,8 +3585,7 @@ let abstract_term subterms_lists unique_terms env t =
 	  and for each subterm use rev_lookup to use a different metavar
 
        *)
-       let ext_env = extend_env env_p in
-       let p' = rev_sub ext_env t in
+       let p' = rev_sub env_p t in
 	 if infeasible p'
 	 then
 	   acc_ps_envs
@@ -3593,7 +3595,7 @@ let abstract_term subterms_lists unique_terms env t =
 	   if List.exists (function p'',_ -> p' = p'') acc_ps_envs
 	   then acc_ps_envs
 	   else
-	     (p', ext_env) :: acc_ps_envs
+	     (p', env_p) :: acc_ps_envs
 	 end
 	   
     ) []
