@@ -3487,8 +3487,8 @@ let get_patterns subterms_lists unique_subterms env term =
 					end);
 	  not_counted := false;
 	  print_newline ();
-	  (* if !print_abs *)
-	  (* then begin *)
+	  if !print_abs
+	  then begin
 	    print_endline "[Diff] initial abstracted patterns";
 	    print_endline ("[Diff] threshold: " ^ string_of_int !no_occurs);
 	    count_ht +> TT.iter (fun p n -> 
@@ -3497,7 +3497,7 @@ let get_patterns subterms_lists unique_subterms env term =
 				     print_endline (string_of_gtree' p ^
 						      " : " ^ n +> string_of_int);
 				)
-	  (* end *)
+	  end
       end;
       let res =
 	TT.fold 
