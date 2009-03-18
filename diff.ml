@@ -100,6 +100,12 @@ let (+++) x xs = if List.mem x xs then xs else x :: xs
 (* convenience for application *)
 let (+>) o f = f o
 
+(* sublist *)
+let sublist l1 l2 = l1 +> List.for_all (function e -> List.mem e l2)
+
+(* equality of lists *)
+let eq_lists l1 l2 = sublist l1 l2 && sublist l2 l2
+
 let skip = mkA("SKIP","...")
 
 (* check that list l1 is a sublist of l2 *)
@@ -747,7 +753,14 @@ let is_header head_str =
   head_str.[2] = 'a' &&
   head_str.[3] = 'd'
 
-let is_head_node n = match view n with
+let control_else = mkA("control:else", "Else")
+let control_inloop = mkA("control:loop", "InLoop")
+
+
+let is_head_node n = 
+  n = control_else ||
+  n = control_inloop || 
+  match view n with
   | A(hd,_ ) | C(hd, _ ) -> is_header hd
 
 let non_phony p = match view p with
@@ -1840,8 +1853,6 @@ let read_ast file =
     pgm2
 
 let i2s i = string_of_int i
-let control_else = mkA("control:else", "Else")
-let control_inloop = mkA("control:loop", "InLoop")
 
 let translate_node (n2, ninfo) = match n2 with
   | Control_flow_c2.TopNode -> mkA("phony","TopNode")
@@ -3412,8 +3423,31 @@ let abs_term_lists env t ts_lists =
   ts_lists
   +> List.rev_map (abs_term_list env t)
 
+(* this function partitions elems in eq_classes according to the in_eq
+   function given;
+   basic assumption: **every element belongs to exactly ONE eq_class**
+*)
+let partition in_eq elems =
+  let rec add eq_classes e = match eq_classes with
+    | [] -> [[e]]
+    | eq_cls :: eq_classes when in_eq e eq_cls -> (e :: eq_cls) :: eq_classes
+    | eq_cls :: eq_classes -> eq_cls :: add eq_classes e
+  in
+    elems +> List.fold_left add []
+      
 
 let get_patterns subterms_lists unique_subterms env term =
+  let pat_extension p =
+    unique_subterms +> List.filter (function t -> can_match p t)
+  in
+  let pat_eq (p,env) (p',env') = 
+    let p_ext = pat_extension p in
+    let p_ext'= pat_extension p' in
+      eq_lists p_ext p_ext' in
+  let in_eq p_env eq_cls = pat_eq p_env (List.hd eq_cls) in
+  let pat_cmp (p1,env1) (p2,env2) = Gtree.zsize p2 - Gtree.zsize p1 in
+  let sort_eq_cls eq_cls =
+    List.sort pat_cmp eq_cls in
   let add_abs (p, env) =
     (* print_endline "[Diff] adding pattern:"; *)
     (* t +> string_of_gtree' +> print_endline;  *)
@@ -3453,28 +3487,49 @@ let get_patterns subterms_lists unique_subterms env term =
 					end);
 	  not_counted := false;
 	  print_newline ();
+	  (* if !print_abs *)
+	  (* then begin *)
+	    print_endline "[Diff] initial abstracted patterns";
+	    print_endline ("[Diff] threshold: " ^ string_of_int !no_occurs);
+	    count_ht +> TT.iter (fun p n -> 
+				   if n >= !no_occurs
+				   then
+				     print_endline (string_of_gtree' p ^
+						      " : " ^ n +> string_of_int);
+				)
+	  (* end *)
       end;
-      TT.fold 
-	(fun pattern occurs acc ->
-	   (* print_endline ("[Diff] pattern occurrences: " ^ occurs +> string_of_int); *)
-	   (* pattern +> string_of_gtree' +> print_endline; *)
-	   if occurs >= !no_occurs
-	   then
-	     try
-	       let env_p = match_term pattern term
-	       in
-		 (pattern, env_p) :: acc
-	     with Nomatch ->
-	       acc
-	     (* try *)
-	     (* 	 let env = match_term pattern term in *)
-	     (* 	   (pattern, env) :: acc *)
-	     (* with Nomatch -> acc *)
-	   else (
-	     (* print_endline ("Infrequent pattern ("^occurs +> string_of_int^"):"); *)
-	     (* pattern +> string_of_gtree' +> print_endline;  *)
-	     acc)
-	) count_ht []
+      let res =
+	TT.fold 
+	  (fun pattern occurs acc ->
+	     (* print_endline ("[Diff] pattern occurrences: " ^ occurs +> string_of_int); *)
+	     (* pattern +> string_of_gtree' +> print_endline; *)
+	     if occurs >= !no_occurs
+	     then
+	       try
+		 let env_p = match_term pattern term
+		 in
+		   (pattern, env_p) :: acc
+	       with Nomatch ->
+		 acc
+		   (* try *)
+		   (* 	 let env = match_term pattern term in *)
+		   (* 	   (pattern, env) :: acc *)
+		   (* with Nomatch -> acc *)
+	     else (
+	       (* print_endline ("Infrequent pattern ("^occurs +> string_of_int^"):"); *)
+	       (* pattern +> string_of_gtree' +> print_endline;  *)
+	       acc)
+	  ) count_ht []
+      in
+	res
+(*
+	begin
+	  partition in_eq res
+	  +> List.rev_map sort_eq_cls
+	  +> List.rev_map List.hd
+	end
+*)
     end
 
 

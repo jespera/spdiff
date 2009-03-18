@@ -1468,14 +1468,15 @@ let common_patterns_graphs gss =
     if !threshold = 0
     then (
       threshold := List.length gss;
-      Diff.no_occurs := !threshold;
       List.for_all)
     else for_some !threshold in
+    Diff.no_occurs := !threshold;
   let subterms_lists = gss
     +> List.rev_map (function 
 		       | [f] -> 
 			   concrete_of_graph f
-			   +> List.filter (function n -> not(Diff.is_head_node n))
+			   +> List.filter (function n -> 
+					     not(Diff.is_head_node n))
 		       | _ -> raise (Impossible 1)
 		    )
   in
