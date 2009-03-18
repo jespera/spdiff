@@ -1300,12 +1300,16 @@ let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
 	| _ -> loop p'
   in
   let get_next abs_P_env ext p =
-    v_print_string "[Main] get_next ... ";
-    let res = abs_P_env 
-      +> List.filter
-      (fun (pat, env) -> !- (ext p pat)) in
-      v_print_endline "done";
-      res
+    if p = [] 
+    then abs_P_env
+    else begin
+      v_print_string "[Main] get_next ... ";
+      let res = abs_P_env 
+	+> List.filter
+	(fun (pat, env) -> !- (ext p pat)) in
+	v_print_endline "done";
+	res
+    end
   in
     (* ext1 = p1 p2  -- immediate successort *)
   let ext1 p1 p2 = 
@@ -1469,7 +1473,14 @@ let common_patterns_graphs gss =
     then (
       threshold := List.length gss;
       List.for_all)
-    else for_some !threshold in
+    else begin
+      threshold := int_of_float (
+	((float (List.length gss)) /. 100.0) *. 
+	(float !threshold));
+      for_some !threshold
+    end in
+    print_endline ("[Main] threshold is " ^ string_of_int !threshold ^
+		  " of " ^ gss +> List.length +> string_of_int);
     Diff.no_occurs := !threshold;
   let subterms_lists = gss
     +> List.rev_map (function 

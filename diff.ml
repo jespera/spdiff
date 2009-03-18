@@ -3659,7 +3659,7 @@ let abstract_all_terms subterms_lists unique_terms env =
   let res = unique_terms 
     +> List.rev_map (abstract_term subterms_lists unique_terms env)
     +> tail_flatten
-    +> rm_dub in
+  in
     res
     
 
