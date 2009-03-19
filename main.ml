@@ -647,7 +647,12 @@ let string_of_pattern p =
 	else Diff.string_of_gtree' t
     | skip when skip == view ddd -> "..."
     | gt -> raise (Match_failure (Diff.string_of_gtree' p, 604,0)) in
-    String.concat " " (List.map loc p)
+  let meta_strings = List.rev_map Diff.collect_metas p +> tail_flatten in
+  let head = "@@\n" ^ 
+    String.concat "\n" meta_strings ^
+    "\n@@\n"
+  in
+    head ^ String.concat " " (List.map loc p) ^ "\n"
 
 let renumber_metas_pattern pat =
   let old_meta = !meta_counter in
@@ -857,9 +862,9 @@ and abstract_term depth env t =
 
 let print_patterns ps =
   List.iter (function p -> 
-	       print_string "[[[ ";
-	       print_string (string_of_pattern p);
-	       print_endline " ]]]";
+(* 	       print_string "[[[ "; *)
+	       print_endline (string_of_pattern p);
+(* 	       print_endline " ]]]"; *)
 	    ) ps
 
 (* let non_phony p = match view p with *)
@@ -1254,19 +1259,20 @@ let find_seq_patterns is_frequent_sp is_common g =
     *)
     *) 
 
+let missed = ref 0
 
-let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
+let find_seq_patterns_new sub_pat is_frequent_sp orig_gss get_pa  =
   print_endline "[Main] growing patterns";
   reset_meta();
   let mk_pat p = [mkC("CM",[p])] in
-  let (<==) sp ps = ps +> List.exists (function sp' -> 
-					 sub_pat sp sp' && embedded_pattern sp sp'
-				      ) in
-  let (!-) sp = is_frequent_sp sp in
+  let (<==) sp ps gss = ps +> List.exists (function sp' -> 
+					     sub_pat gss sp sp' && embedded_pattern sp sp'
+					  ) in
+(*   let (||-) gss sp = is_frequent_sp gss sp in *)
   let (+++) x xs = 
     if List.mem x xs then xs else (
       if !print_adding then (
-	print_string "[Main] attempting to add ";
+	print_endline "[Main] adding pattern ";
 	print_endline (string_of_pattern x);
       );
       (*
@@ -1299,17 +1305,26 @@ let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
 	| skip :: _ when skip == ddd -> false
 	| _ -> loop p'
   in
-  let get_next abs_P_env ext p =
+  let get_next abs_P_env ext p gss =
     if p = [] 
-    then abs_P_env
-    else begin
+    then List.rev_map (function (p,e) -> (p,e,gss)) abs_P_env
+    else
+      begin
       v_print_string "[Main] get_next ... ";
       let res = abs_P_env 
-	+> List.filter
-	(fun (pat, env) -> !- (ext p pat)) in
+	+> List.fold_left
+	(fun acc_abs_P_env (pat, env) -> 
+	   let gss' = gss +> List.filter 
+	     (function 
+		| [f] -> f |- (mk_pat pat) && f |- (ext p pat)
+		| _ -> raise (Impossible 117)) in
+	     if List.length gss' < !threshold 
+	     then acc_abs_P_env
+	     else (pat,env, gss') :: acc_abs_P_env
+	) [] in
 	v_print_endline "done";
 	res
-    end
+    end 
   in
     (* ext1 = p1 p2  -- immediate successort *)
   let ext1 p1 p2 = 
@@ -1321,7 +1336,7 @@ let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
     if p1 = [] 
     then [mkC("CM",[p2])] 
     else p1 @ (ddd :: [mkC("CM", [p2])]) in
-  let rec grow' ext p ps (p', env') =
+  let rec grow' ext p ps (p', env', gss) =
     (* flush_string "."; *)
     let ext_p = ext p p' in
     let pp' = renumber_metas_pattern ext_p in
@@ -1332,36 +1347,37 @@ let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
       );
       if
 	valid pp'
-        && (v_print " valid "; is_frequent_sp pp')
+        && (v_print " valid "; is_frequent_sp gss pp')
         && (v_print "is_freq "; 
-	    if !prune then not(pp' <== ps) else true)
+	    if !prune then not((pp' <== ps) gss) else true)
       then (
 	v_print_endline "not_subseq";
 	let ps' = ps ++ pp' in
-	  grow ps' (ext_p, env')
+	  grow ps' (ext_p, env', gss)
       )
       else (
 	v_print_endline "";
 	ps)
-  and grow ps (p, env) =
+  and grow ps (p, env, gss) =
     v_print_string "[Main] getting common cterms after pattern: ";
     v_print_endline (string_of_pattern p);
     let abs_P_env = 
       get_pa env
-      (* +> List.filter (function (pat,env) -> *)
-      (* 			gss  *)
-      (* 			+> for_some !threshold  *)
-      (* 			  (function flows -> *)
-      (* 			     flows  *)
-      (* 			     +> List.exists  *)
-      (* 			       (function f ->  *)
-      (* 				       f |- p && f |- mk_pat pat *)
-      (* 			       ) *)
-      (* 			  )	   *)
-      (* 		     )  *)
+(*       +> List.filter (function (pat,env) -> *)
+(* 			p = [] || *)
+(*       			gss *)
+(*       			+> for_some !threshold *)
+(*       			  (function flows -> *)
+(*       			     flows *)
+(*       			     +> List.exists *)
+(*       			       (function f -> *)
+(*       				       f |- p && f |- mk_pat pat *)
+(*       			       ) *)
+(*       			  ) *)
+(*       		     ) *)
     in
       v_print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
-      let nextP1 = get_next abs_P_env ext1 p in
+      let nextP1 = get_next abs_P_env ext1 p gss in
 	(* there is no need to look for matches of "p...p'" in case
 	   there were no matches of "p p'" because 
 	   |- p p' => |- p...p'
@@ -1370,9 +1386,9 @@ let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
       let abs_P_env' = abs_P_env
 	+> List.filter
 	(fun (pat, env) -> 
-	   not(nextP1 +> List.exists (function (p'', env') -> pat = p''))
+	   not(nextP1 +> List.exists (function (p'', env', gss') -> pat = p''))
 	) in
-      let nextP2 = get_next abs_P_env' ext2 p in
+      let nextP2 = get_next abs_P_env' ext2 p gss in
 	v_print_endline ("[Main] from pattern : " ^ string_of_pattern p);
 	v_print_endline ("[Main] potential new patterns : " ^ string_of_int (
 			   List.length nextP1 + List.length nextP2));
@@ -1381,7 +1397,7 @@ let find_seq_patterns_new sub_pat is_frequent_sp gss get_pa  =
 	  List.fold_left (fun acc_ps pair -> grow' ext1 p acc_ps pair) ps nextP1 in
 	  List.fold_left (fun acc_ps pair -> grow' ext2 p acc_ps pair) ps' nextP2
   in
-    grow [] ([], [])
+    grow [] ([], [], orig_gss)
 
 let patterns_of_graph is_frequent_sp common_np g =
   if !verbose then print_endline ("[Main] considering graph with [" ^ 
@@ -1495,11 +1511,11 @@ let common_patterns_graphs gss =
     +> tail_flatten 
     +> Diff.rm_dub in
   let (|-) g sp = List.exists (cont_match g sp) (nodes_of_graph g) in
-  let (!-) sp = gss +> loc_pred (function fs -> 
+  let (||-) gss sp = gss +> loc_pred (function fs -> 
 				   fs +> List.exists (function f -> f |- sp)
 				) in
-  let is_frequent_sp_some sp = !- sp in
-  let is_subpattern sp1 sp2 = subpattern_some gss sp1 sp2 in
+  let is_frequent_sp_some gss sp = gss ||- sp in
+  let is_subpattern gss sp1 sp2 = subpattern_some gss sp1 sp2 in
   let new_get_pa = 
     function env ->
       Diff.abstract_all_terms subterms_lists unique_subterms env 
@@ -1510,7 +1526,7 @@ let common_patterns_graphs gss =
     +> rm_dups
     +> (function pss -> 
 	  if !filter_patterns
-	  then filter_shorter_sub gss is_subpattern pss 
+	  then filter_shorter_sub gss (is_subpattern gss) pss 
 	  else pss)
       
 let get_fun_name_gflow f =
