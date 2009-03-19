@@ -3434,7 +3434,38 @@ let partition in_eq elems =
     | eq_cls :: eq_classes -> eq_cls :: add eq_classes e
   in
     elems +> List.fold_left add []
-      
+  
+
+let int_of_meta m = 
+  let istring = String.sub m 1 (String.length m - 1) in
+  int_of_string istring
+
+(* return a new metavariable not in use in env *)  
+let fresh_meta env = 
+  let rec get_max max_x env = match env with
+    | [] -> max_x
+    | (m,_) :: env when int_of_meta m > max_x -> get_max (int_of_meta m) env
+    | _ :: env -> get_max max_x env
+  in
+    "X" ^ string_of_int (get_max 0 env + 1)
+
+let new_meta_term env = mkA("meta", fresh_meta env)
+  
+(* extend env_given with bindings from env_init such that
+   ∀m->t,m'->t'∈env_res : m=m' iff t=t'
+*)
+let extend_env env_given env_init =
+  let add_bind acc_env (m,t) =
+    if acc_env +> List.exists 
+      (function (m',t') -> m=m' && not(t=t'))
+    then (fresh_meta acc_env, t) :: acc_env
+    else if acc_env +> List.exists 
+      (function (m',t') -> not(m=m') && t=t')
+    then acc_env
+    else (m,t) +++ acc_env
+  in
+    env_init +> List.fold_left add_bind env_given
+
 
 let get_patterns subterms_lists unique_subterms env term =
   let pat_extension p =
@@ -3502,34 +3533,27 @@ let get_patterns subterms_lists unique_subterms env term =
       let res =
 	TT.fold 
 	  (fun pattern occurs acc ->
-	     (* print_endline ("[Diff] pattern occurrences: " ^ occurs +> string_of_int); *)
-	     (* pattern +> string_of_gtree' +> print_endline; *)
 	     if occurs >= !no_occurs
 	     then
 	       try
-		 let env_p = match_term pattern term
-		 in
-		   (pattern, env_p) :: acc
+		 let env_p = match_term pattern term in
+		 let env_new = extend_env env env_p in
+		 let p_new = rev_sub env_new term in
+		   (p_new, env_new) :: acc
 	       with Nomatch ->
 		 acc
-		   (* try *)
-		   (* 	 let env = match_term pattern term in *)
-		   (* 	   (pattern, env) :: acc *)
-		   (* with Nomatch -> acc *)
 	     else (
-	       (* print_endline ("Infrequent pattern ("^occurs +> string_of_int^"):"); *)
-	       (* pattern +> string_of_gtree' +> print_endline;  *)
 	       acc)
 	  ) count_ht []
       in
 	res
-(*
-	begin
-	  partition in_eq res
-	  +> List.rev_map sort_eq_cls
-	  +> List.rev_map List.hd
-	end
-*)
+	  (*
+	    begin
+	    partition in_eq res
+	    +> List.rev_map sort_eq_cls
+	    +> List.rev_map List.hd
+	    end
+	  *)
     end
 
 
