@@ -1,0 +1,6 @@
+[submodule "tests/xorg/xcalc"]
+	path = tests/xorg/xcalc
+	url = git://anongit.freedesktop.org/xorg/app/xcalc
+[submodule "tests/xorg/xmessage"]
+	path = tests/xorg/xmessage
+	url = git://anongit.freedesktop.org/xorg/app/xmessage
