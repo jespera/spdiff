@@ -2619,12 +2619,16 @@ let find_common_patterns () =
     let gss_rhs = List.rev_map (fun (_, (gt',flows)) -> flows) term_pairs in
     let gpats'' = common_patterns_graphs gss in
     let gpats' = filter_changed gss_rhs gpats'' in
-      print_endline "[Main] *Common* patterns found:";
-      print_patterns gpats';
-	if not(!patterns)
-	then begin
-	  print_endline "[Main] getting rhs flows";
-	  let rhs_flows = get_rhs_flows term_pairs in
+      if List.length gpats' = 0
+      then print_endline "[Main] *NO* common patterns found"
+      else begin
+	print_endline "[Main] *Common* patterns found:";
+	print_patterns gpats';
+      end;
+      if not(!patterns)
+      then begin
+	print_endline "[Main] getting rhs flows";
+	let rhs_flows = get_rhs_flows term_pairs in
 	  print_endline "[Main] getting COMMON rhs node-patterns";
 	  let common_rhs_node_patterns = get_common_node_patterns rhs_flows [] in
 	  let is_freq t = common_rhs_node_patterns +> 
@@ -2668,7 +2672,7 @@ let find_common_patterns () =
 					       +> List.map Diff.string_of_spdiff
 					       +> String.concat "\n");
 			     )
-	end		  
+      end		  
 		  
 		  
 let main () =
