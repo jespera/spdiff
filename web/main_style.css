@@ -1,0 +1,143 @@
+body {
+}
+
+#topnav {
+				text-align: center;
+				padding: 0 2em 0 2em;
+				margin: 0;
+}
+
+#topnav ul {
+				list-style-type: square;
+				padding: 0;
+				margin: 0;
+				background: #9090ff;
+				padding: .2em 0 .2em 0;
+}
+
+#topnav li {
+				padding: .2em 0 .2em 0;
+				background: #9090ff;
+				display: inline;
+}
+
+#topnav a {
+				color: white;
+				text-decoration: none;
+				padding: .2em 1em;
+}
+
+#topnav a:hover {
+				background: white;
+				color: #4040ff;
+}
+
+#active {
+				background: white;
+				color: #4040ff !important;
+}
+
+#content {
+				margin: 0 2em 0 2em;
+				padding: 1em;
+				border-left: 1px #9090ff solid;
+				border-right: 1px #9090ff solid;
+				border-bottom: 1em #9090ff solid;
+}
+
+#content h1 {
+				color: #9090ff;
+				text-decoration: underline;
+}
+
+#content h2 {
+				margin-top: 0;
+				padding-top: 0;
+}
+
+#leftside {
+				width: 50%;
+				float:left;
+				margin:0;
+}
+
+#rightside {
+				border-left: 1px #9090ff solid;
+				margin-left: 55%;
+				padding-left: 1em;
+}
+
+#clear {
+				clear: both;
+				height: 1px;
+				overflow:hidden;
+				margin: 0;
+}
+
+
+#content .news-entry {
+	padding : 0.2em;
+	border-top : 1px solid #9090ff;
+}
+
+
+#content .news-header {
+	font-weight : bold;
+}
+
+#content .news-body {
+	font-style : normal;
+	padding-left : 2em;
+}
+
+.info {
+	margin-top : 0;
+	margin-left : auto;
+	margin-right : auto;
+	margin-bottom : 0;
+	width : 50%;
+}
+.info dl {
+	padding : 1em;
+	background : #e0e0f0;
+}
+.info dt {
+	text-align : left;
+	font-weight: bold;
+}
+.info dd {
+	padding-bottom : 1em;
+}
+
+.code {
+	border : 1px solid #9090a0;
+	background : #e0e0e0;
+	font-family : monospace;
+	padding : 1em;
+	padding-top : 0.2em;
+	padding-bottom : 0;
+}
+
+.code td {
+	vertical-align : top;
+	padding : 0.2em;
+	border-right : 4px solid #9090a0;
+}
+
+#manual pre {
+	border-top : 1px solid #9090a0;
+	border-bottom : 1px solid #9090a0;
+	background : #e0e0e0;
+}
+
+.display-style {
+	text-align : center;
+}
+
+.larger {
+	font-size : 1.4em;
+}
+
+#papers dt {
+				font-weight: bold;
+}
