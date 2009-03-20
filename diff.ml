@@ -3545,10 +3545,17 @@ let get_patterns subterms_lists unique_subterms env term =
 	  flush stdout;
 	  TT.fold (fun pattern occurs acc -> 
 		     if occurs >= !no_occurs
-		     then (pattern, occurs) :: acc
+		     then 
+		       if acc +> List.exists
+			 (function (p,_) -> 
+			    pat_extension p = 
+			     pat_extension pattern)
+		       then acc
+		       else
+			 (pattern, occurs) :: acc
 		     else acc
 		  ) count_ht []
-	  +> (function x -> print_string " partitioning ";x)
+	  +> (function x -> print_string " partitioning";x)
 	  +> partition in_eq
 	  +> (function x -> print_endline " sorting";x)
 	  +> List.rev_map sort_eq_cls
@@ -3725,6 +3732,7 @@ let abstract_all_terms subterms_lists unique_terms env =
   let res = unique_terms 
     +> List.rev_map (abstract_term subterms_lists unique_terms env)
     +> tail_flatten
+    +> rm_dub
   in
     res
     
