@@ -722,6 +722,7 @@ module PT = Hashtbl.Make(PatternTerm)
 
 (* hashtable for counting patterns *)
 let count_ht = TT.create 591
+let prepruned_ht = TT.create 591
 
 
 let occursht = PT.create 591
@@ -3433,7 +3434,19 @@ let partition in_eq elems =
     | eq_cls :: eq_classes when in_eq e eq_cls -> (e :: eq_cls) :: eq_classes
     | eq_cls :: eq_classes -> eq_cls :: add eq_classes e
   in
-    elems +> List.fold_left add []
+  let n = List.length elems in
+  let i = ref 0 in
+    elems +> List.fold_left (fun acc elem -> begin
+			       ANSITerminal.save_cursor ();
+			       ANSITerminal.print_string 
+				 [ANSITerminal.on_default](
+				   !i +> string_of_int ^"/"^
+				     n +> string_of_int);
+			       ANSITerminal.restore_cursor();
+			       flush stdout;
+			       i := !i + 1;
+			       add acc elem
+			     end) []
   
 
 let int_of_meta m = 
@@ -3467,9 +3480,19 @@ let extend_env env_given env_init =
     env_init +> List.fold_left add_bind env_given
 
 
+let pat_e_ht = TT.create 591
+
+
 let get_patterns subterms_lists unique_subterms env term =
   let pat_extension p =
-    unique_subterms +> List.filter (function t -> can_match p t)
+    try
+      TT.find pat_e_ht p
+    with Not_found ->
+      let res = unique_subterms +> List.filter (function t -> can_match p t)
+      in begin
+	  TT.replace pat_e_ht p res;
+	  res
+	end
   in
   let pat_eq (p,env) (p',env') = 
     let p_ext = pat_extension p in
@@ -3516,8 +3539,27 @@ let get_patterns subterms_lists unique_subterms env term =
 					  n := !n + 1;
 					  count uniq_t
 					end);
-	  not_counted := false;
 	  print_newline ();
+	  print_endline ("[Diff] number of patterns: " ^ TT.length count_ht +> string_of_int);
+	  print_string "[Diff] pre-pruning...";
+	  flush stdout;
+	  TT.fold (fun pattern occurs acc -> 
+		     if occurs >= !no_occurs
+		     then (pattern, occurs) :: acc
+		     else acc
+		  ) count_ht []
+	  +> (function x -> print_string " partitioning ";x)
+	  +> partition in_eq
+	  +> (function x -> print_endline " sorting";x)
+	  +> List.rev_map sort_eq_cls
+	  +> List.rev_map List.hd
+	  +> (function x -> print_endline " reconstructing table"; x)
+	  +> List.iter (function (p,n) -> 
+			  TT.replace prepruned_ht p n
+		       );
+	  print_endline ("done with " ^ TT.length count_ht - TT.length prepruned_ht 
+			 +> string_of_int  ^ " elements pruned");
+	  not_counted := false;
 	  if !print_abs
 	  then begin
 	    print_endline "[Diff] initial abstracted patterns";
@@ -3544,7 +3586,7 @@ let get_patterns subterms_lists unique_subterms env term =
 		 acc
 	     else (
 	       acc)
-	  ) count_ht []
+	  ) prepruned_ht []
       in
 	res
 	  (*
