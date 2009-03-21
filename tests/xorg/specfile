@@ -1,6 +1,0 @@
-./xmessage/makeform.c  ./xmessage/makeform.c
-./xmessage/readfile.c  ./xmessage/readfile.c
-./xmessage/xmessage.c  ./xmessage/xmessage.c
-./xcalc/actions.c  ./xcalc/actions.c
-./xcalc/math.c  ./xcalc/math.c
-./xcalc/xcalc.c  ./xcalc/xcalc.c
