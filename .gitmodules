@@ -4,3 +4,6 @@
 [submodule "tests/xorg/xmessage"]
 	path = tests/xorg/xmessage
 	url = git://anongit.freedesktop.org/xorg/app/xmessage
+[submodule "tests/xorg/xclock"]
+	path = tests/xorg/xclock
+	url = git://anongit.freedesktop.org/xorg/app/xclock
