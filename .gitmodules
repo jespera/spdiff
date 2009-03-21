@@ -7,3 +7,6 @@
 [submodule "tests/xorg/xclock"]
 	path = tests/xorg/xclock
 	url = git://anongit.freedesktop.org/xorg/app/xclock
+[submodule "tests/xorg/xbiff"]
+	path = tests/xorg/xbiff
+	url = git://anongit.freedesktop.org/xorg/app/xbiff
