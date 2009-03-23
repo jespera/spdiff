@@ -94,98 +94,15 @@
       to the programs but also as the base for transforming other
       programs similarly.</p>
 
-      <h3>Generic Patches</h3>
-
-      <p>In order to express transformation specifications we focus
-      on what we call <em>generic patches</em>.</p>
-
-      <p>Generic patches have the following syntax:</p>
-      <pre>
-gp   ::= trep | trep; gp
-trep ::= pat1 ==&gt; pat2
-pat  ::= terms from the subject language + meta-variables
-</pre>
-
-      <p>A generic patch is either a <em>term replacement</em> or a
-      sequence of term replacements. A term replacement consists of
-      two patterns <code>pat1</code> and <code>pat2</code> and is
-      comparable to a rewriting rule. The intuition is that a term
-      replacement patch replaces all occurrences of the pattern
-      <code>pat1</code> with the instantiated version of the
-      pattern <code>pat2</code>. By convention capital letters
-      denote meta-variables.</p><strong>Example</strong>
-
-      <p>Suppose the following terms and generic patches are
-      given:</p>
-      <pre>
-t   = h(f(42),f(117),foo())
-tr1 = f(X) ==&gt; f(X,X)
-tr2 = foo() ==&gt; bar()
-gp  = tr1;tr2
-</pre>
-
-      <p>Applying <code>gp</code> to the term <code>t</code> we get
-      a modified term:</p>
-      <pre>
-apply(gp, t) 
-   = apply(tr2, apply(tr1, h(f(42),f(117),foo())))
-   = apply(tr2, h(f(42,42),f(117,117),foo())
-   = h(f(42,42), f(117,117), bar())
-</pre>
-
-      <h3>Generic Patch Inference</h3>
-
-      <p>We can now restate the goal as given a set of pairs of
-      terms <code>C = { (p_1,p_1'), ... , (p_n,p_n') }</code> we
-      wish to infer a <strong>generic patch</strong> that express
-      all the common changes in the set <code>C</code>.</p>
-
-      <p>The question is then naturally: what does it mean to
-      express a common change?</p>
-
-      <p>What we will do is to define what it means that a generic
-      patch expresses (part of) the changes applied in an update to
-      a single pair of terms <code>(t,t')</code> and then the
-      extension to commonality is simple.</p>
-
-      <p>Thus, we consider what it means that a generic patch
-      express part of the changes applied in transforming
-      <code>t</code> into <code>t'</code>.</p>
-
-      <p>Given some generic patch <code>gp</code>, we wish to be
-      able to decide whether the generic patch is part of the
-      transformation of <code>t</code> into <code>t'</code>. Let's
-      write this as
-      <strong><code>gp≼(t,t')</code></strong>.</p>
-
-      <p>Our first intuition is that
-      <code>gp≼(t,t')</code> when there is
-      another generic patch that completes the part of the
-      transformation that <code>gp</code> did not:</p>
-
-      <p class="display-style">
-      <code>gp≼(t,t') &lt;==&gt;
-      ∃gp':gp;gp'(t)=t'</code></p>
-
-      <p>The problem is that now the above definition holds for
-      <strong>any</strong> generic patch <code>gp</code> since
-      <code>gp'</code> can simply undo the changes performed by
-      <code>gp</code> and subsequently perform the right changes.
-      If we can restrict <code>gp'</code> so that it is not allowed
-      to <strong>undo already performed changes</strong> we arrive
-      at a definition of
-      <code>gp≼(t,t')</code>. The precise
-      details can be found in the [<a href=
-      "downloads/ase2008.pdf">ASE2008</a>] paper.</p>
+			<p>To get an intuition for what <code>spdiff</code> can examples can be
+			useful...</p>	
 
       <div id="examples">
         <h2>Examples</h2>
 
-        <h3>Simple example</h3>
-
-        <p>Suppose we have the following three C programs. Please
-        ignore whether or not they are actually <em>valid</em> C
-        programs.</p>
+				<p>Suppose we have the following three C programs. The programs have
+				been constructed to illustrate points not to be interesting or sensible
+				programs.</p>
 
         <table class="code">
           <tr>
@@ -198,11 +115,12 @@ apply(gp, t)
 
           <tr>
             <td>
-              <!-- program 1 -->
-              <pre>
-void foo(void) {
+<!-- p1.c -->
+<pre>
+int foo(void) {
   int x;
   f(x);
+  x = f(x);
   x = g(117);
   return x;
 }
@@ -210,10 +128,11 @@ void foo(void) {
             </td>
 
             <td>
-              <!-- program 2 -->
-              <pre>
-void bar(int y) {
+<!-- p2.c -->
+<pre>
+int bar(int y) {
   int a;
+  a = f(a);
   a = f(a)+g(y);
   return a;
 }
@@ -221,11 +140,12 @@ void bar(int y) {
             </td>
 
             <td>
-              <!-- program 3 -->
-              <pre>
-void smoz(int y) {
+<!-- p3.c -->
+<pre>
+int smoz(int y) {
   int z;
-  z = f(z)*10;
+  z = f(z);
+  z = f(z);
   return z;
 }
 </pre>
@@ -247,11 +167,12 @@ void smoz(int y) {
 
           <tr>
             <td>
-              <!-- program 1' -->
+              <!-- p1'.c -->
               <pre>
 int foo(void) {
   int x;
-  f(x,GFP);
+  f(x);
+  x = f(x, 42);
   x = h(g(117));
   return x+x;
 }
@@ -259,22 +180,24 @@ int foo(void) {
             </td>
 
             <td>
-              <!-- program 2' -->
+              <!-- p2'.c -->
               <pre>
-void bar(int y) {
+int bar(int y) {
   int a;
-  a = f(a,GFP)+g(y,y);
+  a = f(a,42);
+  a = f(a)+g(y,y);
   return a+a;
 }
 </pre>
             </td>
 
             <td>
-              <!-- program 3' -->
+              <!-- p3'.c -->
               <pre>
-void biar(int y) {
+int smoz(int y) {
   int z;
-  z = f(z,GFP)/10;
+  z = f(z);
+  z = f(z, 42);
   return z+z;
 }
 </pre>
@@ -517,7 +440,7 @@ let pp_tree t = match t with
       </div>
 
       <div id="clear"></div>
-    </div><!-- end of content -->
-  </div>
+    </div>
+  </div><!-- end of content -->
 </body>
 </html>
