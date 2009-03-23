@@ -3,10 +3,10 @@ open Common
 
 
 let do_dmine     = ref true
-let malign       = ref false
+let malign       = ref true
 let abs          = ref false
 let spec         = ref false
-let mfile        = ref ""
+let mfile        = ref "specfile"
 let max_level    = ref 10
 let depth        = ref 4
 let strict       = ref false
@@ -22,6 +22,7 @@ let prune        = ref false
 let strip_eq     = ref false
 let patterns     = ref false
 let spatch       = ref false
+let fun_common   = ref false
 let default_abstractness = ref 2.0
 let verbose      = ref false
 let only_changes = ref false
@@ -32,36 +33,27 @@ let filter_spatches = ref false
 let speclist =
   Arg.align
     [
-      "-noncompact",    Arg.Set noncompact,      "bool  also return non-compact solutions";
-      "-specfile",      Arg.Set_string mfile,    "str   name of specification file";
-      "-top",           Arg.Set_int max_level,   "int   terms larger than this will not have subterms abstracted";
-      "-depth",         Arg.Set_int depth,       "int   recursion depth at which we still abstract terms";
-      "-strict",        Arg.Set strict,          "bool  strict: fv(lhs) = fv(rhs) or nonstrict(default): fv(rhs)<=fv(lhs)";
-      "-multiple",      Arg.Set mvars,           "bool  allow equal terms to have different metas";
-      "-fixed",         Arg.Set fixed,           "bool  never abstract fixed terms";
-      "-exceptions",    Arg.Set_int exceptions,  "int   the number of allowed exceptions to the rule derived";
-      "-threshold",     Arg.Set_int threshold,   "int   the minimum number of occurrences required";
+      "-specfile",      Arg.Set_string mfile,    "<filename>   name of specification file " ^ 
+	"(defaults to \"specfile\") ";
+      "-threshold",     Arg.Set_int threshold,   "<num>   the minimum number of occurrences required";
       "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing, 
-      "bool  also parse if0 blocks";
-      "-print_abs",     Arg.Set Diff.print_abs,  "bool  print abstract updates for each term pair";
-      "-relax_safe",    Arg.Set Diff.relax,      "bool  consider non-application safe [experimental]";
-      "-print_raw",     Arg.Set print_raw,       "bool  print the raw list of generated simple updates";
-      "-print_uniq",    Arg.Set print_uniq,      "bool  print the unique solutions before removing smaller ones";
-      "-print_add",     Arg.Set print_adding,    "bool  print statement when adding a new solution in generate_sol";
-      "-prune",         Arg.Set prune,           "bool  try to prune search space by various means";
-      "-strip_eq",      Arg.Set strip_eq,        "bool  use eq_classes for initial atomic patches";
-      "-patterns",      Arg.Set patterns,        "bool  look for common patterns in LHS files";
-      "-spatch",        Arg.Set spatch,          "bool  find semantic patches (not generic)";
-      "-abstractness",  Arg.Set_float default_abstractness,
-      "float abstractness(explain)";
-      "-only_changes",  Arg.Set only_changes,    "bool  only look for patterns in changed functions";
-      "-nesting_depth", Arg.Set_int nesting_depth,
-      "int   allow inference of patterns nested this deep (slow)";
-      "-verbose",       Arg.Set verbose,         "bool  print more intermediate results";
-      "-filter_patterns", Arg.Set filter_patterns, "bool  only produce largest patterns";
-      "-malign",        Arg.Set malign,          "bool  use the new subpatch relation definition";
-      "-filter_spatches", Arg.Set filter_spatches, "bool  filter non-largest spatches";
-      "-macro_file",    Arg.Set_string Config.std_h, "<filename> default macros"
+      "  also parse if0 blocks";
+      "-print_abs",     Arg.Set Diff.print_abs,  "  print abstract updates for each term pair";
+      "-relax_safe",    Arg.Set Diff.relax,      "  consider non-application safe [experimental]";
+      "-print_raw",     Arg.Set print_raw,       "  print the raw list of generated simple updates";
+      "-print_uniq",    Arg.Set print_uniq,      "  print the unique solutions before removing smaller ones";
+      "-print_add",     Arg.Set print_adding,    "  print statement when adding a new solution in generate_sol";
+      "-prune",         Arg.Set prune,           "  try to prune search space by various means";
+      "-strip_eq",      Arg.Set strip_eq,        "  use eq_classes for initial atomic patches";
+      "-patterns",      Arg.Set patterns,        "  look for common patterns in LHS files";
+      "-spatch",        Arg.Set spatch,          "  find semantic patches (not generic)";
+      "-only_changes",  Arg.Set only_changes,    "  only look for patterns in changed functions";
+      "-verbose",       Arg.Set verbose,         "  print more intermediate results";
+      "-filter_patterns", Arg.Set filter_patterns, "  only produce largest patterns";
+      (* "-malign",        Arg.Set malign,          "  use the new subpatch relation definition"; *)
+      "-filter_spatches", Arg.Set filter_spatches, "  filter non-largest spatches";
+      "-macro_file",    Arg.Set_string Config.std_h, "<filename> default macros";
+      "-fun_common",    Arg.Set fun_common, "  infer one abstraction of all functions given"
     ]
 
 exception Impossible of int
@@ -2673,6 +2665,39 @@ let find_common_patterns () =
 					       +> String.concat "\n");
 			     )
       end		  
+
+
+let find_fun_common () =
+  Diff.abs_depth     := !depth;
+  Diff.abs_subterms  := !max_level;
+  read_spec(); (* gets names to process in file_pairs *)
+  (* now make diff-pairs is a list of abs-term pairs *)
+  let term_pairs = 
+    List.fold_left (fun acc_pairs (lfile, rfile) ->
+		      read_filepair_defs lfile rfile @ acc_pairs
+		   ) [] !file_pairs
+    +> List.filter (function (l,r) ->
+    		      not(!only_changes) || not(l = r)
+    		   )
+  in
+    threshold := List.length term_pairs;
+    Diff.no_occurs := !threshold;
+    let subterms_lists = 
+      List.rev_map (function f,_ -> [f]) term_pairs  in
+    let unique_subterms = subterms_lists
+      +> tail_flatten
+      +> Diff.rm_dub in
+    let p_env_list = Diff.abstract_all_terms 
+      subterms_lists 
+      unique_subterms
+      [] in
+      begin
+	print_endline "[Main] resuling abstractions...";
+	p_env_list +>
+	  List.iter (function (p,env) -> 
+		       p +> Diff.string_of_gtree' +> print_endline
+		    )
+      end
 		  
 		  
 let main () =
@@ -2697,6 +2722,8 @@ let main () =
   then raise (Diff.Fail "No specfile given")
   else if !spatch || !patterns
   then find_common_patterns ()
+  else if !fun_common
+  then find_fun_common ()
   else spec_main ()
 
 
