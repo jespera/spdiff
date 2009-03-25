@@ -1,3 +1,3 @@
-p1.c  p1'.c
-p2.c  p2'.c
-p3.c  p3'.c
+examples/p1.c  examples/p1-new.c
+examples/p2.c  examples/p2-new.c
+examples/p3.c  examples/p3-new.c

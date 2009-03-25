@@ -7,6 +7,8 @@ upload: insert *.html
 
 insert: examples/*.c doc.html notabs
 	./insert-prgs.sh doc.html
+	./insert-diffs.sh
+	./insert-cmd.sh
 
 notabs: examples/*.c
 	./rm-tabs.sh

@@ -79,9 +79,13 @@
       email</a>.</p>
 
       <p>The <strong>memory usage</strong> of <code>spdiff</code>
-      depends on the size of the dataset provided to it. For
-      100.000 lines of code in the dataset, the tool uses around
-      30-40 MB.</p>
+      depends on the size of the dataset provided to it. For a total of
+      100.000 lines of code in the dataset, the tool has been seen to use around
+      30-40 MB but sometimes it can also be 100-200 MB. It has also been
+			observed that when <strong>just one</strong> input-file contains around
+			100.000 lines, the tool could use 1-1.5 GB.</p>
+			<p>Generally, smaller files (and fewer functions) means overall less
+			memory usage.</p>
     </div>
 
     <div id="install">

@@ -6,7 +6,7 @@
   <meta name="generator" content=
   "HTML Tidy for Linux (vers 19 September 2007), see www.w3.org" />
   <meta http-equiv="content-type" content=
-  "text/html; charset=utf-8" />
+  "text/html; charset=us-ascii" />
 
   <title>spdiff -- A tool for Semantic Patch Inference</title>
   <link href="main_style.css" rel="stylesheet" type="text/css" />
@@ -94,15 +94,15 @@
       to the programs but also as the base for transforming other
       programs similarly.</p>
 
-			<p>To get an intuition for what <code>spdiff</code> can examples can be
-			useful...</p>	
+      <p>To get an intuition for what <code>spdiff</code> can
+      examples can be useful...</p>
 
       <div id="examples">
         <h2>Examples</h2>
 
-				<p>Suppose we have the following three C programs. The programs have
-				been constructed to illustrate points not to be interesting or sensible
-				programs.</p>
+        <p>Suppose we have the following three C programs. The
+        programs have been constructed to illustrate points not to
+        be interesting or sensible programs.</p>
 
         <table class="code">
           <tr>
@@ -115,8 +115,8 @@
 
           <tr>
             <td>
-<!-- p1.c -->
-<pre>
+              <!-- p1.c -->
+              <pre>
 int foo(void) {
   int x;
   f(x);
@@ -128,8 +128,8 @@ int foo(void) {
             </td>
 
             <td>
-<!-- p2.c -->
-<pre>
+              <!-- p2.c -->
+              <pre>
 int bar(int y) {
   int a;
   a = f(a);
@@ -140,8 +140,8 @@ int bar(int y) {
             </td>
 
             <td>
-<!-- p3.c -->
-<pre>
+              <!-- p3.c -->
+              <pre>
 int smoz(int y) {
   int z;
   z = f(z);
@@ -167,7 +167,7 @@ int smoz(int y) {
 
           <tr>
             <td>
-              <!-- p1'.c -->
+              <!-- p1-new.c -->
               <pre>
 int foo(void) {
   int x;
@@ -180,7 +180,7 @@ int foo(void) {
             </td>
 
             <td>
-              <!-- p2'.c -->
+              <!-- p2-new.c -->
               <pre>
 int bar(int y) {
   int a;
@@ -192,7 +192,7 @@ int bar(int y) {
             </td>
 
             <td>
-              <!-- p3'.c -->
+              <!-- p3-new.c -->
               <pre>
 int smoz(int y) {
   int z;
@@ -205,90 +205,478 @@ int smoz(int y) {
           </tr>
         </table>
 
-        <p>We can express the changes of each program using generic
-        patches in the following way (recall that by convention
-        capital letters are meta-variables.</p>
+				<p>The changes to each file can be shown using the <code>diff</code>
+				program:</p>
 
-        <table class="code">
-          <tr>
-            <th>1 to 1'</th>
-
-            <th>2 to 2'</th>
-
-            <th>3 to 3'</th>
-          </tr>
-
-          <tr>
-            <td>
-              <!-- program 1 to 1' -->
-              <pre>
-    void ==&gt; int
-    f(X) ==&gt; f(X,GFP)
-  g(117) ==&gt; h(g(117))
-return X ==&gt; return X+X
+				<table class="code">
+								<tr>
+												<th><code>diff p1.c p1-new.c</code></th>
+												<th><code>diff p2.c p2-new.c</code></th>
+												<th><code>diff p3.c p3-new.c</code></th>
+								</tr>
+								<tr>
+												<td>
+<!-- diff p1.c p1-new.c -->
+<pre>
+ int foo(void) {
+   int x;
+   f(x);
+-  x = f(x);
+-  x = g(117);
+-  return x;
++  x = f(x, 42);
++  x = h(g(117));
++  return x+x;
+ }
 </pre>
-            </td>
-
-            <td>
-              <!-- program 2 to 2' -->
-              <pre>
-    g(Y) ==&gt; g(Y,Y)
-    f(X) ==&gt; f(X,GFP)
-return X ==&gt; return X+X
+												</td>
+												<td>
+<!-- diff p2.c p2-new.c -->
+<pre>
+ int bar(int y) {
+   int a;
+-  a = f(a);
+-  a = f(a)+g(y);
+-  return a;
++  a = f(a,42);
++  a = f(a)+g(y,y);
++  return a+a;
+ }
 </pre>
-            </td>
-
-            <td>
-              <!-- program 3 to 3' -->
-              <pre>
-       * ==&gt; /
-    f(X) ==&gt; f(X,GFP)
-return X ==&gt; return X+X
+												</td>
+												<td>
+<!-- diff p3.c p3-new.c -->
+<pre>
+ int smoz(int y) {
+   int z;
+   z = f(z);
+-  z = f(z);
+-  return z;
++  z = f(z, 42);
++  return z+z;
+ }
 </pre>
-            </td>
-          </tr>
-        </table>
+												</td>
+								</tr>
+				</table>
 
-        <p>Two changes occur in all three changesets above:
-        <code>f(X) ==&gt; f(X,GFP)</code> and <code>return X =&gt;
-        return X+X</code>. We can put those term replacement
-        patches in sequence and obtain what we call the largest
-        common subpatch relative to the set of programs given:
-        <code>f(X)==&gt;f(X,X);return X==&gt;return X+X</code>.</p>
-        <!--      <h3>Real-world usages</h3> -->
-      </div>
+        <p>By close inspection of the diffs above we can see that some of the
+				changes made in each program look related. In particular some calls to
+				the function <code>f</code> were given a constant extra parameter
+				<code>42</code> and in the <code>return</code>-statements the value is
+				added to itself before being returned.</p>
+				
+				<p>Consider just the changes made to the return statements:
+				<table class="code">
+								<tr>
+												<th><code>diff p1.c p1-new.c</code></th>
+												<th><code>diff p2.c p2-new.c</code></th>
+												<th><code>diff p3.c p3-new.c</code></th>
+								</tr>
+								<tr>
+												<td>
+<!-- exec: diff -u examples/p1.c examples/p1-new.c | grep -v "\(-.-\|+++\|@@\)" | grep return -->
+<pre>
+-  return x;
++  return x+x;
+</pre>
+												</td>
+												<td>
+<!-- exec: diff -u examples/p2.c examples/p2-new.c | grep -v "\(-.-\|+++\|@@\)" | grep return -->
+<pre>
+-  return a;
++  return a+a;
+</pre>
+												</td>
+												<td>
+<!-- exec: diff -u examples/p3.c examples/p3-new.c | grep -v "\(-.-\|+++\|@@\)" | grep return -->
+<pre>
+-  return z;
++  return z+z;
+</pre>
+												</td>
+								</tr>
+				</table>
+
+				<p>If <code>diff</code>s had an abstraction mechanism it would be
+				compelling to abstract away the concrete expression returned and
+				somehow use an abstract placeholder (metavariable) instead.
+				(see also the Coccinelle website for more details on abstract patches:
+				<a href="http://www.emn.fr/x-info/coccinelle/">Coccinelle</a>)</p>
+
+				<!-- exec: ../spdiff.opt -specfile examples/specfile -strip_eq 2> /dev/null | tail -6 | head -5 -->
+<pre class="code">
+@@
+signed int X0;
+@@
+- return X0;
++ return X0+X0;
+</pre>
+
+			<p>Applying the above diff to any one of the (original) programs will
+			update the <code>return</code>-statement in the expected manner.</p>
+
+			<p>Now consider the rest of the changes:</p>
+			<table class="code">
+							<tr>
+											<th><code>diff p1.c p1-new.c</code></th>
+											<th><code>diff p2.c p2-new.c</code></th>
+											<th><code>diff p3.c p3-new.c</code></th>
+							</tr>
+							<tr>
+											<td>
+<!-- exec: diff -u examples/p1.c examples/p1-new.c | grep -v "\(-.-\|+++\|@@\)" | grep = -->
+<pre>
+-  x = f(x);
+-  x = g(117);
++  x = f(x, 42);
++  x = h(g(117));
+</pre>
+												</td>
+												<td>
+<!-- exec: diff -u examples/p2.c examples/p2-new.c | grep -v "\(-.-\|+++\|@@\)" | grep = -->
+<pre>
+-  a = f(a);
+-  a = f(a)+g(y);
++  a = f(a,42);
++  a = f(a)+g(y,y);
+</pre>
+												</td>
+												<td>
+<!-- exec: diff -u examples/p3.c examples/p3-new.c | grep -v "\(-.-\|+++\|@@\)" | grep = -->
+<pre>
+   z = f(z);
+-  z = f(z);
++  z = f(z, 42);
+</pre>
+												</td>
+								</tr>
+				</table>
+				<p>It looks like calls to <code>f</code> got an added constant
+				<code>42</code> so one could suggest the following abstract
+				transformation:</p>
+
+<pre class="code">
+@@ 
+signed int X0;
+@@
+- X0 = f(X0);
++ X0 = f(X0,42);
+</pre>
+
+			<p>However, the above patch does not update all program in the expected
+			manner!</p>
+			<p>When applying to the program <code>p3.c</code> <strong>both</strong> of its
+			calls to <code>f(z)</code> will be updated into <code>f(z,42)</code>, but only
+			<strong>one</strong> of them should have been updated.</p>
+
+			<p>In order to construct a patch that will update all three programs
+			correctly, we need to find some common property that holds of all the
+			<code>X0=f(X0)</code>-statements that should be updated but not of any
+			other <code>X0=f(X0)</code>-statements.</p>
+
+			<p>One candidate for such a property is that all of the <code>X0=f(X0)</code> statements
+			are followed by a <code>return X0</code>-statement.</p>
+
+			<p>Looking again at program <code>p3.c</code> we see that both of the
+			<code>X0=f(X0)</code>-statements have the above property, but if we
+			strengthen the property to additionally say "... and there can be no
+			<code>X0=f(X0)</code>-statement in between." we get a property that fits
+			the bill.</p>
+
+			<p>The way we encode the found property in a patch is by using
+			<code>...</code> to denote such paths:</p>
+
+<!-- exec: ../spdiff.opt -specfile examples/specfile -spatch 2> /dev/null | tail -9 | head -4 -->
+<pre class="code">
+-	X0=f(X0);
++	X0=f(X0,42);
+	...
+	return X0;
+</pre>
+
+			<p>TODO:Add some more here on putting it all together...</p>
+
+			</div><!-- end of examples -->
 
       <div id="manual">
         <h2>Manual</h2>
 
-        <h3>Commandline parameters</h3>
-        <pre>
-$ spdiff -help
-Usage: 
-  -noncompact bool     also return non-compact solutions
-  -dmine bool          indicate to do datamining
-  -specfile str        name of specification file
-  -top int             terms larger than this will not have subterms abstracted
-  -depth int           recursion depth at which point to abstract subterms (default = 4)
-  -strict bool         strict: fv(lhs) = fv(rhs) or nonstrict(default): fv(rhs)&lt;=fv(lhs)
-  -multiple bool       allow equal terms to have different metas
-  -fixed bool          never abstract fixed terms
-  -exceptions int      the number of allowed exceptions to the rule derived
-  -threshold int       the minimum number of occurrences required
-  -noif0_passing bool  also parse if0 blocks
-  -print_abs bool      print abstract updates for each term pair
-  -relax_safe bool     consider non-application safe [experimental]
-  -print_raw bool      print the raw list of generated simple updates
-  -print_uniq bool     print the unique solutions before removing smaller ones
-  -print_add bool      print statement when adding a new solution in generate_sol
-  -prune bool          try to prune search space by various means
-  -strip_eq bool       use eq_classes for initial atomic patches
-  -patterns bool       look for common patterns in LHS files
-  -help                Display this list of options
-  --help               Display this list of options
+				<h3>Functionalities provided</h3>
+
+				<p><code>spdiff</code> has 4 modes of operation:</p>
+				<div class="info">
+								<dl>
+												<dt><a href="#gpi"><em>Generic</em> Patch Inference</a></dt>
+												<dd>Finds common changes that can be expressed as a
+												sequence of context-free term-rewrites.</dd>
+												<dt><a href="#spatch"><em>Semantic</em> Patch Inference</a></dt>
+												<dd>Finds common changes that can have certain
+												context-sensitive (temporal) dependencies.</dd>
+												<dt><a href="#patterns">Semantic <em>Pattern</em> Inference</a></dt>
+												<dd>Finds common context-sensitive patterns in a given
+												set of functions.</dd>
+												<dt><a href="#fun_common">Inference of abstract function definition</a></dt>
+												<dd>Constructs an abstraction of a given set of
+												functions.</dd>
+								</dl>
+				</div>
+				
+				<p style="font-style: italic;">Throughout the following sections we
+				will use the three programs shown previously. We assume that a file
+				named <code>specfile</code> is given with the following contents:</p>
+<pre>
+p1.c  p1-new.c
+p2.c  p2-new.c
+p3.c  p3-new.c
 </pre>
 
-        <h3>Example Usage</h3>
+
+				<div id="gpi">
+								<h3>Generic Patch Inference</h3>
+								
+								<p>This is the default mode of operation for
+								<code>spdiff</code>. In this mode, <code>spdiff</code> looks
+								for generic patches that occur <code>threshold</code> number of
+								times in the given set of functions.
+								</p>
+
+								<h4>What is a generic patch</h4>
+
+								<p>
+
+								<h4>Example usage</h4>
+
+<pre>
+$ spdiff -specfile specfile
+</pre>
+								<p>The resulting generic patch printed is then...</p>
+								<!-- exec: ../spdiff.opt -specfile examples/specfile  2> /dev/null | tail -6 | head -5 -->
+<pre>
+@@
+signed int X0;
+@@
+- return X0;
++ return X0+X0;
+</pre>
+								<p>The resulting generic patch tells us that in
+								<strong>all</strong> functions we can safely modify the
+								<code>return</code>-statement as shown.</p>
+
+								<p>Recall from the discussion above <a href="#examples">[see
+												example]</a> that in program <code>p3.c</code> there
+								was a statement <code>z = f(z);</code> that did not change so
+								the suggestion to simply rewrite <strong>all</strong> such
+								statements into <code>X0 = f(X0,42);</code> was considering
+								unsafe.</p>
+
+								<p>We can specify to <code>spdiff</code> that a patch need
+								only be safe for a certain <strong>number of functions</strong>
+								before it is returned as part of the results using the
+								<code>-threshold</code> parameter:</p>
+<pre>
+$ spdiff -specfile specfile -threshold 2 -prune
+</pre>
+								<!-- exec: ../spdiff.opt -specfile examples/specfile -threshold 2 -prune 2> /dev/null | tail -11 | head -10 -->
+<pre>
+@@
+signed int X0;
+@@
+- X0=f(X0)
++ X0=f(X0,42)
+@@
+signed int X0;
+@@
+- return X0
++ return X0+X0
+</pre>
+
+								<p>In the example we also specify the <code>-prune</code>
+								parameter. The effect is that <code>spdiff</code> tries not
+								to report several equivalent generic patches.</p>
+
+								<p>Had we not used the <code>-prune</code> parameter we would
+								also have the following generic patch returned:</p>
+
+								<!-- exec: ../spdiff.opt -specfile examples/specfile -threshold 2 2> /dev/null | tail -24 | head -10 -->
+<pre>
+@@
+signed int X0;
+@@
+- return X0;
++ return X0+X0;
+@@
+signed int X0;
+@@
+- X0=f(X0);
++ X0=f(X0,42);
+</pre>
+
+								<p>In the example at hand, it does not matter whether we
+								rewrite the <code>return</code>-statement before or after
+								rewriting the statement with a call to <code>f</code>.
+								Therefore, the above generic patch is equivalent to the formly
+								shown in the sense that it has the same effect on the functions
+								given.</p>
+				</div>
+
+				<div id="spatch">
+								<h3>Semantic Patch Inference</h3>
+								
+								<p>To find <em>semantic patches</em> (see the Coccinelle pages
+								for more details on semantic patches: <a
+												href="http://www.emn.fr/x-info/coccinelle/">Coccinelle</a>)
+								one should give the <code>-spatch</code> parameter to
+								<code>spdiff</code>.</p>
+
+								<h4>Example usage</h4>
+<pre>
+$spdiff -specfile specfile -spatch
+</pre>
+								<!-- exec: ../spdiff.opt -specfile examples/specfile -spatch 2> /dev/null -prune | tail -25 -->
+<pre>
+[spatch:]
+	X0=f(X0);
+	...
+-	return X0;
++	return X0+X0;
+[spatch:]
+	X0=X1;
+-	return X0;
++	return X0+X0;
+[spatch:]
+	X0=X1(X2);
+	...
+-	return X0;
++	return X0+X0;
+[spatch:]
+-	X0=f(X0);
++	X0=f(X0,42);
+	...
+-	return X0;
++	return X0+X0;
+[spatch:]
+-	X0=f(X0);
++	X0=f(X0,42);
+	...
+	return X0;
+</pre>
+
+								<p>...</p>
+
+<pre>
+$ spdiff -specfile specfile -spatch -prune -filter_spatches
+</pre>
+								
+								<!-- exec: ../spdiff.opt -specfile examples/specfile -spatch 2> /dev/null -prune -filter_spatches | tail -5 -->
+<pre>
+-	X0=f(X0);
++	X0=f(X0,42);
+	...
+-	return X0;
++	return X0+X0;
+</pre>
+				</div>
+
+				<div id="patterns">
+								<h3>Semantic Pattern Inference</h3>
+
+
+								<h4>Example usage</h4>
+
+								<p>In the command line shown below, one can note that
+								<code>-specfile</code> is not used. When the
+								<code>-specfile</code> parameter is not given,
+								<code>spdiff</code> assumes that it should use a default
+								specfile with the name <code>specfile</code>.</p>
+<pre>
+$ spdiff -patterns -prune -filter_patterns
+</pre>
+								<!-- exec: ../spdiff.opt -specfile examples/specfile -patterns 2> /dev/null -prune -filter_patterns | tail -39 | head -38 -->
+<pre>
+@@
+signed int X0;
+signed int X0;
+@@
+X0=f(X0); ... return X0;
+
+@@
+expression X1;
+signed int X0;
+@@
+X0=X1;
+
+@@
+signed int X0;
+expression X2;
+expression X1;
+signed int X0;
+@@
+X0=X1(X2); ... return X0;
+
+@@
+signed int X0;
+expression X1;
+signed int X0;
+@@
+X0=X1; return X0;
+
+@@
+expression X2;
+expression X1;
+signed int X0;
+@@
+X0=X1(X2);
+
+@@
+signed int X0;
+@@
+X0=f(X0);
+</pre>
+
+				</div>
+
+				<div id="fun_common">
+								<h3>Inference of abstract function definition</h3>
+
+								<h4>Example usage</h4>
+								<p>TODO: Need compelling example...</p>
+<pre>
+$ spdiff -specfile specfile_c -fun_common
+</pre>
+
+				</div>
+
+				<h3>Summary of Commandline parameters</h3>
+				<p>The <code>spdiff</code> tool accepts a number of command line
+				parameters as shown below.</p>
+
+				<!-- exec: ../spdiff.opt -help -->
+        <pre>
+Usage: 
+  -specfile [filename]    name of specification file (defaults to "specfile") 
+  -threshold [num]        the minimum number of occurrences required
+  -noif0_passing          also parse if0 blocks
+  -print_abs              print abstract updates for each term pair
+  -print_raw              print the raw list of generated simple updates
+  -print_uniq             print the unique solutions before removing smaller ones
+  -print_add              print statement when adding a new solution
+  -prune                  try to prune search space by various means
+  -strip_eq               use eq_classes for initial atomic patches
+  -patterns               look for common patterns in LHS files
+  -spatch                 find semantic patches (not generic)
+  -only_changes           only look for patterns in changed functions
+  -verbose                print more intermediate results
+  -filter_patterns        only produce largest patterns
+  -filter_spatches        filter non-largest spatches
+  -macro_file [filename]  default macros
+  -fun_common             infer one abstraction of all functions given
+  -help                   Display this list of options
+  --help                  Display this list of options
+</pre>
+
+				<!--
+				<h3>Example Usage</h3>
 
         <p>In this example we will use the spdiff tool to infer the
         result given in the above example (<a href=
@@ -385,8 +773,9 @@ spdiff -specfile files -top 14 -depth 4 -fixed -prune
           methods. Settings this parameter can drastically decrease
           running time.</dd>
         </dl>
+				-->
 
-        <h3>Unparsing</h3>
+        <h3 id="unparsing">Notes about Unparsing</h3>
 
         <p>The pretty printing part of <code>spdiff</code> is
         currently not very faithful to the original input
@@ -408,15 +797,13 @@ let pp_tree t = match t with
   | C(t,gts) -&gt; t ^ "[" ^ concat "," (map pp_tree gts) ^ "]"
 </pre>
 
-        <p>In the example above, the update to the
-        <code>return</code>-statement is therefore printed as:</p>
-        <pre>
-        return[(X0:int)] ==&gt; return[(X0:int)+(X0:int)]
-</pre>
-
-        <p>For some cases (such as function calls) the printing
+        <p>For some constructs (such as function calls) the printing
         function has special cases not shown above which makes the
-        printed result look more like valid C code.</p>
+				printed result look more like valid C code.</p>
+
+				<p>If you find a case where you think that the printing should have
+				better printing, don't hesitate to send me an email: <a
+								href="mailto:jespera@diku.dk?subject=[spdiff]%20printing%20function%20related">jespera@diku.dk</a>.</p>
       </div>
 
       <div id="papers">
