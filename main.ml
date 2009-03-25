@@ -1252,6 +1252,43 @@ let find_seq_patterns is_frequent_sp is_common g =
 
 let missed = ref 0
 
+(* this function checks (relative to a given graph) whether a
+   node-pattern (np1) can precede another (np2)
+*)
+exception Found_it
+
+let precede_node_patterns g np1 np2 =
+  let found = ref false in
+  let f xo xi = 
+    if not(xo = xi)
+    then
+      let t = Diff.get_val xi g in
+	if Diff.can_match np2 t then
+	  (found := true; raise Found_it)
+  in
+  let node_ids = concrete_nodes_of_graph g 
+    +> List.filter (function (i,t) -> Diff.can_match np1 t)
+    +> List.rev_map fst
+  in
+    try begin
+      node_ids +> List.iter (function i -> dfs_iter i (f i) g);
+      !found;
+    end
+    with Found_it -> true
+
+
+let precede_node_patterns_gss gss np1 np2 =
+  gss +> for_some !threshold (function 
+				| [f] -> precede_node_patterns f np1 np2
+				| _ -> raise (Impossible 142))
+
+let sort_pa_env gss pa_env =
+  let compare (p1,env) (p2,env) =
+    if precede_node_patterns_gss gss p1 p2
+    then -1
+    else 1 in
+    List.sort compare pa_env
+
 let find_seq_patterns_new sub_pat is_frequent_sp orig_gss get_pa  =
   print_endline "[Main] growing patterns";
   reset_meta();
@@ -1259,7 +1296,7 @@ let find_seq_patterns_new sub_pat is_frequent_sp orig_gss get_pa  =
   let (<==) sp ps gss = ps +> List.exists (function sp' -> 
 					     sub_pat gss sp sp' && embedded_pattern sp sp'
 					  ) in
-(*   let (||-) gss sp = is_frequent_sp gss sp in *)
+    (*   let (||-) gss sp = is_frequent_sp gss sp in *)
   let (+++) x xs = 
     if List.mem x xs then xs else (
       if !print_adding then (
@@ -1301,21 +1338,21 @@ let find_seq_patterns_new sub_pat is_frequent_sp orig_gss get_pa  =
     then List.rev_map (function (p,e) -> (p,e,gss)) abs_P_env
     else
       begin
-      v_print_string "[Main] get_next ... ";
-      let res = abs_P_env 
-	+> List.fold_left
-	(fun acc_abs_P_env (pat, env) -> 
-	   let gss' = gss +> List.filter 
-	     (function 
-		| [f] -> f |- (mk_pat pat) && f |- (ext p pat)
-		| _ -> raise (Impossible 117)) in
-	     if List.length gss' < !threshold 
-	     then acc_abs_P_env
-	     else (pat,env, gss') :: acc_abs_P_env
-	) [] in
-	v_print_endline "done";
-	res
-    end 
+	v_print_string "[Main] get_next ... ";
+	let res = abs_P_env 
+	  +> List.fold_left
+	  (fun acc_abs_P_env (pat, env) -> 
+	     let gss' = gss +> List.filter 
+	       (function 
+		  | [f] -> f |- (mk_pat pat) && f |- (ext p pat)
+		  | _ -> raise (Impossible 117)) in
+	       if List.length gss' < !threshold 
+	       then acc_abs_P_env
+	       else (pat,env, gss') :: acc_abs_P_env
+	  ) [] in
+	  v_print_endline "done";
+	  res
+      end 
   in
     (* ext1 = p1 p2  -- immediate successort *)
   let ext1 p1 p2 = 
@@ -1354,18 +1391,19 @@ let find_seq_patterns_new sub_pat is_frequent_sp orig_gss get_pa  =
     v_print_endline (string_of_pattern p);
     let abs_P_env = 
       get_pa env
-(*       +> List.filter (function (pat,env) -> *)
-(* 			p = [] || *)
-(*       			gss *)
-(*       			+> for_some !threshold *)
-(*       			  (function flows -> *)
-(*       			     flows *)
-(*       			     +> List.exists *)
-(*       			       (function f -> *)
-(*       				       f |- p && f |- mk_pat pat *)
-(*       			       ) *)
-(*       			  ) *)
-(*       		     ) *)
+      +> sort_pa_env gss
+	(*       +> List.filter (function (pat,env) -> *)
+	(* 			p = [] || *)
+	(*       			gss *)
+	(*       			+> for_some !threshold *)
+	(*       			  (function flows -> *)
+	(*       			     flows *)
+	(*       			     +> List.exists *)
+	(*       			       (function f -> *)
+	(*       				       f |- p && f |- mk_pat pat *)
+	(*       			       ) *)
+	(*       			  ) *)
+	(*       		     ) *)
     in
       v_print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
       let nextP1 = get_next abs_P_env ext1 p gss in
@@ -1389,6 +1427,7 @@ let find_seq_patterns_new sub_pat is_frequent_sp orig_gss get_pa  =
 	  List.fold_left (fun acc_ps pair -> grow' ext2 p acc_ps pair) ps' nextP2
   in
     grow [] ([], [], orig_gss)
+
 
 let patterns_of_graph is_frequent_sp common_np g =
   if !verbose then print_endline ("[Main] considering graph with [" ^ 
