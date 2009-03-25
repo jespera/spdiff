@@ -1282,11 +1282,17 @@ let precede_node_patterns_gss gss np1 np2 =
 				| [f] -> precede_node_patterns f np1 np2
 				| _ -> raise (Impossible 142))
 
+(* Sort patterns according to precedence relationship such that p2 is
+   put before p1 if p1 precedes p2.  Then, later because get_next
+   preserves ordering we will try to extend the current pattern with
+   p1 before trying with p2; together with pruning this should ensure
+   we do a sensible longest contiguous first search
+*)
 let sort_pa_env gss pa_env =
   let compare (p1,env) (p2,env) =
     if precede_node_patterns_gss gss p1 p2
-    then -1
-    else 1 in
+    then 1
+    else -1 in
     List.sort compare pa_env
 
 let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
@@ -1294,7 +1300,20 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
   reset_meta();
   let mk_pat p = [mkC("CM",[p])] in
   let (<==) sp ps gss = ps +> List.exists (function sp' -> 
-					     sub_pat gss sp sp' && embedded_pattern sp sp'
+					     sub_pat orig_gss sp sp'
+					     && embedded_pattern sp sp'
+
+					  (*
+					    if sub_pat gss sp sp' 
+					    then 
+					    (print_endline "sub-pattern found :";
+					    print_patterns [sp];
+					    print_endline "is less than :";
+					    print_patterns [sp'];
+					    true)
+					    else
+					    false
+					  *)
 					  ) in
     (*   let (||-) gss sp = is_frequent_sp gss sp in *)
   let (+++) x xs = 
@@ -1416,7 +1435,17 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
 	+> List.filter
 	(fun (pat, env) -> 
 	   not(nextP1 +> List.exists (function (p'', env', gss') -> 
-					Diff.node_pat_eq unique_subterms (pat, env) (p'', env')))
+					if Diff.node_pat_eq unique_subterms (pat, env) (p'', env')
+					then (
+					  (* print_endline "pat eq:";
+					      pat +> Diff.string_of_gtree' +> print_endline;
+					      p'' +> Diff.string_of_gtree' +> print_endline;
+					  *)
+					      true
+					     )
+					else
+					  false
+				     ))
 	) in
       let nextP2 = get_next abs_P_env' ext2 p gss in
 	v_print_endline ("[Main] from pattern : " ^ string_of_pattern p);
@@ -1424,8 +1453,8 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
 			   List.length nextP1 + List.length nextP2));
 	v_print_newline ();
 	let ps' = 
-	  List.fold_left (fun acc_ps pair -> grow' ext1 p acc_ps pair) ps nextP1 in
-	  List.fold_left (fun acc_ps pair -> grow' ext2 p acc_ps pair) ps' nextP2
+	  List.fold_left (fun acc_ps p_e_gss -> grow' ext1 p acc_ps p_e_gss) ps nextP1 in
+	  List.fold_left (fun acc_ps p_e_gss -> grow' ext2 p acc_ps p_e_gss) ps' nextP2
   in
     grow [] ([], [], orig_gss)
 
