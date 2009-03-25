@@ -1289,7 +1289,7 @@ let sort_pa_env gss pa_env =
     else 1 in
     List.sort compare pa_env
 
-let find_seq_patterns_new sub_pat is_frequent_sp orig_gss get_pa  =
+let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
   print_endline "[Main] growing patterns";
   reset_meta();
   let mk_pat p = [mkC("CM",[p])] in
@@ -1415,7 +1415,8 @@ let find_seq_patterns_new sub_pat is_frequent_sp orig_gss get_pa  =
       let abs_P_env' = abs_P_env
 	+> List.filter
 	(fun (pat, env) -> 
-	   not(nextP1 +> List.exists (function (p'', env', gss') -> pat = p''))
+	   not(nextP1 +> List.exists (function (p'', env', gss') -> 
+					Diff.node_pat_eq unique_subterms (pat, env) (p'', env')))
 	) in
       let nextP2 = get_next abs_P_env' ext2 p gss in
 	v_print_endline ("[Main] from pattern : " ^ string_of_pattern p);
@@ -1552,7 +1553,7 @@ let common_patterns_graphs gss =
       +> List.filter (function (p,e) -> not(infeasible p))
   in
   (* let get_pa = get_common_node_patterns gss in *)
-    find_seq_patterns_new is_subpattern is_frequent_sp_some gss new_get_pa
+    find_seq_patterns_new unique_subterms is_subpattern is_frequent_sp_some gss new_get_pa
     +> rm_dups
     +> (function pss -> 
 	  if !filter_patterns

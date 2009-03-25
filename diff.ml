@@ -3482,22 +3482,25 @@ let extend_env env_given env_init =
 
 let pat_e_ht = TT.create 591
 
+let node_pat_extension unique_subterms p =
+  try
+    TT.find pat_e_ht p
+  with Not_found ->
+    let res = unique_subterms +> List.filter (function t -> can_match p t)
+    in begin
+	TT.replace pat_e_ht p res;
+	res
+      end
+
+let node_pat_eq unique_subterms (p,env) (p',env') = 
+  let p_ext = node_pat_extension unique_subterms p in
+  let p_ext'= node_pat_extension unique_subterms p' in
+    eq_lists p_ext p_ext'
+
 
 let get_patterns subterms_lists unique_subterms env term =
-  let pat_extension p =
-    try
-      TT.find pat_e_ht p
-    with Not_found ->
-      let res = unique_subterms +> List.filter (function t -> can_match p t)
-      in begin
-	  TT.replace pat_e_ht p res;
-	  res
-	end
-  in
-  let pat_eq (p,env) (p',env') = 
-    let p_ext = pat_extension p in
-    let p_ext'= pat_extension p' in
-      eq_lists p_ext p_ext' in
+  let pat_extension p = node_pat_extension unique_subterms p in
+  let pat_eq pe pe' = node_pat_eq unique_subterms pe pe' in
   let in_eq p_env eq_cls = pat_eq p_env (List.hd eq_cls) in
   let pat_cmp (p1,env1) (p2,env2) = Gtree.zsize p2 - Gtree.zsize p1 in
   let sort_eq_cls eq_cls =
