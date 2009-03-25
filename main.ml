@@ -33,16 +33,15 @@ let filter_spatches = ref false
 let speclist =
   Arg.align
     [
-      "-specfile",      Arg.Set_string mfile,    "<filename>   name of specification file " ^ 
-	"(defaults to \"specfile\") ";
-      "-threshold",     Arg.Set_int threshold,   "<num>   the minimum number of occurrences required";
+            "-specfile",      Arg.Set_string mfile,    "[filename]  name of specification file (defaults to \"specfile\") ";
+            "-threshold",     Arg.Set_int threshold,   "[num]   the minimum number of occurrences required";
       "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing, 
       "  also parse if0 blocks";
       "-print_abs",     Arg.Set Diff.print_abs,  "  print abstract updates for each term pair";
-      "-relax_safe",    Arg.Set Diff.relax,      "  consider non-application safe [experimental]";
+(*      "-relax_safe",    Arg.Set Diff.relax,      "  consider non-application safe [experimental]"; *)
       "-print_raw",     Arg.Set print_raw,       "  print the raw list of generated simple updates";
       "-print_uniq",    Arg.Set print_uniq,      "  print the unique solutions before removing smaller ones";
-      "-print_add",     Arg.Set print_adding,    "  print statement when adding a new solution in generate_sol";
+      "-print_add",     Arg.Set print_adding,    "  print statement when adding a new solution";
       "-prune",         Arg.Set prune,           "  try to prune search space by various means";
       "-strip_eq",      Arg.Set strip_eq,        "  use eq_classes for initial atomic patches";
       "-patterns",      Arg.Set patterns,        "  look for common patterns in LHS files";
@@ -52,7 +51,7 @@ let speclist =
       "-filter_patterns", Arg.Set filter_patterns, "  only produce largest patterns";
       (* "-malign",        Arg.Set malign,          "  use the new subpatch relation definition"; *)
       "-filter_spatches", Arg.Set filter_spatches, "  filter non-largest spatches";
-      "-macro_file",    Arg.Set_string Config.std_h, "<filename> default macros";
+      "-macro_file",    Arg.Set_string Config.std_h, "[filename]  default macros";
       "-fun_common",    Arg.Set fun_common, "  infer one abstraction of all functions given"
     ]
 
@@ -1482,9 +1481,9 @@ let common_patterns_graphs gss =
       threshold := List.length gss;
       List.for_all)
     else begin
-      threshold := int_of_float (
+(*      threshold := int_of_float (
 	((float (List.length gss)) /. 100.0) *. 
-	(float !threshold));
+	(float !threshold)); *)
       for_some !threshold
     end in
     print_endline ("[Main] threshold is " ^ string_of_int !threshold ^

@@ -210,8 +210,8 @@ let rec string_of_gtree str_of_t str_of_c gt =
       | C ("exp", [e]) -> loop e 
 	  (*| C ("exp", [{node=A("meta", x0)}; e]) -> "(" ^ loop e ^ ":_)"*)
       | C ("exp", [{node=C ("TYPEDEXP", [t])} ; e]) ->
-	  "(" ^ loop e ^ ":" ^ loop t ^ ")" 
-	  (* loop e *)
+                      (* "(" ^ loop e ^ ":" ^ loop t ^ ")" *)
+	  loop e 
       | C ("call", f :: args) ->
           loop f ^ "(" ^ String.concat "," (List.map loop args) ^ ")"
       | C ("binary_arith", [{node=A("aop",op_str)} ;e1;e2]) ->
