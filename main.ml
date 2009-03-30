@@ -29,6 +29,7 @@ let only_changes = ref false
 let nesting_depth = ref 1
 let filter_patterns = ref false
 let filter_spatches = ref false
+let print_support = ref false
 
 let speclist =
   Arg.align
@@ -52,7 +53,8 @@ let speclist =
       (* "-malign",        Arg.Set malign,          "  use the new subpatch relation definition"; *)
       "-filter_spatches", Arg.Set filter_spatches, "  filter non-largest spatches";
       "-macro_file",    Arg.Set_string Config.std_h, "[filename]  default macros";
-      "-fun_common",    Arg.Set fun_common, "  infer one abstraction of all functions given"
+      "-fun_common",    Arg.Set fun_common, "  infer one abstraction of all functions given";
+      "-print_support", Arg.Set print_support, "  whether to also print the concrete matched functions for fun_common"
     ]
 
 exception Impossible of int
@@ -1066,7 +1068,7 @@ let embedded_pattern sp1 sp2 =
     | _, _ -> false in
     sp1 <++ sp2
 
-let filter_shorter_sub gss sub_pat pss =
+let filter_shorter_sub_old gss sub_pat pss =
   let (<++) = embedded_pattern in
   let (<@@) p1 p2 = sub_pat p1 p2 in
   let (===) sp1 sp2 = sp1 <@@ sp2 && sp2 <@@ sp1 in
@@ -1084,6 +1086,31 @@ let filter_shorter_sub gss sub_pat pss =
 		       function sp -> not(eq_cls +> List.exists (function sp' -> sp <++ sp' && not(sp = sp')))
 		     ))
     +> tail_flatten
+
+let gsize_spattern sp = Diff.gsize_spattern sp
+
+let filter_shorter_sub gss sub_pat pss =
+  print_endline "[Main] patterns BEFORE filtering";
+  pss +> print_patterns;
+  let (<@@) p1 p2 = sub_pat p1 p2 in
+    pss
+    +> List.fold_left 
+      (fun acc_patterns spattern -> 
+	 if pss +>
+	   List.for_all (function spattern' -> 
+			   match 
+			     sub_pat spattern' spattern, 
+			     sub_pat spattern spattern' with
+			     |  true,  true -> (* == *) 
+				 gsize_spattern spattern' <= gsize_spattern spattern
+			     |  true, false -> (* <  *) true
+			     | false,  true -> (* > *) false
+			     | false, false -> (* || *) true
+			)
+	 then spattern :: acc_patterns
+	 else acc_patterns
+      ) []
+
 
 
 (* let keep_fun sp =  *)
@@ -1488,10 +1515,7 @@ let filter_common_np_graph common_np g =
 *)
 
 
-let rm_dups_pred eq_f ls =
-  print_endline "[Main] removing duplicates based on pred-eq";
-  let (+++) x xs = if List.exists (function y -> eq_f x y) xs then xs else x :: xs in
-    List.fold_left (fun acc_xs x -> x +++ acc_xs) [] ls
+let rm_dups_pred eq_f ls = Diff.rm_dups_pred eq_f ls 
 
 (* get_common_node_patterns : 
    (flow list list) -> env ->
@@ -2690,7 +2714,7 @@ let find_common_patterns () =
 	print_endline "[Main] getting rhs flows";
 	let rhs_flows = get_rhs_flows term_pairs in
 	  print_endline "[Main] getting COMMON rhs node-patterns";
-	  let common_rhs_node_patterns = get_common_node_patterns rhs_flows [] in
+  let common_rhs_node_patterns = get_common_node_patterns rhs_flows [] in
 	  let is_freq t = common_rhs_node_patterns +> 
 	    List.exists (function (gts,env) -> 
 			   gts +> List.exists (function cmp -> Diff.can_match cmp t)
@@ -2748,7 +2772,9 @@ let find_fun_common () =
     		      not(!only_changes) || not(l = r)
     		   )
   in
-    threshold := List.length term_pairs;
+    if !threshold = 0
+    then 
+      threshold := List.length term_pairs;
     Diff.no_occurs := !threshold;
     let subterms_lists = 
       List.rev_map (function f,_ -> [f]) term_pairs  in
@@ -2759,12 +2785,63 @@ let find_fun_common () =
       subterms_lists 
       unique_subterms
       [] in
+    let get_frequency p = 
+      subterms_lists +> 
+	List.fold_left (fun acc_n [def] -> 
+			  if Diff.can_match p def
+			  then acc_n + 1
+			  else acc_n
+		       ) 0 in
       begin
-	print_endline "[Main] resuling abstractions...";
-	p_env_list +>
-	  List.iter (function (p,env) -> 
-		       p +> Diff.string_of_gtree' +> print_endline
-		    )
+	print_endline "[Main] resulting frequent abstractions...";
+	p_env_list 
+	+> (function x -> print_endline "[Main] removing useless patterns"; x)
+	+> List.filter 
+	  (function (p,env) -> 
+	     match view p with
+	       | C("def", [name;funtype;gt_body]) -> 
+		   not(Diff.useless_abstraction gt_body)
+	       | _ -> false
+	  )
+	+> (function x -> print_endline "[Main] sorting according to increasing order of frequency"; x)
+	+> List.sort (fun (p,_) (p',_) -> 
+			get_frequency  p 
+			- get_frequency  p'
+		     )
+	+> List.iter (function (p,env) -> 
+			begin
+			  let sup = subterms_lists 
+			    +> List.fold_left 
+			    (fun
+			       acc_s [def] -> 
+				 if Diff.can_match p def
+				 then acc_s + 1
+				 else acc_s
+			    ) 0 
+			  in
+			    print_endline (">>> freq: " ^ string_of_int sup ^ "\n" ^
+					     p +> Diff.string_of_gtree');
+			    if !print_support
+			    then begin
+			      (* print supporting set also *)
+			      print_endline "[Main] support-set for pattern:";
+			      let count = ref 0 in
+				subterms_lists
+				+> List.iter (function
+						| [def] ->
+						    if Diff.can_match p def
+						    then begin
+						      count := !count + 1;
+						      def +> Diff.string_of_gtree' +> print_endline;
+						    end
+						| _ -> raise (Impossible 116)
+					     );
+				if !count < !threshold
+				then print_endline "[Main] the supperting set seems smaller than threshold?";
+				print_newline();
+			    end
+			end
+		     )
       end
 		  
 		  

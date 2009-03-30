@@ -422,7 +422,7 @@ and trans_ini (ini, _) = match ini with
   (function (ini, _) -> trans_ini ini)
   ilist
 | InitFieldOld (v, ini) -> (* y: value initialiser *)
-    raise (Fail "InitFieldOld")
+    "iniFO" @@@ ["field" %% v ; trans_ini ini] 
 | InitIndexOld (e, ini) -> (* [102]10 initialiser *)
     raise (Fail "InitIndexOld")
 | InitDesignators (deslist, ini) -> (* [0 ... 10] = 1 , .y = 10 *)

@@ -104,7 +104,7 @@ let (+>) o f = f o
 let sublist l1 l2 = l1 +> List.for_all (function e -> List.mem e l2)
 
 (* equality of lists *)
-let eq_lists l1 l2 = sublist l1 l2 && sublist l2 l2
+let eq_lists l1 l2 = sublist l1 l2 && sublist l2 l1
 
 let skip = mkA("SKIP","...")
 
@@ -693,7 +693,8 @@ let get_read_only_val t = match view t with
 
 let mark_as_read_only t = mkC("RO", [t])
 
-let can_match p t = try match match_term p t with _ -> true with Nomatch -> false
+let can_match p t = try (match match_term p t with
+			   | _ -> true) with Nomatch -> false
 
 (* 
  * occursht is a hashtable indexed by a pair of a pattern and term 
@@ -3468,16 +3469,20 @@ let new_meta_term env = mkA("meta", fresh_meta env)
    ∀m->t,m'->t'∈env_res : m=m' iff t=t'
 *)
 let extend_env env_given env_init =
-  let add_bind acc_env (m,t) =
+  let add_bind (acc_env, new_meta_env) (m,t) =
     if acc_env +> List.exists 
       (function (m',t') -> m=m' && not(t=t'))
-    then (fresh_meta acc_env, t) :: acc_env
-    else if acc_env +> List.exists 
-      (function (m',t') -> not(m=m') && t=t')
-    then acc_env
-    else (m,t) +++ acc_env
+    then 
+      let nmeta= fresh_meta acc_env in
+	((nmeta, t) :: acc_env, (nmeta, mkA("meta", m)) :: new_meta_env)
+    else 
+      try 
+	let (m', t') = acc_env +> List.find (function (m',t') -> not(m=m') && t=t') in
+	  (acc_env, (m', mkA("meta", m)) :: new_meta_env)
+      with Not_found -> 
+	((m,t) +++ acc_env, new_meta_env)
   in
-    env_init +> List.fold_left add_bind env_given
+    env_init +> List.fold_left add_bind (env_given, [])
 
 
 let pat_e_ht = TT.create 591
@@ -3547,15 +3552,22 @@ let get_patterns subterms_lists unique_subterms env term =
 	  print_string "[Diff] pre-pruning...";
 	  flush stdout;
 	  TT.fold (fun pattern occurs acc -> 
-		     if occurs >= !no_occurs
+		     let real_occurs = subterms_lists +> List.fold_left 
+		       (fun acc_n [f] -> 
+			  if can_match pattern f
+			  then acc_n + 1
+			  else acc_n
+		       ) 0 in
+		     if real_occurs >= !no_occurs
 		     then 
 		       if acc +> List.exists
 			 (function (p,_) -> 
-			    pat_extension p = 
-			     pat_extension pattern)
+			    pat_extension p 
+			    = pat_extension pattern
+			    && Gtree.zsize pattern > Gtree.zsize p )
 		       then acc
 		       else
-			 (pattern, occurs) :: acc
+			 (pattern, real_occurs) :: acc
 		     else acc
 		  ) count_ht []
 	  +> (function x -> print_string " partitioning";x)
@@ -3572,9 +3584,9 @@ let get_patterns subterms_lists unique_subterms env term =
 	  not_counted := false;
 	  if !print_abs
 	  then begin
-	    print_endline "[Diff] initial abstracted patterns";
+	    print_endline "[Diff] initial (after pre-pruning) abstracted patterns";
 	    print_endline ("[Diff] threshold: " ^ string_of_int !no_occurs);
-	    count_ht +> TT.iter (fun p n -> 
+	    prepruned_ht +> TT.iter (fun p n -> 
 				   if n >= !no_occurs
 				   then
 				     print_endline (string_of_gtree' p ^
@@ -3589,9 +3601,9 @@ let get_patterns subterms_lists unique_subterms env term =
 	     then
 	       try
 		 let env_p = match_term pattern term in
-		 let env_new = extend_env env env_p in
-		 let p_new = rev_sub env_new term in
-		   (p_new, env_new) :: acc
+		 let env_new, new_meta_env = extend_env env env_p in
+		 let p_new = rev_sub new_meta_env pattern in
+		   (p_new, env_new) :: acc;
 	       with Nomatch ->
 		 acc
 	     else (
@@ -3678,12 +3690,13 @@ let rec useless_abstraction p = is_meta p ||
     | C("stmt", [p']) 
     | C("exprstmt", [p']) 
     | C("exp", [p']) 
+    | C("fulltype", [p'])
     | C("dlist", [p']) when useless_abstraction p' -> true
     | C("onedecl",[p_var;p_type;p_storage]) ->
 	[p_var; p_type] +> List.for_all useless_abstraction 
     | A("stobis", _) | A("inline",_) -> true
     | C("storage", [p1;p2]) | C("itype", [p1;p2]) when is_meta p1 || is_meta p2 -> true
-    | C("fulltype", _) (* | C("pointer", _) *) -> true
+(*    | C("fulltype", _) (* | C("pointer", _) *) -> true *)
     | C("exp", [{Hashcons.node=A("ident", _)}]) -> true
     | C("exp", [{Hashcons.node=C("const", _)}]) -> true
     | _ -> false
@@ -3692,14 +3705,15 @@ let rec useless_abstraction p = is_meta p ||
  * Either because it simply a meta-variable X or if it is too abstract
  *)
 (* let infeasible p = is_meta p || abstractness p > !default_abstractness  *)
-let infeasible p = useless_abstraction p
+let infeasible p = false (* useless_abstraction p *)
 
 (* abstract term respecting bindings given in env;
    return all found abstractions of the term and the correspond env
 *)
 
 let abstract_term subterms_lists unique_terms env t =
-  v_print_endline ("[Diff] abstract_term: " ^
+  if !print_abs 
+  then print_endline ("[Diff] abstract_term: " ^
 		   string_of_gtree' t);
     get_patterns subterms_lists unique_terms env t 
     +> List.fold_left 
@@ -3716,26 +3730,35 @@ let abstract_term subterms_lists unique_terms env t =
 	  and for each subterm use rev_lookup to use a different metavar
 
        *)
-       let p' = rev_sub env_p t in
+       let p' = p (* rev_sub env_p t *) in
 	 if infeasible p'
-	 then
+	 then begin
+	   if !print_abs then 
+	     print_endline ("[Diff] infeasible: " ^ p' +> string_of_gtree');
 	   acc_ps_envs
+	 end
 	 else begin
 	   if !patterns && !print_abs
 	   then print_endline ("[Diff] node pattern: " ^ p' +> string_of_gtree');
 	   if List.exists (function p'',_ -> p' = p'') acc_ps_envs
 	   then acc_ps_envs
 	   else
-	     (p', env_p) :: acc_ps_envs
+	     (* (p', env_p) :: acc_ps_envs *)
+	     (p, env_p) :: acc_ps_envs
 	 end
 	   
     ) []
+
+let rm_dups_pred eq_f ls = 
+  let (+++) x xs = if List.exists (function y -> eq_f x y) xs then xs else x :: xs in
+    List.fold_left (fun acc_xs x -> x +++ acc_xs) [] ls
+
 
 let abstract_all_terms subterms_lists unique_terms env =
   let res = unique_terms 
     +> List.rev_map (abstract_term subterms_lists unique_terms env)
     +> tail_flatten
-    +> rm_dub
+    +> rm_dups_pred (fun (p1,_) (p2,_) -> p1 = p2)
   in
     res
     

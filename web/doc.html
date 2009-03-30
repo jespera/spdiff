@@ -92,7 +92,12 @@
       were applied in all programs. This specification can serve as
       both a high level documentation of the common changes applied
       to the programs but also as the base for transforming other
-      programs similarly.</p>
+			programs similarly.</p>
+
+			<p>For a more comprehensive description there is a paper to read: <a
+			href="downloads/ase2008.pdf">pdf</a>. Eventually, more papers will appear
+			in the "papers" section of this web page: <a href="#papers">go to papers
+			section</a>.</p> 
 
       <p>To get an intuition for what <code>spdiff</code> can
       examples can be useful...</p>
@@ -375,17 +380,18 @@ signed int X0;
 			<code>X0=f(X0)</code>-statements that should be updated but not of any
 			other <code>X0=f(X0)</code>-statements.</p>
 
-			<p>One candidate for such a property is that all of the <code>X0=f(X0)</code> statements
-			are followed by a <code>return X0</code>-statement.</p>
+			<p>One candidate for such a property is : <em>"All of the statements
+			matching <code>X0=f(X0)</code> are always followed by a <code>return
+			X0</code>-statement."</em></p>
 
 			<p>Looking again at program <code>p3.c</code> we see that both of the
 			<code>X0=f(X0)</code>-statements have the above property, but if we
-			strengthen the property to additionally say "... and there can be no
-			<code>X0=f(X0)</code>-statement in between." we get a property that fits
+			strengthen the property to additionally say <em>"... and there can be no
+			<code>X0=f(X0)</code>-statement in between."</em> we get a property that fits
 			the bill.</p>
 
 			<p>The way we encode the found property in a patch is by using
-			<code>...</code> to denote such paths:</p>
+			"<code>...</code>" (yes: dot dot dot) to denote such paths:</p>
 
 <!-- exec: ../spdiff.opt -specfile examples/specfile -spatch 2> /dev/null | tail -9 | head -4 -->
 <pre class="code">
@@ -395,7 +401,30 @@ signed int X0;
 	return X0;
 </pre>
 
-			<p>TODO:Add some more here on putting it all together...</p>
+			<h4>Putting it all together</h4>
+
+			<p>We have now found two patches that were common in all the changes made
+			in each of the three programs. We just need to put the two patches
+			together somehow.</p>
+
+			<p>One can see that the latter of the two common patches found rely on
+			finding a <code>return</code>-statement in order to apply. Now recall
+			that the first common patch we found applies to the
+			<code>return</code>-statements, so we should apply the first patch
+			<strong>after</strong> the latter.</p>
+
+			<p>However, we can also simply merge the two patches into one and get a
+			patch that has the same effect as applying the two consecutively:</p>
+
+			<!-- exec: ../spdiff.opt -specfile examples/specfile -spatch 2> /dev/null -prune -filter_spatches | tail -5 -->
+<pre class="code">
+-	X0=f(X0);
++	X0=f(X0,42);
+	...
+-	return X0;
++	return X0+X0;
+</pre>
+
 
 			</div><!-- end of examples -->
 
@@ -541,12 +570,12 @@ $spdiff -specfile specfile -spatch
 -	return X0;
 +	return X0+X0;
 [spatch:]
-	X0=X1;
+	X0=X1(X2);
+	...
 -	return X0;
 +	return X0+X0;
 [spatch:]
-	X0=X1(X2);
-	...
+	X0=X1;
 -	return X0;
 +	return X0+X0;
 [spatch:]
@@ -594,11 +623,18 @@ $ spdiff -patterns -prune -filter_patterns
 </pre>
 								<!-- exec: ../spdiff.opt -specfile examples/specfile -patterns 2> /dev/null -prune -filter_patterns | tail -39 | head -38 -->
 <pre>
+expression X1;
+signed int X0;
+@@
+X0=X1; return X0;
+
+[Main] *Common* patterns found:
 @@
 signed int X0;
+expression X1;
 signed int X0;
 @@
-X0=f(X0); ... return X0;
+X0=X1; return X0;
 
 @@
 expression X1;
@@ -616,22 +652,15 @@ X0=X1(X2); ... return X0;
 
 @@
 signed int X0;
-expression X1;
-signed int X0;
+expression X0;
 @@
-X0=X1; return X0;
-
-@@
-expression X2;
-expression X1;
-signed int X0;
-@@
-X0=X1(X2);
+signed int X0; ... return X0;
 
 @@
 signed int X0;
+expression X0;
 @@
-X0=f(X0);
+signed int X0; ... X0=f(X0);
 </pre>
 
 				</div>
