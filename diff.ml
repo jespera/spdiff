@@ -3502,6 +3502,8 @@ let node_pat_eq unique_subterms (p,env) (p',env') =
   let p_ext'= node_pat_extension unique_subterms p' in
     eq_lists p_ext p_ext'
 
+let gsize_spattern sp = 
+  sp +> List.fold_left (fun acc_s gt -> Gtree.zsize gt + acc_s) 0
 
 let get_patterns subterms_lists unique_subterms env term =
   let pat_extension p = node_pat_extension unique_subterms p in
