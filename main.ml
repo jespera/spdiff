@@ -2348,7 +2348,13 @@ let insert_chunk flow pending_term chunk =
   let paths = ctx_point_nodes +> List.rev_map (get_path flow) in
     paths +>
       List.fold_left (fun acc_t path -> 
-			locate_subterm flow pending_term path f) pending_term
+			try 
+			  locate_subterm flow pending_term path f
+			with LocateSubterm -> 
+			  begin
+			    print_endline "[Main] empty path...?";
+			    acc_t
+			  end) pending_term
 
 
 let perform_pending pending_term = 
