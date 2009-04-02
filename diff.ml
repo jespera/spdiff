@@ -167,7 +167,7 @@ let rec string_of_gtree str_of_t str_of_c gt =
           let n = match view name with
             | A("name", n) -> n
             | A("meta", x0) -> string_of_meta name in
-            "(" ^ r ^ " " ^ n ^ ":" ^ string_of_ftype [ft] ^ ")"
+            r ^ " " ^ string_of_ftype [ft] ^ " " ^ n
       | _ -> loop param
   and string_of_ftype fts = 
     let loc cvct = match view cvct with
@@ -189,22 +189,35 @@ let rec string_of_gtree str_of_t str_of_c gt =
           let ret_type_string = string_of_ftype [rt] in
           let par_type_strings = List.map string_of_param pars in
             "("^ 
-              String.concat "**" par_type_strings 
+              String.concat ", " par_type_strings 
             ^ ")->" ^ ret_type_string
       | C("enum", [{node=A ("enum_name", en)}; enumgt]) -> "enumTODO"
       | C("struct", [{node=C(sname, [stype])}]) -> 
           "struct " ^ sname ^ "{" ^ loop stype ^"}"
       | A ("struct", name) -> "struct " ^ name
+      | C ("typeName", [{node=A("meta",id)}; {node=A("fullType","unknown")}])
+      | C ("typeName", [{node=A("ident",id)}; {node=A("fullType","unknown")}]) -> id
+      | C ("typeName", [{node=A("ident",id)}; ft]) 
+      | C ("typeName", [{node=A("meta",id)}; ft]) -> string_of_ftype [ft] ^ " " ^ id
       | _ -> loop cvct
       | C(tp,ts) -> tp ^ "<" ^ String.concat ", " (List.map loop ts) ^ ">"
       | A(tp,t) -> tp ^ ":" ^ t ^ ":"
     in
       String.concat " " (List.map loc fts)
+  and string_of_aop aop = match view aop with
+    | A("aop", op_str) -> op_str
+    | A("meta", x) -> x
+    | _ -> raise (Impossible 1017)
   and loop gt =
     match view gt with
       | A ("meta", c) -> string_of_meta gt
 	  (*      | A ("itype", _) -> string_of_itype gt 
       | A (t,c) -> t ^ ":" ^ c *)
+      | C ("binary_arith", [aop;e1;e2]) ->
+	  let aop_str = string_of_aop aop in
+	  let e1_str = loop e1 in
+	  let e2_str = loop e2 in
+	    e1_str ^ " " ^ aop_str ^ " " ^ e2_str
       | C ("fulltype", ti) -> string_of_ftype ti
       | C ("const", [{node=A(_, c)}]) -> c
       | C ("itype", _ ) -> string_of_itype gt
@@ -237,6 +250,21 @@ let rec string_of_gtree str_of_t str_of_c gt =
       | C ("stmt", [s]) -> loop s ^ ";"
       | C ("return", [e]) -> "return " ^ loop e
       | A ("goto", lab) -> "goto " ^ lab
+      | C ("comp{}", compound) -> "{" ^ 
+	  compound +> List.map loop +> String.concat " "
+	  ^ "}"
+      | C ("def", [{node=A("fname", n)}; {node=C("funtype", rt :: args)}; body]) 
+      | C ("def", [{node=A("meta", n)};  {node=C("funtype", rt :: args)}; body]) ->
+	  string_of_ftype [rt] ^ " " ^ n ^ " (" ^ 
+	    List.map string_of_param args +> String.concat ", "
+	  ^ ") " ^ 
+	    loop body
+      | C ("cond3", [cond_gt;t_gt;f_gt]) ->
+	  loop cond_gt ^ " ? " ^
+	    loop t_gt ^ " : " ^
+	    loop f_gt
+      | C ("argtype", [at]) ->loop at
+      | C ("param", ps) -> string_of_param gt
       | C (t, gtrees) -> 
           str_of_t t ^ "[" ^
           String.concat "," (List.map loop gtrees)
@@ -3463,8 +3491,7 @@ let rec useless_abstraction p = is_meta p ||
     | C("stmt", [p']) 
     | C("exprstmt", [p']) 
     | C("exp", [p']) 
-    | C("fulltype", [p'])
-    | C("dlist", [p']) when useless_abstraction p' -> true
+    | C("fulltype", [p']) when useless_abstraction p' -> true
     | C("onedecl",[p_var;p_type;p_storage]) ->
 	[p_var; p_type] +> List.for_all useless_abstraction 
     | A("stobis", _) | A("inline",_) -> true
@@ -3478,7 +3505,15 @@ let rec useless_abstraction p = is_meta p ||
  * Either because it simply a meta-variable X or if it is too abstract
  *)
 (* let infeasible p = is_meta p || abstractness p > !default_abstractness  *)
-let infeasible p = false (* useless_abstraction p *)
+
+let rec contains_infeasible p = 
+  match view p with
+    | C("binary_arith", [op; _; _]) 
+    | C("binary_logi",  [op; _; _]) when is_meta op -> true
+    | C(_,ts) -> ts +> List.exists contains_infeasible
+    | _ -> false
+
+let infeasible p = contains_infeasible p (* useless_abstraction p *)
 
 (* abstract term respecting bindings given in env;
    return all found abstractions of the term and the correspond env
