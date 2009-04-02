@@ -2203,10 +2203,13 @@ let locate_subterm g orig_subterm path f =
     v_print_endline (Diff.verbose_string_of_gtree orig_subterm);
     v_print_string "[Main] path ";
     v_print_endline (path +> List.map string_of_int +> String.concat " ");
-    let last = List.nth path (List.length path - 1) in
-      v_print_string "[Main] looking for:";
-      v_print_endline (get_val last +> Diff.verbose_string_of_gtree);
-
+    if not(List.length path = 0) 
+    then begin
+      let last = List.nth path (List.length path - 1) in
+	v_print_string "[Main] looking for:";
+	v_print_endline (get_val last +> Diff.verbose_string_of_gtree);
+    end;
+      
       let is_typed e = match view e with
 	| C("TYPEDEXP", _) -> true
 	| _ -> false in
