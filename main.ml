@@ -24,7 +24,6 @@ let patterns     = ref false
 let spatch       = ref false
 let fun_common   = ref false
 let default_abstractness = ref 2.0
-let verbose      = ref false
 let only_changes = ref false
 let nesting_depth = ref 1
 let filter_patterns = ref false
@@ -48,7 +47,7 @@ let speclist =
       "-patterns",      Arg.Set patterns,        "  look for common patterns in LHS files";
       "-spatch",        Arg.Set spatch,          "  find semantic patches (not generic)";
       "-only_changes",  Arg.Set only_changes,    "  only look for patterns in changed functions";
-      "-verbose",       Arg.Set verbose,         "  print more intermediate results";
+      "-verbose",       Arg.Set Jconfig.verbose,         "  print more intermediate results";
       "-filter_patterns", Arg.Set filter_patterns, "  only produce largest patterns";
       (* "-malign",        Arg.Set malign,          "  use the new subpatch relation definition"; *)
       "-filter_spatches", Arg.Set filter_spatches, "  filter non-largest spatches";
@@ -59,9 +58,9 @@ let speclist =
 
 exception Impossible of int
 
-let v_print s = if !verbose then (print_string s; flush stdout)
+let v_print s = if !Jconfig.verbose then (print_string s; flush stdout)
 let v_print_string = v_print
-let v_print_endline s = if !verbose then print_endline s
+let v_print_endline s = if !Jconfig.verbose then print_endline s
 let v_print_newline () = v_print_endline ""
 
 let ddd = Diff.ddd
@@ -76,49 +75,9 @@ let tail_flatten lss =
 
 let (+++) x xs = if List.mem x xs then xs else x :: xs
 
-
-let filesep = Str.regexp " +"
 let file_pairs = ref []
 
-let read_filepair old_file new_file =
-  print_endline 
-    ("Reading file pair " ^
-       old_file ^ " " ^ new_file);
-  Diff.read_src_tgt old_file new_file
 
-let read_filepair_defs old_file new_file =
-  print_endline 
-    ("Reading file pair " ^
-       old_file ^ " " ^ new_file);
-  Diff.read_src_tgt_def old_file new_file
-
-let read_filepair_cfg old_file new_file =
-  print_endline 
-    ("Reading file pair " ^
-       old_file ^ " " ^ new_file);
-  Diff.read_src_tgt_cfg old_file new_file
-
-let read_spec () =
-  print_endline ("Spec. file is: " ^ !mfile);
-  let ins = open_in !mfile in
-  let rec loop () =
-    let next_line = input_line ins in 
-    let next_two  = Str.split filesep next_line in
-      if Str.string_before (List.hd next_two) 1 = "#"
-      then
-	print_endline "Comment"
-      else (
-	print_endline ("Parsed two: " ^ 
-			 List.nth next_two 0 ^ ", " ^
-			 List.nth next_two 1);
-	file_pairs := (
-          List.nth next_two 0,
-          List.nth next_two 1) :: 
-          !file_pairs);
-      loop ()
-  in
-    try loop () with
-	End_of_file -> ()
 
 let changeset_from_pair fixf gt1 gt2 =
   Diff.unabstracted_sol gt1 gt2
@@ -493,11 +452,11 @@ let strip term_pairs abs_patches =
 let spec_main () =
   Diff.abs_depth     := !depth;
   Diff.abs_subterms  := !max_level;
-  read_spec(); (* gets names to process in file_pairs *)
+  file_pairs := Reader.read_spec !mfile; (* gets names to process in file_pairs *)
   (* now make diff-pairs is a list of abs-term pairs *)
   let term_pairs = 
     List.fold_left (fun acc_pairs (lfile, rfile) ->
-		      read_filepair_defs lfile rfile @ acc_pairs
+		      Reader.read_filepair_defs lfile rfile @ acc_pairs
 		   ) [] !file_pairs
     +> List.filter (function (l,r) ->
     		      not(!only_changes) || not(l = r)
@@ -635,7 +594,7 @@ let fold_botup term upfun initial_result =
 let string_of_pattern p =
   let loc p = match view p with
     | C("CM", [t]) -> 
-	if !verbose
+	if !Jconfig.verbose
 	then Diff.verbose_string_of_gtree t
 	else Diff.string_of_gtree' t
     | skip when skip == view ddd -> "..."
@@ -1092,24 +1051,23 @@ let gsize_spattern sp = Diff.gsize_spattern sp
 let filter_shorter_sub gss sub_pat pss =
   print_endline "[Main] patterns BEFORE filtering";
   pss +> print_patterns;
-  let (<@@) p1 p2 = sub_pat p1 p2 in
-    pss
-    +> List.fold_left 
-      (fun acc_patterns spattern -> 
-	 if pss +>
-	   List.for_all (function spattern' -> 
-			   match 
-			     sub_pat spattern' spattern, 
-			     sub_pat spattern spattern' with
+  pss
+  +> List.fold_left 
+    (fun acc_patterns spattern -> 
+       if pss +>
+	 List.for_all (function spattern' -> 
+			 match 
+			   sub_pat spattern' spattern, 
+			   sub_pat spattern spattern' with
 			     |  true,  true -> (* == *) 
-				 gsize_spattern spattern' <= gsize_spattern spattern
+				  gsize_spattern spattern' <= gsize_spattern spattern
 			     |  true, false -> (* <  *) true
 			     | false,  true -> (* > *) false
 			     | false, false -> (* || *) true
-			)
-	 then spattern :: acc_patterns
-	 else acc_patterns
-      ) []
+		      )
+       then spattern :: acc_patterns
+       else acc_patterns
+    ) []
 
 
 
@@ -1414,7 +1372,7 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
     (* flush_string "."; *)
     let ext_p = ext p p' in
     let pp' = renumber_metas_pattern ext_p in
-      if !verbose then ( 
+      if !Jconfig.verbose then ( 
 	print_string ("[Main] testing : " ^ 
 			List.map Diff.string_of_gtree' pp'
 		      +> String.concat " ");
@@ -1487,14 +1445,14 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
 
 
 let patterns_of_graph is_frequent_sp common_np g =
-  if !verbose then print_endline ("[Main] considering graph with [" ^ 
+  if !Jconfig.verbose then print_endline ("[Main] considering graph with [" ^ 
 				    string_of_int (List.length (concrete_of_graph g)) ^ 
 				    "] cnodes");
   (*
     let pa = concrete_of_graph g in
   *)
   let ps = find_seq_patterns is_frequent_sp common_np g in
-    if !verbose
+    if !Jconfig.verbose
     then (
       print_endline "[Main] found patterns:";    
       print_patterns ps);
@@ -1558,7 +1516,7 @@ let get_common_node_patterns gss env =
     in
       v_print_endline " done";
       v_print_endline ("[Main] common abstract terms : " ^ string_of_int (List.length abs_P_env));
-      if !verbose then 
+      if !Jconfig.verbose then 
 	abs_P_env +> List.iter (function (gts,env) -> 
 				  gts +> List.iter (function gt -> print_endline (Diff.string_of_gtree' gt)));
       abs_P_env
@@ -1726,37 +1684,29 @@ let filter_changed gss gpats =
 
 let lhs_flows_of_term_pairs term_pairs =
   print_endline "[Main] getting lhs flows";
-  let res = 
-    List.rev_map (fun ((gt,flows), (gt',flows')) -> 
-		    if !only_changes 
-		    then
-		      let filtered_lhs_flows = flows +> List.filter 
-			(function f -> 
-			   (* is f changed in RHS ? *)
-			   let f_name = try get_fun_name_gflow f 
-			   with Not_found -> 
-			     raise (Diff.Fail ("function not found")) 
-			   in
-			     if not(flows' +> List.exists (equal_flows f))
-			     then (
-			       print_endline ("[Main] function " ^ f_name ^ " changed");
-			       true)
-			     else (
-			       false
-			     )
-			)
-		      in
-			filtered_lhs_flows
-		    else flows
-		 ) term_pairs
-  in
-    res 
-    +> List.rev_map 
-      (function flows -> 
-	 flows +> List.rev_map 
-	   (function f -> [f])
-      ) 
-    +> tail_flatten
+  term_pairs 
+  +> List.fold_left 
+    (fun  acc ((gt,flow), (gt',flow')) -> 
+       if !only_changes 
+       then
+	 let f_name = 
+	   try get_fun_name_gflow flow 
+	   with Not_found ->
+	     raise (Diff.Fail ("no function found in LHS")) 
+	 in
+	   if not(equal_flows flow flow')
+	   then (
+	     print_endline ("[Main] function " ^ f_name ^ " changed");
+	     [flow] :: acc
+	   )
+	   else
+	     acc
+       else
+	 [flow] :: acc
+    ) []
+
+
+
 
 (* at this point we have a set/list of spatterns that we know to match
    on some term that is believed to have been involved in a change; the
@@ -2693,14 +2643,14 @@ let get_largest_spatchs ttf_list spatches =
 let find_common_patterns () =
   malign := true;
   Diff.malign_mode := true;
-  read_spec(); (* gets names to process in file_pairs *)
+  file_pairs := Reader.read_spec !mfile; (* gets names to process in file_pairs *)
   let term_pairs = List.rev (
     List.fold_left (fun acc_pairs (lfile, rfile) ->
-		      read_filepair_cfg lfile rfile :: acc_pairs
+		      Reader.read_filepair_cfg lfile rfile @ acc_pairs
 		   ) [] !file_pairs) in
     print_endline ("[Main] read " ^ string_of_int (List.length term_pairs) ^ " files");
     let gss = lhs_flows_of_term_pairs term_pairs in
-    let gss_rhs = List.rev_map (fun (_, (gt',flows)) -> flows) term_pairs in
+    let gss_rhs = List.rev_map (fun (_, (gt',flow')) -> [flow']) term_pairs in
     let gpats'' = common_patterns_graphs gss in
     let gpats' = filter_changed gss_rhs gpats'' in
       if List.length gpats' = 0
@@ -2714,15 +2664,15 @@ let find_common_patterns () =
 	print_endline "[Main] getting rhs flows";
 	let rhs_flows = get_rhs_flows term_pairs in
 	  print_endline "[Main] getting COMMON rhs node-patterns";
-  let common_rhs_node_patterns = get_common_node_patterns rhs_flows [] in
+	  let common_rhs_node_patterns = get_common_node_patterns rhs_flows [] in
 	  let is_freq t = common_rhs_node_patterns +> 
 	    List.exists (function (gts,env) -> 
 			   gts +> List.exists (function cmp -> Diff.can_match cmp t)
 			) 
 	  in
 	  let sp_candidates = construct_spatches gpats' is_freq in
-	  let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flows),(rhs_gt,_)) -> 
-						       (lhs_gt, rhs_gt, lhs_flows)
+	  let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flow),(rhs_gt,_)) -> 
+						       (lhs_gt, rhs_gt, [lhs_flow])
 						    ) in
 	  let is_transformation_sp sp = 
 	    sp +> List.exists (function p ->
@@ -2762,11 +2712,11 @@ let find_common_patterns () =
 let find_fun_common () =
   Diff.abs_depth     := !depth;
   Diff.abs_subterms  := !max_level;
-  read_spec(); (* gets names to process in file_pairs *)
+  file_pairs := Reader.read_spec !mfile; (* gets names to process in file_pairs *)
   (* now make diff-pairs is a list of abs-term pairs *)
   let term_pairs = 
     List.fold_left (fun acc_pairs (lfile, rfile) ->
-		      read_filepair_defs lfile rfile @ acc_pairs
+		      Reader.read_filepair_defs lfile rfile @ acc_pairs
 		   ) [] !file_pairs
     +> List.filter (function (l,r) ->
     		      not(!only_changes) || not(l = r)
@@ -2786,12 +2736,12 @@ let find_fun_common () =
       unique_subterms
       [] in
     let get_frequency p = 
-      subterms_lists +> 
-	List.fold_left (fun acc_n [def] -> 
-			  if Diff.can_match p def
-			  then acc_n + 1
-			  else acc_n
-		       ) 0 in
+      (* Diff.TT.find Diff.prepruned_ht p 
+      *)
+      unique_subterms +> List.fold_left
+	(fun acc_n t -> if Diff.can_match p t
+	 then acc_n + 1 else acc_n) 0
+    in
       begin
 	print_endline "[Main] resulting frequent abstractions...";
 	p_env_list 
@@ -2852,8 +2802,9 @@ let main () =
   Diff.use_mvars     := !mvars;
   Diff.be_fixed      := !fixed;
   Diff.no_exceptions := !exceptions;
-  Diff.verbose       := !verbose;
+  Diff.verbose       := !Jconfig.verbose;
   Diff.nesting_depth := !nesting_depth;
+  malign             := true;
   Diff.malign_mode   := !malign;
   Diff.patterns      := !patterns;
   Diff.abs_subterms  := !max_level;
