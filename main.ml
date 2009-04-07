@@ -604,7 +604,7 @@ let string_of_pattern p =
     String.concat "\n" meta_strings ^
     "\n@@\n"
   in
-    head ^ String.concat " " (List.map loc p) ^ "\n"
+    head ^ String.concat ";\n" (List.map loc p) ^ "\n"
 
 let renumber_metas_pattern pat =
   let old_meta = !meta_counter in
@@ -896,7 +896,7 @@ let follows_sp sp g pa =
 let rec chop x xs = match xs with
   | [] -> raise Not_found
   | x' :: xs' when x = x' -> xs'
-  | x' :: xs' -> chop x xs'
+  | _  :: xs' -> chop x xs'
 
 (* subsequence *)
 let rec (<++) p p' = p = [] || match p, p' with
@@ -936,7 +936,8 @@ let get_pattern_traces g sp =
 					| Some trs -> trs :: acc_trs
 				   ) []
 
-(* a pattern sp is a subpattern of another sp' if all the traces of sp are contained within the traces of sp *)
+(* a pattern sp is a subpattern of another sp' if all the traces of sp
+   are contained within the traces of sp *)
 let embedded_trace g tr1 tr2 = 
   tr1 +> List.for_all (function t_list -> 
 			 tr2 +> List.exists (function t_list' -> 
@@ -1666,7 +1667,7 @@ let get_change_matches_terms spatterns terms =
  * that it thinks have changed or are related to a change to filter out patterns
  * match at least one of those terms
  *)
-let filter_changed gss gpats = 
+let filter_changed (* gss *) gpats = 
   if !only_changes 
   then (
     print_endline "[Main] looking for changed patterns";
@@ -1945,6 +1946,7 @@ let construct_spatches patterns is_freq =
       let init_spatches_env = 
 	patterns 
 	+> List.rev_map (function sp -> 
+			   print_patterns [sp];
 			   sp +> List.map (function p -> Difftype.ID p), []) in
 	v_print_endline ("[Main] building spatches based on " ^
 			 List.length good_chunks +> string_of_int 
@@ -2683,9 +2685,9 @@ let find_common_patterns () =
 		   ) [] !file_pairs) in
     print_endline ("[Main] read " ^ string_of_int (List.length term_pairs) ^ " files");
     let gss = lhs_flows_of_term_pairs term_pairs in
-    let gss_rhs = List.rev_map (fun (_, (gt',flow')) -> [flow']) term_pairs in
+    (* let gss_rhs = List.rev_map (fun (_, (gt',flow')) -> [flow']) term_pairs in *)
     let gpats'' = common_patterns_graphs gss in
-    let gpats' = filter_changed gss_rhs gpats'' in
+    let gpats' = filter_changed (* gss_rhs *) gpats'' in
       if List.length gpats' = 0
       then print_endline "[Main] *NO* common patterns found"
       else begin
@@ -2697,48 +2699,61 @@ let find_common_patterns () =
 	print_endline "[Main] getting rhs flows";
 	let rhs_flows = get_rhs_flows term_pairs in
 	  print_endline "[Main] getting COMMON rhs node-patterns";
-	  let common_rhs_node_patterns = get_common_node_patterns rhs_flows [] in
-	  let is_freq t = common_rhs_node_patterns +> 
-	    List.exists (function (gts,env) -> 
-			   gts +> List.exists (function cmp -> Diff.can_match cmp t)
-			) 
-	  in
-	  let sp_candidates = construct_spatches gpats' is_freq in
-	  let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flow),(rhs_gt,_)) -> 
-						       (lhs_gt, rhs_gt, [lhs_flow])
-						    ) in
-	  let is_transformation_sp sp = 
-	    sp +> List.exists (function p ->
-				 match p with
-				   | Difftype.ID _ -> false
-				   | _ -> true) in
-	  let trans_patches = sp_candidates +> List.filter is_transformation_sp in
-	    print_endline ("[Main] filtering safe semantic patches ("^ trans_patches +> 
-	    		     List.length +> 
-			     string_of_int ^")");
-	    let res_spatches = 
-	      trans_patches
-	      +> List.filter (function sp -> is_spatch_safe_ttf_list sp ttf_list)
+	  let common_rhs_node_patterns = 
+	    (* this function should be FIXED: it uses abstract_term
+	       which should be removed *)
+	    get_common_node_patterns rhs_flows [] in
+	    if !Jconfig.verbose
+	    then (
+	      print_endline "[Main] common rhs node-patterns:";
+	      common_rhs_node_patterns +> List.iter (function gts,env ->
+						       gts+> List.iter (function gt ->
+									  gt +> Diff.string_of_gtree' 
+									  +> print_endline
+								       )
+						    )
+	    );
+	    let is_freq t = common_rhs_node_patterns +> 
+	      List.exists (function (gts,env) -> 
+			     gts +> List.exists (function cmp -> Diff.can_match cmp t)
+			  ) 
 	    in
-	      print_endline ("[Main] filtering largest semantic patches ("^
-			       res_spatches +> List.length +> string_of_int
-			     ^")");
-	      let largest_spatches =
-		res_spatches 
-		+> (function spatches -> 
-		      if !filter_spatches then get_largest_spatchs ttf_list spatches
-		      else spatches)
-		+> rm_dups
+	    let sp_candidates = construct_spatches gpats' is_freq in
+	    let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flow),(rhs_gt,_)) -> 
+							 (lhs_gt, rhs_gt, [lhs_flow])
+						      ) in
+	    let is_transformation_sp sp = 
+	      sp +> List.exists (function p ->
+				   match p with
+				     | Difftype.ID _ -> false
+				     | _ -> true) in
+	    let trans_patches = sp_candidates +> List.filter is_transformation_sp in
+	      print_endline ("[Main] filtering safe semantic patches ("^ trans_patches +> 
+	    		       List.length +> 
+			       string_of_int ^")");
+	      let res_spatches = 
+		trans_patches
+		+> List.filter (function sp -> is_spatch_safe_ttf_list sp ttf_list)
 	      in
-		print_endline ("[Main] *REAL* semantic patches inferred: " ^
-				 List.length largest_spatches +> string_of_int);
-		largest_spatches
-		+> List.iter (function diff ->
-				print_endline "[spatch:]";
-				print_endline (diff
-					       +> List.map Diff.string_of_spdiff
-					       +> String.concat "\n");
-			     )
+		print_endline ("[Main] filtering largest semantic patches ("^
+				 res_spatches +> List.length +> string_of_int
+			       ^")");
+		let largest_spatches =
+		  res_spatches 
+		  +> (function spatches -> 
+			if !filter_spatches then get_largest_spatchs ttf_list spatches
+			else spatches)
+		  +> rm_dups
+		in
+		  print_endline ("[Main] *REAL* semantic patches inferred: " ^
+				   List.length largest_spatches +> string_of_int);
+		  largest_spatches
+		  +> List.iter (function diff ->
+				  print_endline "[spatch:]";
+				  print_endline (diff
+						 +> List.map Diff.string_of_spdiff
+						 +> String.concat "\n");
+			       )
       end		  
 
 
