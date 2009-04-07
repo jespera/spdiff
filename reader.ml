@@ -93,11 +93,13 @@ let read_spec mfile =
 
 let i2s i = string_of_int i
 
+let mkStmt n = mkC("stmt", [n])
+
 let translate_node (n2, ninfo) = match n2 with
   | Control_flow_c2.TopNode -> mkA("phony","TopNode")
   | Control_flow_c2.EndNode -> mkA("phony","EndNode")
   | Control_flow_c2.FunHeader def -> mkC("head:def", [Visitor_j.trans_def def])
-  | Control_flow_c2.Decl decl -> Visitor_j.trans_decl decl
+  | Control_flow_c2.Decl decl -> Visitor_j.trans_decl decl +> mkStmt
   | Control_flow_c2.SeqStart (s,i,info) -> mkA("head:seqstart", "{" ^ i2s i)
   | Control_flow_c2.SeqEnd (i, info) -> mkA("head:seqend", "}" ^ i2s i)
   | Control_flow_c2.ExprStatement (st, (eopt, info)) -> Visitor_j.trans_statement st
@@ -324,7 +326,16 @@ let read_src_tgt_cfg src tgt =
 			     ) None 
 	   +> (function x -> match x with
 		 | None -> acc_pairs
-		 | Some (gt_f,cost) -> ((gt_lhs,flow_lhs), gt_f) :: acc_pairs)
+		 | Some (gt_f,cost) -> begin
+		     if !Jconfig.verbose 
+		     then
+		       print_endline ("[Reader] mapping " ^		    
+					gt_lhs +> Diff.string_of_gtree' ^
+					" to " ^
+					gt_f +> fst +> Diff.string_of_gtree');
+		     ((gt_lhs,flow_lhs), gt_f) :: acc_pairs
+		   end)
+
       ) [] in
       pairs +> List.iter (function ((gt1,f1), (gt2,f2)) -> 
 			    Diff.get_flow_changes [f1] [f2]);
