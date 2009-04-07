@@ -291,7 +291,12 @@ let verbose_string_of_gtree gt =
 let str_of_ctype x = x
 let str_of_catom a = a
 
-let string_of_gtree' = string_of_gtree str_of_ctype str_of_catom
+let string_of_gtree' gt = 
+  if !verbose
+  then
+    verbose_string_of_gtree gt
+  else
+    string_of_gtree str_of_ctype str_of_catom gt
 
 
 let collect_metas gt = 
@@ -339,15 +344,15 @@ let rec string_of_diff d =
   let make_string_header gt = collect_metas gt in
     match d with
       | SEQ(p1,p2) -> "SEQ:  " ^ string_of_diff p1 ^ " ; " ^ string_of_diff p2
-      | ID s -> "ID:  " ^ string_of_gtree str_of_ctype str_of_catom s
+      | ID s -> "ID:  " ^ string_of_gtree' s
       | UP(s,s') -> 
 	  "@@\n" ^ String.concat "\n" (make_string_header s) ^
 	    "\n@@\n" ^
-	    "- " ^ (string_of_gtree str_of_ctype str_of_catom s) ^ 
+	    "- " ^ (string_of_gtree' s) ^ 
 	    "\n" ^
-	    "+ " ^ (string_of_gtree str_of_ctype str_of_catom s')
-      | ADD s -> "ADD:  " ^ string_of_gtree str_of_ctype str_of_catom s
-      | RM s -> "RM:  " ^ string_of_gtree str_of_ctype str_of_catom s
+	    "+ " ^ (string_of_gtree' s')
+      | ADD s -> "ADD:  " ^ string_of_gtree' s
+      | RM s -> "RM:  " ^ string_of_gtree' s
 
 let extract_pat p = match view p with
 | C("CM", [p]) -> p
@@ -2979,11 +2984,6 @@ let make_fixed_list_old updates =
 (*let jfix  = list_fixed jlist*)
 
 
-
-
-
-
-let verbose = ref false
 
 let get_fun_name_gflow f =
   let head_node = f#nodes#tolist +> List.find (function (i,n) -> match view n with
