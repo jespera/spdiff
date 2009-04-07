@@ -1923,11 +1923,12 @@ let construct_spatches patterns is_freq =
 			    not(get_change_matches patterns context_point = [])
 			| _ -> raise (Impossible 6)
 		     )
-      +> List.rev_map (function chunk -> 
-			 chunk +> List.filter (function it -> match it with
-						 | Difftype.ADD t -> is_freq t
-						 | _ -> true))
+      (* +> List.rev_map (function chunk ->  *)
+      (* 			 chunk +> List.filter (function it -> match it with *)
+      (* 						 | Difftype.ADD t -> is_freq t *)
+      (* 						 | _ -> true)) *)
     in
+      print_endline "[Main] good chunks";
       good_chunks  
       +> List.iter (function diff -> 
 		      v_print_endline "[Chunk]";
