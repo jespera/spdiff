@@ -59,7 +59,7 @@ let speclist =
 exception Impossible of int
 
 let v_print s = if !Jconfig.verbose then (print_string s; flush stdout)
-let v_print_string = v_print
+let v_print_string s = v_print s
 let v_print_endline s = if !Jconfig.verbose then print_endline s
 let v_print_newline () = v_print_endline ""
 
