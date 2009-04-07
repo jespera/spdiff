@@ -1050,21 +1050,43 @@ let filter_shorter_sub_old gss sub_pat pss =
 let gsize_spattern sp = Diff.gsize_spattern sp
 
 let filter_shorter_sub gss sub_pat pss =
-  print_endline "[Main] patterns BEFORE filtering";
+  print_endline "[Main] patterns BEFORE filtering";  
   pss +> print_patterns;
   pss
   +> List.fold_left 
     (fun acc_patterns spattern -> 
        if pss +>
 	 List.for_all (function spattern' -> 
-			 match 
-			   sub_pat spattern' spattern, 
-			   sub_pat spattern spattern' with
-			     |  true,  true -> (* == *) 
-				  gsize_spattern spattern' <= gsize_spattern spattern
-			     |  true, false -> (* <  *) true
-			     | false,  true -> (* > *) false
-			     | false, false -> (* || *) true
+			 if spattern = spattern'
+			 then
+			   begin
+			     print_endline "=";
+			     gsize_spattern spattern' <= gsize_spattern spattern
+			   end
+			 else
+			   match
+			     sub_pat spattern' spattern, 
+			     sub_pat spattern spattern' with
+			       |  true,  true -> (* == *)
+				    begin
+				      print_endline "==";
+				      spattern' 
+				      +> List.map Diff.string_of_gtree'
+				      +> String.concat " "
+				      +> print_string;
+				      spattern' +> gsize_spattern +> string_of_int +>
+					function s -> print_endline (" " ^ s);
+					  spattern
+					  +> List.map Diff.string_of_gtree'
+					  +> String.concat " "
+					  +> print_string;
+					  spattern +> gsize_spattern +> string_of_int +>
+					    function s -> print_endline (" " ^ s);
+					      gsize_spattern spattern' <= gsize_spattern spattern
+				    end
+			       |  true, false -> (* <  *) true
+			       | false,  true -> (* > *) false
+			       | false, false -> (* || *) true
 		      )
        then spattern :: acc_patterns
        else acc_patterns
