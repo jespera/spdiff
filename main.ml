@@ -966,7 +966,8 @@ let subpattern g sp1 sp2 =
        trcs2 +> List.exists (function trace2 -> 
 			       embedded_trace g trace1 trace2
 			    )) in
-    if  embed 
+    if  embed
+      && not(trcs1 = [])
       (* &&
 	 subseq *)
     then 
