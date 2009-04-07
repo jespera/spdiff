@@ -3370,7 +3370,7 @@ let get_patterns subterms_lists unique_subterms env term =
 			 (function (p,_) -> 
 			    pat_extension p 
 			    = pat_extension pattern
-			    && Gtree.zsize pattern > Gtree.zsize p )
+			    && Gtree.zsize p > Gtree.zsize pattern)
 		       then acc
 		       else
 			 (pattern, real_occurs) :: acc
