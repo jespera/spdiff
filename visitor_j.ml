@@ -17,8 +17,8 @@ let (<<) a b = make_type_expl a :: b
 let (@@) a b' = match view b' with
   (*| C(b,l) -> C(a^":"^b,l)*)
   (*| C(b,l) -> C(a, b << l)*)
-  | C(b,l) -> mkC(a, [b'])
-  | A(b,l) -> mkC(a, [b'])
+  | C(b,_)
+  | A(b,_) -> mkC(a, [b'])
 let (@@@) a b = mkC(a, b)
 let (%%) a b = type_a_term a b
 let (!!) a = mkA(a, "N/H")
@@ -181,7 +181,9 @@ and trans_assi_old op = (*{{{*)
 
 and trans_arg arg = match arg with
   | Common.Left e -> trans_expr e
-  | Common.Right (ArgType p) -> mkA("argtype", "N/H")
+  | Common.Right (ArgType p) -> mkC("argtype",
+				    [trans_param (p,[])]
+				   )
   | Common.Right (ArgAction amac) -> mkA("argact", "N/H")
 
 and trans_statement (sta : statement) = 
