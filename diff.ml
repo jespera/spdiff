@@ -3521,7 +3521,7 @@ let rec contains_infeasible p =
     | C(_,ts) -> ts +> List.exists contains_infeasible
     | _ -> false
 
-let infeasible p = contains_infeasible p (* useless_abstraction p *)
+let infeasible p = contains_infeasible p || useless_abstraction p
 
 (* abstract term respecting bindings given in env;
    return all found abstractions of the term and the correspond env
