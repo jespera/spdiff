@@ -3400,16 +3400,19 @@ let get_patterns subterms_lists unique_subterms env term =
 				)
 	  end
       end;
-      let res =
+      let res = 
 	TT.fold 
 	  (fun pattern occurs acc ->
 	     if occurs >= !no_occurs
 	     then
 	       try
 		 let env_p = match_term pattern term in
-		 let env_new, new_meta_env = extend_env env env_p in
-		 let p_new = rev_sub new_meta_env pattern in
-		   (p_new, env_new) :: acc;
+		   if env = []
+		   then (pattern, env_p) :: acc
+		     else
+		       let env_new, new_meta_env = extend_env env env_p in
+		       let p_new = rev_sub new_meta_env pattern in
+			 (p_new, env_new) :: acc;
 	       with Nomatch ->
 		 acc
 	     else (
