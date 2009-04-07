@@ -247,6 +247,11 @@ let rec string_of_gtree str_of_t str_of_c gt =
 	  String.concat ", " 
       | C ("onedecl", [v;ft;sto]) ->
 	  loop ft ^ " " ^ loop v ^ ";" (* storage and inline ignored *)
+      | C ("onedecl_ini", [var_gt; ini_exp; ftype; stor]) ->
+	  loop ftype ^ " "
+	  ^ loop var_gt ^ " = " 
+	  ^ loop ini_exp
+      | C ("ini", [e]) -> loop e
       | C ("stmt", [s]) -> loop s ^ ";"
       | C ("return", [e]) -> "return " ^ loop e
       | A ("goto", lab) -> "goto " ^ lab
