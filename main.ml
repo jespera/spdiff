@@ -2769,11 +2769,11 @@ let find_fun_common () =
       unique_subterms
       [] in
     let get_frequency p = 
-      (* Diff.TT.find Diff.prepruned_ht p 
-      *)
-      unique_subterms +> List.fold_left
-	(fun acc_n t -> if Diff.can_match p t
-	 then acc_n + 1 else acc_n) 0
+      Diff.TT.find Diff.prepruned_ht p 
+      
+      (* unique_subterms +> List.fold_left *)
+      (* 	(fun acc_n t -> if Diff.can_match p t *)
+	 (* then acc_n + 1 else acc_n) 0 *)
     in
       begin
 	print_endline "[Main] resulting frequent abstractions...";
@@ -2793,14 +2793,15 @@ let find_fun_common () =
 		     )
 	+> List.iter (function (p,env) -> 
 			begin
-			  let sup = subterms_lists 
-			    +> List.fold_left 
-			    (fun
-			       acc_s [def] -> 
-				 if Diff.can_match p def
-				 then acc_s + 1
-				 else acc_s
-			    ) 0 
+			  let sup = get_frequency p
+			    (* subterms_lists  *)
+			    (* +> List.fold_left  *)
+			    (* (fun *)
+			    (*    acc_s [def] ->  *)
+			    (* 	 if Diff.can_match p def *)
+			    (* 	 then acc_s + 1 *)
+			    (* 	 else acc_s *)
+			    (* ) 0  *)
 			  in
 			    print_endline (">>> freq: " ^ string_of_int sup ^ "\n" ^
 					     p +> Diff.string_of_gtree');
