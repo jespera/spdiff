@@ -1051,7 +1051,7 @@ let filter_shorter_sub_old gss sub_pat pss =
 
 let gsize_spattern sp = Diff.gsize_spattern sp
 
-let filter_shorter_sub gss sub_pat pss =
+let filter_shorter_sub_unsafe gss sub_pat pss =
   print_endline "[Main] patterns BEFORE filtering";  
   pss +> print_patterns;
   pss
@@ -1062,8 +1062,31 @@ let filter_shorter_sub gss sub_pat pss =
 			not(sub_pat sp sp')
 			|| sub_pat sp' sp && gsize_spattern sp' <= gsize_spattern sp
 		      )
-       then sp :: acc_patterns
-       else acc_patterns
+       then 
+	 sp :: acc_patterns
+       else begin
+	 print_endline "[Main] not including:";
+	 print_patterns [sp];
+	 acc_patterns;
+       end
+    ) []
+
+
+ let filter_shorter_sub gss sub_pat pss =
+  print_endline "[Main] patterns BEFORE filtering";  
+  pss +> print_patterns;
+  pss
+  +> List.fold_left 
+    (fun acc_patterns sp -> 
+       if pss +>
+	 List.for_all (function sp' -> 
+			not(sub_pat sp sp' && sub_pat sp' sp)
+			|| gsize_spattern sp' <= gsize_spattern sp
+		      )
+       then 
+	 sp :: acc_patterns
+       else
+	 acc_patterns
     ) []
 
 
