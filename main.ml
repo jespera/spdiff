@@ -969,6 +969,7 @@ let subpattern g sp1 sp2 =
 			    )) in
     if  embed
       && not(trcs1 = [])
+      && not(trcs2 = [])
       (* &&
 	 subseq *)
     then 
