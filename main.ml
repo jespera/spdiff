@@ -37,7 +37,7 @@ let speclist =
             "-threshold",     Arg.Set_int threshold,   "[num]   the minimum number of occurrences required";
       "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing, 
       "  also parse if0 blocks";
-      "-print_abs",     Arg.Set Diff.print_abs,  "  print abstract updates for each term pair";
+      "-print_abs",     Arg.Set Jconfig.print_abs,  "  print abstract updates for each term pair";
 (*      "-relax_safe",    Arg.Set Diff.relax,      "  consider non-application safe [experimental]"; *)
       "-print_raw",     Arg.Set print_raw,       "  print the raw list of generated simple updates";
       "-print_uniq",    Arg.Set print_uniq,      "  print the unique solutions before removing smaller ones";
@@ -604,7 +604,8 @@ let string_of_pattern p =
     String.concat "\n" meta_strings ^
     "\n@@\n"
   in
-    head ^ String.concat ";\n" (List.map loc p) ^ "\n"
+    (* head ^  *)
+      String.concat "\n" (List.map loc p)
 
 let renumber_metas_pattern pat =
   let old_meta = !meta_counter in
@@ -719,11 +720,14 @@ let infeasible p = Diff.infeasible p
 
 let (=>) = Diff.(=>)
 let cont_match = Diff.cont_match
+
+
 let exists_cont_match g p = nodes_of_graph g +> List.exists (cont_match g p) 
-let (|-) g p = exists_cont_match g p
+ let (|-) g p = exists_cont_match g p
 
+(*
 let g_glob = ref (None : (Diff.gflow * 'a) option )
-
+*)
 let get_indices t g =
   g#nodes#tolist +> List.fold_left (fun acc_i (i,t') -> if t' == t then i :: acc_i else acc_i) []
 
@@ -745,29 +749,31 @@ let rec abstract_term_hashed depth t =
   )
 and abstract_term depth env t =
   let rec rm_dups xs = List.fold_left (fun acc_xs x -> x +++ acc_xs) [] xs in
-  let follow_abs t_sub = match !g_glob with
-    | None -> false
-    | Some (g, pa) -> 
-	let idxs = pa +> List.fold_left (fun acc_i t' -> 
-					   if Diff.can_match t t'
-					   then get_indices t' g +>
-					     List.fold_left (fun acc_i i -> i +++ acc_i) acc_i
-					   else acc_i) [] in 
-	  (* among the nodes, where the top-level term t occurs is there some
-	   * location where in all the following paths eventually the subterm
-	   * occurs?
-	   *)
-
-	  List.exists (function i -> Diff.find_embedded_succ g i t_sub) idxs 
-	    (*    if List.exists (function i -> Diff.find_embedded_succ g i t_sub) idxs
-		  then (print_endline ("[Main] follow_abs: " ^ (Diff.string_of_gtree' t_sub)); true) else false  *)
+(*
+  let follow_abs t_sub = 
+    match !g_glob with
+      | None -> false
+      | Some (g, pa) -> 
+	  let idxs = pa +> List.fold_left (fun acc_i t' -> 
+					     if Diff.can_match t t'
+					     then get_indices t' g +>
+					       List.fold_left (fun acc_i i -> i +++ acc_i) acc_i
+					     else acc_i) [] in 
+	    (* among the nodes, where the top-level term t occurs is there some
+	     * location where in all the following paths eventually the subterm
+	     * occurs?
+	     *)
+	    List.exists (function i -> Diff.find_embedded_succ g i t_sub) idxs 
+	      (*    if List.exists (function i -> Diff.find_embedded_succ g i t_sub) idxs
+		    then (print_endline ("[Main] follow_abs: " ^ (Diff.string_of_gtree' t_sub)); true) else false  *)
   in
+*)
   let rec loop depth env t =
     try [rev_assoc t env], env
     with Not_found ->
       let meta, id = new_meta_id ()
       in
-	if depth = 0 || follow_abs t
+	if depth = 0 (* || follow_abs t *)
 	then [meta], (id, t) => env
 	else 
           if is_meta t
@@ -814,9 +820,9 @@ and abstract_term depth env t =
 
 let print_patterns ps =
   List.iter (function p -> 
-(* 	       print_string "[[[ "; *)
+	       print_endline "[[[";
 	       print_endline (string_of_pattern p);
-(* 	       print_endline " ]]]"; *)
+	       print_endline "]]]";
 	    ) ps
 
 (* let non_phony p = match view p with *)
@@ -1301,11 +1307,16 @@ let sort_pa_env gss pa_env =
     List.sort compare pa_env
 
 let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
-  print_endline "[Main] growing patterns";
+  print_endline "[Main] growing patterns from functions: ";
+  orig_gss +> List.iter (function [f] -> begin
+			   print_string "\t";
+			   f +> Diff.get_fun_name_gflow +> print_endline;
+			 end
+			);
   reset_meta();
   let mk_pat p = [mkC("CM",[p])] in
   let (<==) sp ps gss = ps +> List.exists (function sp' -> 
-					     sub_pat orig_gss sp sp'
+					     sub_pat gss sp sp'
 					     && embedded_pattern sp sp'
 
 					  (*
@@ -1371,19 +1382,32 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
 		  | [f] -> f |- (mk_pat pat) && f |- (ext p pat)
 		  | _ -> raise (Impossible 117)) in
 	       if List.length gss' < !threshold 
-	       then acc_abs_P_env
+	       then begin
+		 if !Jconfig.print_abs
+		 then begin
+		   print_string "[Main] not including pattern with threshold: ";
+		   gss' +> List.length +> string_of_int +> print_endline;
+		   print_endline "[Main] env: ";
+		   env +> List.iter (function (m, t) -> 
+				       print_endline (m ^ " ⇾ " ^
+							Diff.string_of_gtree' t);
+				    );
+		   print_patterns [(ext p pat)];
+		 end;
+		 acc_abs_P_env
+	       end
 	       else (pat,env, gss') :: acc_abs_P_env
 	  ) [] in
 	  v_print_endline "done";
 	  res
       end 
   in
-    (* ext1 = p1 p2  -- immediate successort *)
+    (* ext1 = p1 p2  -- p2 is immediate successor *)
   let ext1 p1 p2 = 
     if p1 = [] 
     then [mkC("CM",[p2])] 
     else p1 @ [mkC("CM", [p2])] in
-    (* ext2 = p1 ... p2 -- all-paths quantifier *)
+    (* ext2 = p1 ... p2 -- p2 is all-paths successor *)
   let ext2 p1 p2 = 
     if p1 = [] 
     then [mkC("CM",[p2])] 
@@ -1391,7 +1415,7 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
   let rec grow' ext p ps (p', env', gss) =
     (* flush_string "."; *)
     let ext_p = ext p p' in
-    let pp' = renumber_metas_pattern ext_p in
+    let pp' = ext_p (* renumber_metas_pattern ext_p *) in
       if !Jconfig.verbose then ( 
 	print_string ("[Main] testing : " ^ 
 			List.map Diff.string_of_gtree' pp'
@@ -1414,52 +1438,59 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
     v_print_string "[Main] getting common cterms after pattern: ";
     v_print_endline (string_of_pattern p);
     let abs_P_env = 
-      get_pa env
-      +> sort_pa_env gss
-	(*       +> List.filter (function (pat,env) -> *)
-	(* 			p = [] || *)
-	(*       			gss *)
-	(*       			+> for_some !threshold *)
-	(*       			  (function flows -> *)
-	(*       			     flows *)
-	(*       			     +> List.exists *)
-	(*       			       (function f -> *)
-	(*       				       f |- p && f |- mk_pat pat *)
-	(*       			       ) *)
-	(*       			  ) *)
-	(*       		     ) *)
+      get_pa [] (* env *)
+      (* +> sort_pa_env gss *)
+      +> List.filter 
+	(function (pat,env) ->
+	   p = [] 
+	    || gss
+	    +> for_some !threshold
+	    (function flows ->
+	       flows
+	       +> List.exists
+		 (function f ->
+		    f |- mk_pat pat
+		 )
+	    )
+	)
     in
       v_print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
-      let nextP1 = get_next abs_P_env ext1 p gss in
+      let nextP2 = get_next abs_P_env ext2 p gss in
 	(* there is no need to look for matches of "p...p'" in case
 	   there were no matches of "p p'" because 
 	   |- p p' => |- p...p'
-	   thus, if we found a p' such that |- p p' we do not look for p ... p'
+
+	   thus, if we can determine that |- p...p' is not the case
+	   then we know that |- p p' can also NOT be the case 
 	*)
       let abs_P_env' = abs_P_env
+(*
 	+> List.filter
 	(fun (pat, env) -> 
-	   not(nextP1 +> List.exists (function (p'', env', gss') -> 
-					if Diff.node_pat_eq unique_subterms (pat, env) (p'', env')
-					then (
-					  (* print_endline "pat eq:";
-					      pat +> Diff.string_of_gtree' +> print_endline;
-					      p'' +> Diff.string_of_gtree' +> print_endline;
-					  *)
-					      true
-					     )
-					else
-					  false
-				     ))
-	) in
-      let nextP2 = get_next abs_P_env' ext2 p gss in
-	v_print_endline ("[Main] from pattern : " ^ string_of_pattern p);
+	   nextP2 +> List.exists 
+		 (function (p'', env', gss') -> 
+		    if Diff.node_pat_eq unique_subterms (pat, env) (p'', env')
+		    then (
+		      (* print_endline "pat eq:";
+			 pat +> Diff.string_of_gtree' +> print_endline;
+			 p'' +> Diff.string_of_gtree' +> print_endline;
+		      *)
+		      true
+		    )
+		    else
+		      false
+		 )
+	) 
+*) 
+      in
+      let nextP1 = get_next abs_P_env' ext1 p gss in
+	v_print_endline ("[Main] from pattern :\n" ^ string_of_pattern p);
 	v_print_endline ("[Main] potential new patterns : " ^ string_of_int (
 			   List.length nextP1 + List.length nextP2));
 	v_print_newline ();
 	let ps' = 
-	  List.fold_left (fun acc_ps p_e_gss -> grow' ext1 p acc_ps p_e_gss) ps nextP1 in
-	  List.fold_left (fun acc_ps p_e_gss -> grow' ext2 p acc_ps p_e_gss) ps' nextP2
+	  List.fold_left (fun acc_ps p_e_gss -> grow' ext2 p acc_ps p_e_gss) ps nextP2 in
+	  List.fold_left (fun acc_ps p_e_gss -> grow' ext1 p acc_ps p_e_gss) ps' nextP1
   in
     grow [] ([], [], orig_gss)
 
@@ -1565,7 +1596,9 @@ let common_patterns_graphs gss =
 		       | [f] -> 
 			   concrete_of_graph f
 			   +> List.filter (function n -> 
-					     not(Diff.is_head_node n))
+					     not(Diff.is_head_node n)
+					     && Diff.non_phony n
+					  )
 		       | _ -> raise (Impossible 1)
 		    )
   in
@@ -1573,7 +1606,7 @@ let common_patterns_graphs gss =
     +> tail_flatten 
     +> Diff.rm_dub in
   let (|-) g sp = List.exists (cont_match g sp) (nodes_of_graph g) in
-  let (||-) gss sp = gss +> loc_pred (function fs -> 
+  let (||-) gss sp = gss +> for_some !threshold (function fs -> 
 				   fs +> List.exists (function f -> f |- sp)
 				) in
   let is_frequent_sp_some gss sp = gss ||- sp in
@@ -1581,7 +1614,12 @@ let common_patterns_graphs gss =
   let new_get_pa = 
     function env ->
       Diff.abstract_all_terms subterms_lists unique_subterms env 
-      +> List.filter (function (p,e) -> not(infeasible p))
+      +> List.filter (function (p,e) -> 
+			not(infeasible p) 
+			&& Diff.non_phony p
+			&& not(Diff.control_true = p)
+			&& not(Diff.is_head_node p)
+		     )
   in
   (* let get_pa = get_common_node_patterns gss in *)
     find_seq_patterns_new unique_subterms is_subpattern is_frequent_sp_some gss new_get_pa
@@ -2057,7 +2095,9 @@ let annotate_spatch spatch trace =
 
 exception LocateSubterm 
 exception Next of int list 
+exception Break of int list
 
+let at_breaking_handler = ref false
 
 let corresponds st t next_node_val path =
   let same_path s_st_f = match s_st_f with
@@ -2114,15 +2154,26 @@ let corresponds st t next_node_val path =
 			    Some([f],(function 
 					| [f] -> mkC("if", [b;t;f]) +> s_func
 					| _ -> raise (Impossible 11)), List.tl path)
-			  else (* select true branch and do not consume node from path *)
-			    Some([t],(function 
-					| [t] -> mkC("if", [b;t;f]) +> s_func
-					| _ -> raise (Impossible 12))) +> same_path
+			  else (* select true branch and consume control_node node from path *)
+			    if control_node = Diff.control_true
+			    then
+			      Some([t],(function 
+					  | [t] -> mkC("if", [b;t;f]) +> s_func
+					  | _ -> raise (Impossible 12)), List.tl path)
+			    else begin
+			      (* we were not supposed to enter the if-statement but skip it *)
+			      raise (Next path)
+			    end
 		   )
 	       | C("switch",[e;s]), C("head:switch", [e']) when e = e' ->
-		   Some ([s], function s' ->
+		   begin
+		     (* setup break handler *)
+		     at_breaking_handler := true;
+		     Some ([s], function s' ->
 			   mkC("switch", e :: s') +> s_func) +> same_path
+		   end
 	       | C("while",[e;s]), C("head:while", _) ->
+		   at_breaking_handler := true;
 		   (match next_node_val with
 		      | None -> raise (Diff.Fail "no next control node in while")
 		      | Some control_node ->
@@ -2134,9 +2185,11 @@ let corresponds st t next_node_val path =
 			  else raise (Next path)
 		   )
 	       | C("dowhile", [s;e]), C("head:do", [e']) when e = e' ->
+		   at_breaking_handler := true;
 		   Some ([s], (function s' ->
 				 mkC("dowhile", s' @ [e]) +> s_func)) +> same_path
 	       | C("for", [e1;e2;e3;st]), C("head:for", _) ->
+		   at_breaking_handler := true;
 		   (match next_node_val with
 		      | None -> raise (Diff.Fail "no next control node in for")
 		      | Some control_node ->
@@ -2161,7 +2214,7 @@ let corresponds st t next_node_val path =
 			   | _ -> raise (Impossible 13)) +> same_path
 	       | C("caseRange",[e1;e2;st]), A("head:case", _) -> 
 		   Some ([st], function st' ->
-			   mkC("caseRage", e1 :: e2 :: st') +> s_func) +> same_path
+			   mkC("caseRange", e1 :: e2 :: st') +> s_func) +> same_path
 	       | C("labeled", [{Hashcons.node=A("lname", s_lab)} as l; st]), 
 		   A("head:label", lab) ->
 		   Some ([st], function 
@@ -2200,10 +2253,16 @@ let rec iterate_lab t_list loop locate_label (lab, path) =
 			  | Label_not_found _ -> t :: cont t_list
 		       )
   in
-    cont t_list
+     cont t_list
 
+let rec is_break t = match view t with
+  | C("stmt", [t]) -> is_break t
+  | A("jump", "break") 
+  | A("jump", "continue") -> true
+  | _ -> false
 
-let locate_subterm g orig_subterm path f =
+let locate_subterm g orig_subterm orig_path f =
+  at_breaking_handler := false;
   let extract_label t = 
     match view t with 
       | C("stmt", [
@@ -2224,85 +2283,146 @@ let locate_subterm g orig_subterm path f =
     v_print_string "[Main] looking in ";
     v_print_endline (Diff.verbose_string_of_gtree orig_subterm);
     v_print_string "[Main] path ";
-    v_print_endline (path +> List.map string_of_int +> String.concat " ");
-    if not(List.length path = 0) 
+    v_print_endline (orig_path +> List.map string_of_int +> String.concat " ");
+    if not(List.length orig_path = 0) 
     then begin
-      let last = List.nth path (List.length path - 1) in
+      let last = List.nth orig_path (List.length orig_path - 1) in
 	v_print_string "[Main] looking for:";
 	v_print_endline (get_val last +> Diff.verbose_string_of_gtree);
     end;
-      
-      let is_typed e = match view e with
-	| C("TYPEDEXP", _) -> true
-	| _ -> false in
-      let rec (===) t1 t2 = match view t1, view t2 with
-	| C("pending", ot :: _ ), _ -> ot === t2
-	| C("stmt",[s]), (C("dlist", _) | C("mdecl", _)) ->  s === t2
-	| C("exp",[te;e]), C("exp", [e']) when is_typed te -> e === e'
-	| C(ty1,ts1), C(ty2,ts2) when ty1 = ty2 ->
-	    (try 
-	       List.for_all2 (===) ts1 ts2
-	     with Invalid_argument e -> (
-	       print_endline "ts1";
-	       ts1 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
-	       print_endline "ts2";
-	       ts2 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
-	       raise (Invalid_argument e))
-	    )
-	| _ -> t1 = t2 in
-	(* this function is used to check whether we are at a context point *)
-      let is_at_context node_term pending_subterm = 
-	match view pending_subterm with
-	  | C("pending", orig_cp :: chunk_op) -> orig_cp === node_term
-	  | _ -> pending_subterm === node_term in
-      let get_next_node_val path = match path with
-	| [] -> None
-	| n :: _ -> Some (get_val n) in
-      let rec loop subterm path =
-	match path with
-	  | [] -> (raise LocateSubterm)
-	  | [n] -> 
-	      let node_term = get_val n in
-		if is_at_context node_term subterm
-		then f node_term (* subterm -- can the subterm can have more info than the node-term ? *)
-		else (raise LocateSubterm)
-	  | n' :: path -> 
-	      let t = get_val n' 
-	      in 
-		if subterm === t
-		then 
-		  (match extract_label t with
-		     | Some lab -> raise (Goto (lab, path))
-		     | None     -> raise (Next path)
-		  )
-		else
-		  (
-		    match corresponds subterm t (get_next_node_val path) path  with
-		      | None -> (raise LocateSubterm)
-		      | Some (ts, ins_f, new_path) ->
-			  (ts *> loop) new_path 
+    
+    let is_typed e = match view e with
+      | C("TYPEDEXP", _) -> true
+      | _ -> false in
+    let rec (===) t1 t2 = match view t1, view t2 with
+      | C("pending", ot :: _ ), _ -> ot === t2
+      | C("stmt",[s]), (C("dlist", _) | C("mdecl", _)) ->  s === t2
+      | C("exp",[te;e]), C("exp", [e']) when is_typed te -> e === e'
+      | C(ty1,ts1), C(ty2,ts2) when ty1 = ty2 ->
+	  (try 
+	     List.for_all2 (===) ts1 ts2
+	   with Invalid_argument e -> (
+	     print_endline "ts1";
+	     ts1 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
+	     print_endline "ts2";
+	     ts2 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
+	     raise (Invalid_argument e))
+	  )
+      | _ -> t1 = t2 in
+      (* this function is used to check whether we are at a context point *)
+    let is_at_context node_term pending_subterm = 
+      match view pending_subterm with
+	| C("pending", orig_cp :: chunk_op) -> orig_cp === node_term
+	| _ -> pending_subterm === node_term in
+    let get_next_node_val path = match path with
+      | [] -> None
+      | n :: _ -> Some (get_val n) in
+    let rec loop subterm path =
+      match path with
+	| [] -> begin
+	    print_endline ("[Main] reached end of path at subterm: "
+			   ^ subterm +> Diff.string_of_gtree');
+	    print_string ("Orig path: \t ");
+	    orig_path +> List.iter (function i -> 
+				      print_string (" " ^ string_of_int i);
+				   );
+	    print_newline ();
+	    print_endline ("Last node value " ^
+			     orig_path +> List.rev +> List.hd
+			   +> get_val
+			   +> Diff.string_of_gtree'
+			  );  
+	    print_endline ("In function: " ^
+			     g +> get_fun_name_gflow);
+	    raise (Diff.Fail "At end of path!")
+	  end
+	| [n] -> 
+	    let node_term = get_val n in
+	      if is_at_context node_term subterm
+	      then f subterm
+		(* subterm/node_term -- can the subterm can have more
+		   info than the node-term ? they should be
+		   identical! *)
+	      else 
+		begin
+		  print_endline ("Node term:\t" ^
+				   node_term +> Diff.string_of_gtree');
+		  print_endline ("Subterm:\t" ^
+				   subterm +> Diff.string_of_gtree');
+		  print_string ("Orig path: \t ");
+		  orig_path +> List.iter (function i -> 
+					    print_string (" " ^ string_of_int i);
+					 );
+		  print_newline ();
+		  print_string ("Current path: \t ");
+		  path +> List.iter (function i -> 
+					    print_string (" " ^ string_of_int i);
+					 );
+		  print_newline ();
+		  print_endline ("In function: " ^
+				   get_fun_name_gflow g);
+		  raise (Diff.Fail "unable to locate subterm")
+		end
+	| n' :: path -> 
+	    let t = get_val n' 
+	    in 
+	      if subterm === t
+	      then 
+		(match extract_label t with
+		   | Some lab -> raise (Goto (lab, path))
+		   | None     -> begin
+		       if is_break subterm
+		       then
+			 raise (Break path)
+		       else
+			 raise (Next path)
+		     end
+		)
+	      else
+		(
+		  match corresponds subterm t (get_next_node_val path) path  with
+		    | None -> raise LocateSubterm
+		    | Some (ts, ins_f, new_path) ->
+			if !at_breaking_handler
+			then begin
+			  at_breaking_handler := false;
+			  try
+			    (ts *> loop) new_path 
+			    +> ins_f
+			  with Break new_path -> raise (Next new_path)
+			end
+			else
+ 			  (ts *> loop) new_path 
 			  +> ins_f
-		  ) 
-      and locate_label (lab, path) t =
-	match view t with 
-	  | C("stmt", [
-		{Hashcons.node=C("labeled", [
-				   {Hashcons.node=A("lname",lab') }; _])}
-	      ]) 
-	      when lab = lab' -> loop t path
-	  | C(ty, ts) -> 
-	      let ts' = iterate_lab ts loop locate_label (lab, path)
-	      in mkC(ty,ts')
-	  | _ -> raise (Label_not_found lab) 
-      in
-      let rec search_label (lab, path) =
-	try locate_label (lab, path) orig_subterm
-	with
-	    Goto (lab', path') -> search_label (lab', path')
-      in
-	try loop orig_subterm path 
-	with Goto (lab, path) ->
-	  search_label (lab, path) 
+		) 
+    and locate_label (lab, path) t =
+      match view t with 
+	| C("stmt", [
+	      {Hashcons.node=C("labeled", [
+				 {Hashcons.node=A("lname",lab') }; _])}
+	    ]) 
+	    when lab = lab' -> loop t path
+	| C(ty, ts) -> 
+	    let ts' = iterate_lab ts loop locate_label (lab, path)
+	    in mkC(ty,ts')
+	| _ -> raise (Label_not_found lab) 
+    in
+    let rec search_label (lab, path) =
+      try locate_label (lab, path) orig_subterm
+      with
+	  Goto (lab', path') -> search_label (lab', path')
+    in
+      try loop orig_subterm orig_path 
+      with
+	| Goto (lab, path) -> search_label (lab, path) 
+	| Break path -> begin
+	    print_string "[Main] caught break in function ";
+	    g +> get_fun_name_gflow +> print_endline;
+	    print_string "[Main] at path: ";
+	    path +> List.map string_of_int +> String.concat " "
+	      +> print_endline;
+	    raise (Break path)
+	  end
 
 
 (* this function takes a chunk and a subterm and uses the subterm to
@@ -2363,18 +2483,15 @@ let insert_chunk flow pending_term chunk =
     (* the 'f' function is responsible to checkin chunk compatibility *)
   let f t = 
     match view t with
-      | C("pending", [orig_cp; embed]) -> (
- 	  print_endline "[Main] SKIPPING chunk...";
-	  t)
+      | C("pending", _) -> t
       | _ -> pending_of_chunk chunk t in
   let paths = ctx_point_nodes +> List.rev_map (get_path flow) in
     paths +>
       List.fold_left (fun acc_t path -> 
 			try 
-			  locate_subterm flow pending_term path f
+			  locate_subterm flow pending_term path f 
 			with LocateSubterm -> 
 			  begin
-			    print_endline "[Main] empty path...?";
 			    acc_t
 			  end) pending_term
 
@@ -2389,7 +2506,21 @@ let perform_pending pending_term =
 	| C("=",[p]) | C("-",[p])-> p
 	| _ -> raise (Impossible 16)
     in
-      Diff.match_term (extract_pat ctx) orig_cp in
+      try 
+	begin 
+	  Diff.match_term (extract_pat ctx) orig_cp 
+	end
+      with Diff.Nomatch -> 
+	begin
+	  print_endline "[Main] Nomatch between:";
+	  Diff.string_of_gtree' orig_cp +> print_endline;
+	  Diff.string_of_gtree' ctx +> print_endline;
+	  print_endline "[Main] emb...";
+	  emb +> List.iter 
+	    (function gt -> gt +> Diff.string_of_gtree' +> print_endline);
+	  raise Diff.Nomatch
+	end
+  in
   let unfold_embedded orig embs = 
     let env = get_env orig embs in
       List.fold_right 
@@ -2405,7 +2536,8 @@ let perform_pending pending_term =
 	) embs []
   in
   let rec loop t = match view t with
-    | C("pending", orig_cp :: embedded) -> unfold_embedded orig_cp embedded
+    | C("pending", orig_cp :: embedded) -> 
+	unfold_embedded orig_cp embedded
     | C(ty, ts) -> 
 	let ts' = ts 
 	  +> List.rev_map loop 

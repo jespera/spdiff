@@ -75,9 +75,6 @@ let be_fixed      = ref false
    *)
 let no_exceptions = ref 0
 let no_occurs = ref 0
-  (* should we be printing the derived abstract updates during inference
-  *)
-let print_abs = ref false
   (* should we allow non-matching parts to be safe? 
   *)
 let relax = ref false
@@ -121,6 +118,17 @@ let string_of_meta p = match view p with
 
 let not_compound gt = match view gt with
   | C("comp{}", _) | A("comp{}", _) -> false
+  | _ -> true
+
+let non_phony p = match view p with
+  | A("phony", _) 
+  | C("phony", _) -> false
+(*
+  | A(_, "N/H") 
+  | A(_, "N/A") -> false
+  | A(head,_)
+  | C(head,_) -> not(is_header head)
+*)
   | _ -> true
 
 let is_assignment a_string = match a_string with 
@@ -483,12 +491,20 @@ let rec get_diff_nonshared src tgt =
 	  then
 	    loop (i - 1) (j - 1) @ [ID (List.nth src (i - 1))]
 	  else if j > 0 && (i = 0 || m.(i).(j - 1) > m.(i - 1).(j))
-	  then 
- 	    loop i (j - 1) @ [ADD (List.nth tgt (j - 1))]
+	  then
+	    if List.nth tgt (j - 1) +> non_phony
+	    then
+ 	      loop i (j - 1) @ [ADD (List.nth tgt (j - 1))]
+	    else
+	      loop i (j - 1) @ [ID (List.nth tgt (j - 1))]
  	  else if 
             i > 0 && (j = 0 || m.(i).(j - 1) <= m.(i - 1).(j))
  	  then 
- 	    loop (i - 1) j @ [RM (List.nth src (i - 1))]
+	    if List.nth src (i - 1) +> non_phony
+ 	    then 
+	      loop (i - 1) j @ [RM (List.nth src (i - 1))]
+	    else 
+	      loop (i - 1) j @ [ID (List.nth src (i - 1))]
 	  else (assert(i=j && j=0) ;
 		[]) (* here we should have that i = j = 0*)
 	in loop slen  tlen
@@ -799,6 +815,7 @@ let is_header head_str =
 
 
 let control_else = mkA("control:else", "Else")
+let control_true = mkA("control:true", "True")
 let control_inloop = mkA("control:loop", "InLoop")
 
 let is_head_node n = 
@@ -807,16 +824,6 @@ let is_head_node n =
   match view n with
   | A(hd,_ ) | C(hd, _ ) -> is_header hd
 
-let non_phony p = match view p with
-  | A("phony", _) 
-  | C("phony", _)
-  | A(_, "N/H") 
-  | A(_, "N/A") -> false
-(*
-  | A(head,_)
-  | C(head,_) -> not(is_header head)
-*)
-  | _ -> true
 
 let find_nested_matches pat t =
   let mt t = try Some (match_term pat t) with Nomatch -> None in
@@ -1696,7 +1703,7 @@ and safe_part up (t, t'') =
       else 
         merge3 t t' t''
   with (Nomatch | Merge3) -> (
-    if !print_abs
+    if !Jconfig.print_abs
     then (
       print_string "[Diff] rejecting:\n\t";
       print_endline (string_of_diff up)
@@ -1889,8 +1896,8 @@ let get_applicable chgset bp bps =
 
 
 type environment = (string * gtree) list
-type res = {last : gtree option; skip : int list ; env : environment}
-type res_trace = {last_t : gtree option; skip_t : int list; env_t : environment ; trace : int list}
+type res = {last : int option; skip : int list ; env : environment}
+type res_trace = {last_t : int option; skip_t : int list; env_t : environment ; trace : int list}
 
 let print_environment env =
   List.iter (function (x, v) ->
@@ -1919,7 +1926,13 @@ let ddd = mkA("SKIP", "...")
 let (%%) e1 e2 = extend_env e1 e2
 let (=>) (k,v) env = bind env (k,v)
 let get_val n g = g#nodes#find n
-let get_succ n g = (g#successors n)#tolist
+let get_succ n g = 
+  match (g#successors n)#tolist with
+    | [] -> (
+	raise Nomatch
+      )
+    | ns -> ns
+
 let get_next_vp'' g vp n = 
   List.rev_map fst (get_succ n g) 
     (* below we filter those, that have already be visited
@@ -1933,10 +1946,12 @@ let get_next_vp'' g vp n =
 
 type skip_action = SKIP | LOOP | FALSE | ALWAYSTRUE
 
-let is_error_exit t = match view t with
-    (*  | A("phony", "[errorexit]") -> true *)
-  | A("phony", "[after]") -> true
+let is_error_exit t = 
+  match view t with
+  | A("phony", "[errorexit]") -> true
+  (* | A("phony", "[after]") -> true *)
   | _ -> false
+
 
 let string_of_pattern p =
   let loc p = match view p with
@@ -1946,7 +1961,7 @@ let string_of_pattern p =
     String.concat " " (List.map loc p)
 
 exception ErrorSpec
-
+(*
 let cont_match_spec spec g cp n =
   let init_vp = {skip = []; env = []; last = None;} in 
   let matched_vp vp n env = 
@@ -2010,71 +2025,125 @@ let find_embedded_succ g n p =
 	  true)
     else 
       List.for_all (function (n, _) -> cont_match_spec spec g [ddd; mkC("CM", [p])] n) ((g#successors n)#tolist)
+*)
+
+(* returns true if node with index n in graph g is an errorexit
+   return/exit-node; this is the case when the unique successor to n
+   is head/phony/control and eventually an errorexit node or if the
+   node value matches "return X"
+*)
+
+let rec matches_exit node_gt =
+  match view node_gt with
+    | C("return", _) -> true
+    | C(_, ns) -> ns +> List.exists matches_exit
+    | _ -> false
+
+let is_exit_index g (n : int) =
+  let rec loop cur_idx =
+    let node_val = get_val cur_idx g in
+      if is_error_exit node_val
+      then true
+      else next cur_idx
+  and next n =
+    match get_succ n g with
+      | [(n',_)] ->
+	  let node_val = get_val n' g in
+	      (not(non_phony node_val) || is_head_node node_val)
+	      && loop n'
+      | _ -> false
+  in
+    matches_exit (get_val n g) || loop n
 
 
-let cont_match g cp n = 
-  (*
-    print_endline ("[Diff] checking pattern : " ^ 
-    string_of_pattern cp);
-  *)
-  let init_vp = {skip = []; env = []; last = None;} in 
-  let matched_vp vp n env = 
-    (* let f, env' = try true, env %% vp.env with Bind_error -> false, [] in *)
-    (* in this semantic, we never allow visiting the same node twice *)
-    let f, env' = try 
-	not(List.mem n vp.skip) && 
-	  not(List.exists (function nh -> get_val nh g = get_val n g ) vp.skip)
-	  , env %% vp.env with Match_failure _ -> false, [] in
-      f, {last = Some (get_val n g); skip = n :: vp.skip; env = env'} in
-  let skipped_vp vp n = {
-    last = vp.last;
-    skip = n :: vp.skip; 
-    env = vp.env} in
-  let check_vp vp n  = 
-    let t_val = get_val n g in
-      if Some t_val = vp.last
-      then FALSE 
-      else if List.mem n vp.skip
-      then (
-	(* print_endline ("[Diff] LOOP on " ^ 
-           string_of_int n); *)
-	LOOP)
-      else if is_error_exit t_val 
-      then ALWAYSTRUE
-      else SKIP
+let valOf x = match x with
+  | None -> raise (Fail "valOf: None")
+  | Some y -> y
+
+let for_half f ls =
+  let len = List.length ls in
+  let at_least_num = if len < 2 then 1 else len / 2 in
+  let rec loop acc_num ls = match ls with
+    | _ when acc_num >= at_least_num -> true
+    | x :: xs when f x -> loop (acc_num + 1) xs
+    | _ :: xs -> loop acc_num xs
   in
-  let rec trans_cp cp c = match cp with
-    | [] -> c
-    | bp :: cp -> trans_bp bp (trans_cp cp c)
-  and trans_bp bp c vp n = match view bp with
-    | C("CM", [gt]) ->
-	(try 
-            (* let env = match_term gt (get_val n g) in *)
-            let envs = find_nested_matches gt (get_val n g) in
-              List.exists (function env ->
-		let f,vp' = matched_vp vp n env in
-		  f && List.for_all (function (n',_) -> c vp' n') (get_succ n g)) envs
-	  with Nomatch -> false)
-    | _ when bp == ddd ->
-	c vp n || (
-          match check_vp vp n with
-            | FALSE -> false
-            | LOOP -> true
-            | SKIP -> 
-		let ns = get_next_vp'' g vp n in
-                  not(ns = []) &&
-                    ns +> List.exists (function n' -> not(n = n')) &&
-                    let vp' = skipped_vp vp n in
-                      List.for_all (trans_bp ddd c vp') ns
-	    | ALWAYSTRUE -> true
-	)
-    | _ -> raise (Match_failure (string_of_gtree' bp, 1429,0))
-  in
-  let matcher = trans_cp cp (fun vp x -> true) in
+    loop 0 ls
+      
+(* 
+   let cont_match_old g cp n = 
+(*
+   print_endline ("[Diff] checking pattern : " ^ 
+   string_of_pattern cp);
+*)
+   let init_vp = {skip = []; env = []; last = None;} in 
+   let matched_vp vp n env = 
+(* let f, env' = try true, env %% vp.env with Bind_error -> false, [] in *)
+(* in this semantic, we never allow visiting the same node twice *)
+   let f, env' = try 
+   not(List.mem n vp.skip) 
+   && not(List.exists (function nh -> get_val nh g = get_val n g ) vp.skip) 
+   && (match vp.last with
+   | None -> true
+   | Some n_last -> not(is_exit_index g n_last)
+   )
+   , env %% vp.env with Match_failure _ -> false, [] in
+   f, {last = Some n; skip = n :: vp.skip; env = env'} in
+   let skipped_vp vp n = {
+   last = vp.last;
+   skip = n :: vp.skip; 
+   env = vp.env} in
+   let check_vp vp n  = 
+   let t_val = get_val n g in
+   if Some t_val = (try Some (get_val (valOf vp.last) g)
+   with (Fail _) -> None
+   )
+   then FALSE 
+   else if List.mem n vp.skip
+   then (
+(* print_endline ("[Diff] LOOP on " ^ 
+   string_of_int n); *)
+   LOOP)
+   else if is_error_exit t_val 
+   then ALWAYSTRUE
+   else SKIP
+   in
+   let rec trans_cp cp c = match cp with
+   | [] -> c
+   | bp :: cp -> trans_bp bp (trans_cp cp c)
+   and trans_bp bp c vp n = match view bp with
+   | C("CM", [gt]) ->
+   (try 
+(* let env = match_term gt (get_val n g) in *)
+   let envs = find_nested_matches gt (get_val n g) in
+   List.exists (function env ->
+   let f,vp' = matched_vp vp n env in
+   f && List.for_all (function (n',_) -> c vp' n') (get_succ n g)) envs
+   with Nomatch -> false)
+   | _ when bp == ddd ->
+   c vp n || (
+   match check_vp vp n with
+   | FALSE -> false
+   | LOOP -> true
+   | SKIP -> 
+   let ns = get_next_vp'' g vp n in
+   not(ns = []) &&
+   ns +> List.exists (function n' -> not(n = n')) &&
+   let vp' = skipped_vp vp n in
+(* List.for_all (trans_bp ddd c vp') ns *)
+   for_half        (trans_bp ddd c vp') ns
+   | ALWAYSTRUE -> begin
+   true;
+   end;
+   )
+   | _ -> raise (Match_failure (string_of_gtree' bp, 1429,0))
+   in
+   let matcher = trans_cp cp (fun vp x -> true) in
     matcher init_vp n
+*)
 
 let traces_ref = ref []
-let count = ref []
+
 let print_trace tr =
   print_string ("[Diff] " ^ string_of_int (List.length tr) ^ ": ");
   tr +> List.iter 
@@ -2090,21 +2159,41 @@ let print_trace tr =
   print_newline ()
 
 
+let get_fun_name_gflow f =
+  let head_node = f#nodes#tolist +> List.find (function (i,n) -> match view n with
+    | C("head:def", [{node=C("def",_)}]) -> true
+    | _ -> false) in
+    match view (snd head_node) with
+      | C("head:def",[{node=C("def",name::_)}]) -> (match view name with
+          | A("fname",name_str) -> name_str
+	  | _ -> raise (Fail "impossible match get_fun_name_gflow")
+	)
+      | _ -> raise (Fail "get_fun_name?")
+
+
+exception Bailout
 
 let cont_match_traces  g cp n = 
-  (*
-    print_endline ("[Diff] checking pattern : " ^ 
-    string_of_pattern cp);
-  *)
+  let can_have_follow vp =
+    match vp.last_t with
+      | None -> true
+      | Some n_last -> not(is_exit_index g n_last)
+  in
   let init_vp = {skip_t = []; env_t = []; last_t = None; trace = []} in 
   let matched_vp vp n env = 
     (* let f, env' = try true, env %% vp.env with Bind_error -> false, [] in *)
     (* in this semantic, we never allow visiting the same node twice *)
     let f, env' = try 
-	not(List.mem n vp.skip_t) && 
-	  not(List.exists (function nh -> get_val nh g = get_val n g ) vp.skip_t)
+      not(List.mem n vp.skip_t) 
+      && not(List.exists (function nh -> get_val nh g = get_val n g ) vp.skip_t)
+      && can_have_follow vp 
 	  , env %% vp.env_t with Match_failure _ -> false, [] in
-      f, {last_t = Some (get_val n g); skip_t = n :: vp.skip_t; env_t = env'; trace = n :: vp.trace} in
+      f, {
+	last_t = Some n; 
+	skip_t = n :: vp.skip_t; 
+	env_t = env'; 
+	trace = n :: vp.trace
+      } in
   let skipped_vp vp n = {
     last_t = vp.last_t;
     skip_t = n :: vp.skip_t; 
@@ -2113,16 +2202,21 @@ let cont_match_traces  g cp n =
   } in
   let check_vp vp n  = 
     let t_val = get_val n g in
-      if Some t_val = vp.last_t
+      if Some t_val = (try Some (get_val (valOf vp.last_t) g)
+		       with (Fail _) -> None)
       then FALSE 
       else if List.mem n vp.skip_t
       then (
-	(* print_endline ("[Diff] LOOP on " ^ 
+	(* print_endlin0e ("[Diff] LOOP on " ^ 
            string_of_int n); *)
 	LOOP)
       else if is_error_exit t_val 
-      then ALWAYSTRUE
-      else SKIP
+      then raise Bailout
+      else if can_have_follow vp
+      then SKIP
+      else FALSE 
+	(* we are trying to skip when the previous match did not have
+	   (should not have) successors *)
   in
   let rec trans_cp cp c = match cp with
     | [] -> c
@@ -2130,11 +2224,13 @@ let cont_match_traces  g cp n =
   and trans_bp bp c vp n = match view bp with
     | C("CM", [gt]) ->
 	(try 
-            (* let env = match_term gt (get_val n g) in *)
+           (* let env = match_term gt (get_val n g) in *)
             let envs = find_nested_matches gt (get_val n g) in
               List.exists (function env ->
-		let f,vp' = matched_vp vp n env in
-		  f && List.for_all (function (n',_) -> c vp' n') (get_succ n g)) envs
+			     let f,vp' = matched_vp vp n env in
+			       f && List.for_all 
+				 (function (n',_) -> c vp' n') (get_succ n g)
+			  ) envs
 	  with Nomatch -> false)
     | _ when bp == ddd ->
 	c vp n || (
@@ -2143,22 +2239,39 @@ let cont_match_traces  g cp n =
             | LOOP -> true
             | SKIP -> 
 		let ns = get_next_vp'' g vp n in
-                  not(ns = []) &&
-                    ns +> List.exists (function n' -> not(n = n'))
-                  &&
-                    let vp' = skipped_vp vp n in
-                      List.for_all (trans_bp ddd c vp') ns
+		  ns +> List.exists 
+		    (function n' -> 
+		       not(n = n')
+		    )
+                  && not(ns = []) 
+                  && let vp' = skipped_vp vp n in
+(*                    List.for_all (trans_bp ddd c vp') ns  *)
+		    ns +> List.fold_left 
+		      (fun acc_f n' -> 
+			 try trans_bp ddd c vp' n' || acc_f
+			 with Bailout -> acc_f
+		      ) false
+(*		    for_half        (trans_bp ddd c vp') ns *)
+
 	    | ALWAYSTRUE -> true
 	)
     | _ -> raise (Match_failure (string_of_gtree' bp, 1429,0))
   in
   let matcher = 
-    trans_cp cp (fun vp x -> 
-      traces_ref := List.rev (vp.trace) :: !traces_ref; (* recall that indices come in reverse order *)
-      count := [1] :: !count;
-      true) in
+    trans_cp cp 
+      (fun vp x -> 
+	 traces_ref := List.rev (vp.trace) :: !traces_ref; (* recall that indices come in reverse order *)
+	 true) in
     matcher init_vp n 
 
+
+let cont_match g sp n =
+  traces_ref := [];
+  let result = cont_match_traces g sp n
+  in begin
+      traces_ref := [];
+      result
+    end
       
 let get_traces g sp n =
   traces_ref := [];
@@ -2172,55 +2285,52 @@ let get_traces g sp n =
   else 
     None
 
-let valOf x = match x with
-  | None -> raise (Fail "valOf: None")
-  | Some y -> y
 
 
-let get_last_locs g cp n =
-  let loc_list = ref [] in
-  let init_vp = {skip = []; env = []; last = None;} in 
-  let matched_vp vp n env = 
-    (* let f, env' = try true, env %% vp.env with Bind_error -> false, [] in *)
-    (* in this semantic, we never allow visiting the same node twice *)
-    let f, env' = try not(List.mem n vp.skip), env %% vp.env with Match_failure _ -> false, [] in
-      f, {last = Some (get_val n g); skip = n :: vp.skip; env = env'} in
-  let skipped_vp vp n = {
-    last = vp.last;
-    skip = n :: vp.skip; 
-    env = vp.env} in
-  let check_vp vp n  = not(List.mem n vp.skip) && 
-    not(Some (get_val n g) = vp.last)
-  in
-  let rec trans_cp cp c = match cp with
-    | [] -> c
-    | bp :: cp -> trans_bp bp (trans_cp cp c)
-  and trans_bp bp c vp n = match view bp with
-    | C("CM", [gt]) ->
-	(try 
-            let env = match_term gt (get_val n g) in
-            let f,vp' = matched_vp vp n env in
-              f && List.for_all (function (n',_) -> c vp' n') (get_succ n g)
-	  with Nomatch -> false)
-    | _ when bp == ddd ->
-	c vp n || (
-          check_vp vp n &&
-            let ns = get_next_vp'' g vp n in
-              not(ns = []) &&
-		let vp' = skipped_vp vp n in
-		  List.for_all (trans_bp ddd c vp') ns
-	)
-  in
-  let matcher = trans_cp cp (fun vp x -> 
-    loc_list := valOf vp.last :: !loc_list;
-    true) in
-    if matcher init_vp n
-    then Some (List.fold_left (fun acc_l e -> 
-      if List.mem e acc_l
-      then acc_l
-      else e :: acc_l
-    ) [] !loc_list)
-    else None
+(* let get_last_locs g cp n = *)
+(*   let loc_list = ref [] in *)
+(*   let init_vp = {skip = []; env = []; last = None;} in  *)
+(*   let matched_vp vp n env =  *)
+(*     (\* let f, env' = try true, env %% vp.env with Bind_error -> false, [] in *\) *)
+(*     (\* in this semantic, we never allow visiting the same node twice *\) *)
+(*     let f, env' = try not(List.mem n vp.skip), env %% vp.env with Match_failure _ -> false, [] in *)
+(*       f, {last = Some (get_val n g); skip = n :: vp.skip; env = env'} in *)
+(*   let skipped_vp vp n = { *)
+(*     last = vp.last; *)
+(*     skip = n :: vp.skip;  *)
+(*     env = vp.env} in *)
+(*   let check_vp vp n  = not(List.mem n vp.skip) &&  *)
+(*     not(Some (get_val n g) = vp.last) *)
+(*   in *)
+(*   let rec trans_cp cp c = match cp with *)
+(*     | [] -> c *)
+(*     | bp :: cp -> trans_bp bp (trans_cp cp c) *)
+(*   and trans_bp bp c vp n = match view bp with *)
+(*     | C("CM", [gt]) -> *)
+(* 	(try  *)
+(*             let env = match_term gt (get_val n g) in *)
+(*             let f,vp' = matched_vp vp n env in *)
+(*               f && List.for_all (function (n',_) -> c vp' n') (get_succ n g) *)
+(* 	  with Nomatch -> false) *)
+(*     | _ when bp == ddd -> *)
+(* 	c vp n || ( *)
+(*           check_vp vp n && *)
+(*             let ns = get_next_vp'' g vp n in *)
+(*               not(ns = []) && *)
+(* 		let vp' = skipped_vp vp n in *)
+(* 		  List.for_all (trans_bp ddd c vp') ns *)
+(* 	) *)
+(*   in *)
+(*   let matcher = trans_cp cp (fun vp x ->  *)
+(*     loc_list := valOf vp.last :: !loc_list; *)
+(*     true) in *)
+(*     if matcher init_vp n *)
+(*     then Some (List.fold_left (fun acc_l e ->  *)
+(*       if List.mem e acc_l *)
+(*       then acc_l *)
+(*       else e :: acc_l *)
+(*     ) [] !loc_list) *)
+(*     else None *)
 
 let safe up tup = 
   match tup with
@@ -2600,7 +2710,7 @@ let rec abs_term_imp terms_changed is_fixed up =
     | C("comp{}", _)
     | C("storage", _) -> [t], env
     (* | C (ct, ts) when !abs_subterms <= zsize t ->  *)
-    (* 	(fdebug_endline !print_abs ("[Diff] abs_subterms " ^ string_of_gtree' t); *)
+    (* 	(fdebug_endline !Jconfig.print_abs ("[Diff] abs_subterms " ^ string_of_gtree' t); *)
     (* 	 [t], env) *)
     | C("call", f :: ts) ->
 	cur_depth := !cur_depth - 1;
@@ -2675,15 +2785,15 @@ let rec abs_term_imp terms_changed is_fixed up =
 
 
 let abs_term_noenv terms_changed is_fixed should_abs up = 
-  fdebug_endline !print_abs ("[Diff] abstracting concrete update with size: " ^
+  fdebug_endline !Jconfig.print_abs ("[Diff] abstracting concrete update with size: " ^
 				string_of_int (Difftype.fsize up) ^ "\n" ^
 				string_of_diff up);
   (*let res, _ = abs_term_size terms_changed is_fixed should_abs up in *)
   let res, _ = abs_term_imp terms_changed is_fixed up in 
   let res_norm = List.map renumber_metas_up res in
-    fdebug_endline !print_abs ("[Diff] resulting abstract updates: " ^ 
+    fdebug_endline !Jconfig.print_abs ("[Diff] resulting abstract updates: " ^ 
 				  string_of_int (List.length res));
-    if !print_abs 
+    if !Jconfig.print_abs 
     then List.iter (function d -> print_endline (string_of_diff d)) res_norm;
     res_norm
 
@@ -2936,8 +3046,8 @@ let frequent_subterms_changeset cs =
 let make_fixed_list term_pairs =
   let subterms = List.map 
     (function (gtn, _) -> 
-      fdebug_string !print_abs ("[Diff] making all subterms for :\n\t");
-      fdebug_endline !print_abs (string_of_gtree' gtn);
+      fdebug_string !Jconfig.print_abs ("[Diff] making all subterms for :\n\t");
+      fdebug_endline !Jconfig.print_abs (string_of_gtree' gtn);
       make_all_subterms gtn) term_pairs in
     (* Here we should allow frequent subterms that are not global; we could use
      * dmine to implement it, but I think it is so simple that we need only do a
@@ -2985,31 +3095,21 @@ let make_fixed_list_old updates =
 
 
 
-let get_fun_name_gflow f =
-  let head_node = f#nodes#tolist +> List.find (function (i,n) -> match view n with
-    | C("head:def", [{node=C("def",_)}]) -> true
-    | _ -> false) in
-    match view (snd head_node) with
-      | C("head:def",[{node=C("def",name::_)}]) -> (match view name with
-          | A("fname",name_str) -> name_str
-	  | _ -> raise (Fail "impossible match get_fun_name_gflow")
-	)
-      | _ -> raise (Fail "get_fun_name?")
 
 (* depth first search *)
 let dfs_iter xi' f g =
   let already = Hashtbl.create 101 in
   let rec aux_dfs xs = 
     xs +> List.iter (fun xi -> 
-      if Hashtbl.mem already xi then ()
-      else begin
-        Hashtbl.add already xi true;
-        if not(xi = xi')
-        then f xi;
-        let succ = g#successors xi in
-          aux_dfs (succ#tolist +> List.map fst);
-      end
-    ) in
+		       if Hashtbl.mem already xi then ()
+		       else begin
+			 Hashtbl.add already xi true;
+			 if not(xi = xi')
+			 then f xi;
+			 let succ = g#successors xi in
+			   aux_dfs (succ#tolist +> List.map fst);
+		       end
+		    ) in
     aux_dfs [xi']
 
 let seq_of_flow f = 
@@ -3017,8 +3117,9 @@ let seq_of_flow f =
   let start_idx = 0 in
   let add_node i = seq := f#nodes#find i :: !seq in
     dfs_iter start_idx add_node f;
-    (* !seq +> List.filter (function (i, t) -> non_phony t) +> List.rev *)
-    !seq +> List.rev
+    !seq 
+    +> List.filter non_phony
+    +> List.rev
 
 
 let dfs_diff f1 f2 = 
@@ -3358,9 +3459,9 @@ let get_patterns subterms_lists unique_subterms env term =
 	  print_string "[Diff] pre-pruning...";
 	  flush stdout;
 	  TT.fold (fun pattern occurs acc -> 
-		     let real_occurs = unique_subterms +> List.fold_left 
-		       (fun acc_n f -> 
-			  if can_match pattern f
+		     let real_occurs = subterms_lists +> List.fold_left 
+		       (fun acc_n fs -> 
+			  if fs +> List.exists (can_match pattern)
 			  then acc_n + 1
 			  else acc_n
 		       ) 0 in
@@ -3371,10 +3472,14 @@ let get_patterns subterms_lists unique_subterms env term =
 			    pat_extension p 
 			    = pat_extension pattern
 			    && Gtree.zsize p > Gtree.zsize pattern)
-		       then acc
+		       then 
+			 acc
 		       else
 			 (pattern, real_occurs) :: acc
-		     else acc
+		     else (
+		       
+		       acc
+		     )
 		  ) count_ht []
 	  +> (function x -> print_string " partitioning";x)
 	  +> partition in_eq
@@ -3388,7 +3493,7 @@ let get_patterns subterms_lists unique_subterms env term =
 	  print_endline ("done with " ^ TT.length count_ht - TT.length prepruned_ht 
 			 +> string_of_int  ^ " elements pruned");
 	  not_counted := false;
-	  if !print_abs
+	  if !Jconfig.print_abs
 	  then begin
 	    print_endline "[Diff] initial (after pre-pruning) abstracted patterns";
 	    print_endline ("[Diff] threshold: " ^ string_of_int !no_occurs);
@@ -3417,6 +3522,7 @@ let get_patterns subterms_lists unique_subterms env term =
 		 acc
 	     else (
 	       acc)
+	  (* ) prepruned_ht [] *)
 	  ) prepruned_ht []
       in
 	res
@@ -3459,7 +3565,7 @@ let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
 	       v_print_endline ("[Diff] get patterns for:" ^ 
 				  lhs +> string_of_gtree');
 	       let p_env = get_patterns subterms_lists unique_subterms [] lhs in
-		 if !print_abs
+		 if !Jconfig.print_abs
 		 then (
 		   print_endline ("[Diff] for UP(" ^
 		   		    lhs +> string_of_gtree' ^ ", " ^
@@ -3474,7 +3580,7 @@ let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
 		      let up = UP(p,p') in
 			if safe_part up (gt1, gt2)
 			then (
-			  if !print_abs
+			  if !Jconfig.print_abs
 			  then (
 			    print_endline "[Diff] found *safe* part:";
 			    up +> string_of_diff +> print_endline; 
@@ -3482,7 +3588,7 @@ let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
 			  up +++ acc_parts
 			)
 			else (
-			  if !print_abs 
+			  if !Jconfig.print_abs 
 			  then (
 			    print_endline "[Diff] *UNsafe* part:";
 			    up +> string_of_diff +> print_endline; 
@@ -3528,7 +3634,7 @@ let infeasible p = contains_infeasible p || useless_abstraction p
 *)
 
 let abstract_term subterms_lists unique_terms env t =
-  if !print_abs 
+  if !Jconfig.print_abs 
   then print_endline ("[Diff] abstract_term: " ^
 		   string_of_gtree' t);
     get_patterns subterms_lists unique_terms env t 
@@ -3549,12 +3655,12 @@ let abstract_term subterms_lists unique_terms env t =
        let p' = p (* rev_sub env_p t *) in
 	 if infeasible p'
 	 then begin
-	   if !print_abs then 
+	   if !Jconfig.print_abs then 
 	     print_endline ("[Diff] infeasible: " ^ p' +> string_of_gtree');
 	   acc_ps_envs
 	 end
 	 else begin
-	   if !patterns && !print_abs
+	   if !Jconfig.print_abs
 	   then print_endline ("[Diff] node pattern: " ^ p' +> string_of_gtree');
 	   if List.exists (function p'',_ -> p' = p'') acc_ps_envs
 	   then acc_ps_envs

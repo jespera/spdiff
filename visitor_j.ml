@@ -27,10 +27,10 @@ let (!!) a = mkA(a, "N/H")
 let rec trans_expr exp = 
   let (unwrap_e, typ), ii = exp in
   match unwrap_e with
-  | Ident s ->
-      (match !typ with
-        | None, _ -> "exp" @@ "ident" %% s
-        | Some (ft, _), _ -> "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% s])
+  | Ident s -> "exp" @@ "ident" %% s
+      (* (match !typ with *)
+      (*   | None, _ -> "exp" @@ "ident" %% s *)
+      (*   | Some (ft, _), _ -> "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% s]) *)
   | Constant (String (s, _)) -> 
       "exp" @@ "const" @@ "string" %% s
   | Constant (Int s) -> 
@@ -213,7 +213,7 @@ and trans_statement (sta : statement) =
       (*C("for",[gt_es1;gt_es2;gt_es3;gt_st])*)
   | Decl de -> "stmt" @@ trans_decl de
   | Labeled lab -> "stmt" @@ trans_labeled lab
-  | _ -> mkA ("statem", "N/H")
+  | _ -> !! "stmt"
 
 and trans_labeled lab = match lab with
 | Label (s, stat) -> "labeled" @@@ ["lname" %% s; trans_statement stat]

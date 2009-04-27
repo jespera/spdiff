@@ -187,7 +187,7 @@ let translate_node (n2, ninfo) = match n2 with
 
   (* ------------------------ *)
   (* for ctl:  *)
-  | Control_flow_c2.TrueNode -> mkA("phony", "[then]")
+  | Control_flow_c2.TrueNode -> Diff.control_true
   | Control_flow_c2.FalseNode -> mkA("phony", "[else]")
   | Control_flow_c2.InLoopNode (* almost equivalent to TrueNode but just for loops *) -> 
       Diff.control_inloop
@@ -196,7 +196,7 @@ let translate_node (n2, ninfo) = match n2 with
   | Control_flow_c2.FallThroughNode -> mkA("phony", "[fallthrough]")
 
   | Control_flow_c2.ErrorExit -> mkA("phony", "[errorexit]")
-  | _ -> mkA("NODE", "N/A")
+  | _ -> mkA("stmt", "N/H")
 
 let print_gflow g =
   let pr = print_string in
