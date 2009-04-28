@@ -1439,7 +1439,7 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
     v_print_endline (string_of_pattern p);
     let abs_P_env = 
       get_pa [] (* env *)
-      (* +> sort_pa_env gss *)
+      +> sort_pa_env gss
       +> List.filter 
 	(function (pat,env) ->
 	   p = [] 
@@ -2412,17 +2412,23 @@ let locate_subterm g orig_subterm orig_path f =
       with
 	  Goto (lab', path') -> search_label (lab', path')
     in
-      try loop orig_subterm orig_path 
-      with
-	| Goto (lab, path) -> search_label (lab, path) 
-	| Break path -> begin
-	    print_string "[Main] caught break in function ";
-	    g +> get_fun_name_gflow +> print_endline;
-	    print_string "[Main] at path: ";
-	    path +> List.map string_of_int +> String.concat " "
+      if orig_path = []
+      then begin
+	print_endline "[Main] calling locate_subterm with empty path";
+	orig_subterm
+      end
+      else
+	try loop orig_subterm orig_path 
+	with
+	  | Goto (lab, path) -> search_label (lab, path) 
+	  | Break path -> begin
+	      print_string "[Main] caught break in function ";
+	      g +> get_fun_name_gflow +> print_endline;
+	      print_string "[Main] at path: ";
+	      path +> List.map string_of_int +> String.concat " "
 	      +> print_endline;
-	    raise (Break path)
-	  end
+	      raise (Break path)
+	    end
 
 
 (* this function takes a chunk and a subterm and uses the subterm to
