@@ -3548,6 +3548,40 @@ let get_patterns subterms_lists unique_subterms env term =
     end
 
 
+let rec useless_abstraction p = is_meta p || 
+  match view p with
+    | C("dlist", [p']) 
+    | C("stmt", [p']) 
+    | C("exprstmt", [p']) 
+    | C("exp", [p']) 
+    | C("fulltype", [p']) when useless_abstraction p' -> true
+    | C("onedecl",[p_var;p_type;p_storage]) ->
+	[p_var; p_type] +> List.for_all useless_abstraction 
+    | A("stobis", _) | A("inline",_) -> true
+    | C("storage", [p1;p2]) | C("itype", [p1;p2]) when is_meta p1 || is_meta p2 -> true
+(*    | C("fulltype", _) (* | C("pointer", _) *) -> true *)
+    | C("exp", [{Hashcons.node=A("ident", _)}]) -> true
+    | C("exp", [{Hashcons.node=C("const", _)}]) -> true
+    | _ -> false
+
+(* The following function is used to decide when an abstraction is infeasible.
+ * Either because it simply a meta-variable X or if it is too abstract
+ *)
+(* let infeasible p = is_meta p || abstractness p > !default_abstractness  *)
+
+let rec is_nested_meta gt = is_meta gt || match view gt with
+  | C(_,[e]) -> is_nested_meta e
+  | _ -> false
+
+let rec contains_infeasible p = 
+  match view p with
+    | C("binary_arith", op :: _) 
+    | C("binary_logi",  op :: _) when is_nested_meta op -> true
+    | C(_,ts) -> ts +> List.exists contains_infeasible
+    | _ -> false
+
+let infeasible p = contains_infeasible p || useless_abstraction p
+
 let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
   let c_parts = 
     if !malign_mode
@@ -3576,7 +3610,8 @@ let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
 	   | UP(lhs,rhs) -> 
 	       v_print_endline ("[Diff] get patterns for:" ^ 
 				  lhs +> string_of_gtree');
-	       let p_env = get_patterns subterms_lists unique_subterms [] lhs in
+	       let p_env = get_patterns subterms_lists unique_subterms [] lhs 
+	       +> List.filter (function (p,_) -> not(infeasible p)) in
 		 if !Jconfig.print_abs
 		 then (
 		   print_endline ("[Diff] for UP(" ^
@@ -3589,57 +3624,31 @@ let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
 		 p_env +> List.fold_left 
 		   (fun acc_parts (p,env) -> 
 		      let p' = rev_sub env rhs in
-		      let up = UP(p,p') in
-			if safe_part up (gt1, gt2)
-			then (
-			  if !Jconfig.print_abs
-			  then (
-			    print_endline "[Diff] found *safe* part:";
-			    up +> string_of_diff +> print_endline; 
-			  );
-			  up +++ acc_parts
-			)
-			else (
-			  if !Jconfig.print_abs 
-			  then (
-			    print_endline "[Diff] *UNsafe* part:";
-			    up +> string_of_diff +> print_endline; 
-			  );
+			if p = p' 
+			then
 			  acc_parts
-			)
+			else
+			  let up = UP(p,p') in
+			    if safe_part up (gt1, gt2)
+			    then (
+			      if !Jconfig.print_abs
+			      then (
+				print_endline "[Diff] found *safe* part:";
+				up +> string_of_diff +> print_endline; 
+			      );
+			      up +++ acc_parts
+			    )
+			    else (
+			      if !Jconfig.print_abs 
+			      then (
+				print_endline "[Diff] *UNsafe* part:";
+				up +> string_of_diff +> print_endline; 
+			      );
+			      acc_parts
+			    )
 		   ) acc_parts
 	   | _ -> raise (Fail "non supported update ...")
       ) []
-
-let rec useless_abstraction p = is_meta p || 
-  match view p with
-    | C("dlist", [p']) 
-    | C("stmt", [p']) 
-    | C("exprstmt", [p']) 
-    | C("exp", [p']) 
-    | C("fulltype", [p']) when useless_abstraction p' -> true
-    | C("onedecl",[p_var;p_type;p_storage]) ->
-	[p_var; p_type] +> List.for_all useless_abstraction 
-    | A("stobis", _) | A("inline",_) -> true
-    | C("storage", [p1;p2]) | C("itype", [p1;p2]) when is_meta p1 || is_meta p2 -> true
-(*    | C("fulltype", _) (* | C("pointer", _) *) -> true *)
-    | C("exp", [{Hashcons.node=A("ident", _)}]) -> true
-    | C("exp", [{Hashcons.node=C("const", _)}]) -> true
-    | _ -> false
-
-(* The following function is used to decide when an abstraction is infeasible.
- * Either because it simply a meta-variable X or if it is too abstract
- *)
-(* let infeasible p = is_meta p || abstractness p > !default_abstractness  *)
-
-let rec contains_infeasible p = 
-  match view p with
-    | C("binary_arith", [op; _; _]) 
-    | C("binary_logi",  [op; _; _]) when is_meta op -> true
-    | C(_,ts) -> ts +> List.exists contains_infeasible
-    | _ -> false
-
-let infeasible p = contains_infeasible p || useless_abstraction p
 
 (* abstract term respecting bindings given in env;
    return all found abstractions of the term and the correspond env
