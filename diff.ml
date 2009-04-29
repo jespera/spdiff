@@ -216,11 +216,23 @@ let rec string_of_gtree str_of_t str_of_c gt =
     | A("aop", op_str) -> op_str
     | A("meta", x) -> x
     | _ -> raise (Impossible 1017)
+  and none_exprstmt es = match view es with
+    | C("stmt", [e]) when none_exprstmt e -> true
+    | A("exprstmt", "none") -> true
+    | _ -> false
   and loop gt =
     match view gt with
       | A ("meta", c) -> string_of_meta gt
 	  (*      | A ("itype", _) -> string_of_itype gt 
       | A (t,c) -> t ^ ":" ^ c *)
+      | C ("cast", [totype; exp]) ->
+	  "(" ^ loop totype ^ ")" ^ loop exp
+      | C ("if", [c;b1;b2]) ->
+	  "if(" ^ loop c ^") " ^
+	    loop b1 ^
+	    (if none_exprstmt b2
+	     then ""
+	     else " else " ^ loop b2)
       | C ("binary_arith", [aop;e1;e2]) ->
 	  let aop_str = string_of_aop aop in
 	  let e1_str = loop e1 in
