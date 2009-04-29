@@ -1429,7 +1429,14 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
       then (
 	v_print_endline "not_subseq";
 	let ps' = ps ++ pp' in
-	  grow ps' (ext_p, env', gss)
+	let last_p =  pp' +> List.rev +> List.hd in
+	  if Diff.matches_exit last_p
+	  then
+	    (* if the last pattern matches an exit-node, there is no
+	       need to grow the pattern any more *)
+	    ps'
+	  else
+	    grow ps' (ext_p, env', gss)
       )
       else (
 	v_print_endline "";
@@ -1439,6 +1446,7 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
     v_print_endline (string_of_pattern p);
     let abs_P_env = 
       get_pa [] (* env *)
+(*      
       +> sort_pa_env gss
       +> List.filter 
 	(function (pat,env) ->
@@ -1453,6 +1461,7 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
 		 )
 	    )
 	)
+*)
     in
       v_print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
       let nextP2 = get_next abs_P_env ext2 p gss in
@@ -2125,6 +2134,7 @@ let corresponds st t next_node_val path =
 	    (match view st, view t with
 	       | C("macroit",      [{Hashcons.node=C(t_name, [st])}]), 
 		 C("head:macroit", [{Hashcons.node=C(g_name, _)}]) when t_name = g_name ->
+		   at_breaking_handler := true;
 		   (match next_node_val with
 		      | None -> raise (Diff.Fail "no next control node val: InLoop could have been expected")
 		      | Some control_node ->
