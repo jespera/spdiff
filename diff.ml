@@ -672,7 +672,32 @@ let correlate_diffs d =
   let n, o = fix_loop ([], []) d in
     n @ o
 
-
+let correlate_diffs_new ds =
+  if !Jconfig.verbose 
+  then begin
+    print_endline "[Diff] correlate new called on : ";
+    ds +> List.map string_of_diff +> List.iter print_endline;
+  end;
+  let rec next_adds acc ds = 
+    match ds with 
+      | [] -> acc
+      | ADD d :: ds -> next_adds (d :: acc) ds
+      | RM _ :: ds 
+      | UP _ :: ds -> next_adds acc ds
+      | _ -> acc in
+  let rec loop acc_ds prefix suffix = 
+    match suffix with 
+      | [] -> acc_ds
+      | RM a :: suffix -> 
+	  let suffix_adds = next_adds [] suffix in
+	  let pre_suf_adds = next_adds suffix_adds prefix in
+	    if pre_suf_adds = []
+	    then acc_ds
+	    else pre_suf_adds +> List.fold_left 
+	      (fun acc_ds add -> 
+		 UP(a, add) :: acc_ds) acc_ds
+      | up :: suffix -> loop (up :: acc_ds) (up :: prefix) suffix in
+    loop [] [] ds 
 exception Nomatch
 
 (* Take an env and new binding for m = t; if m is already bound to t then we
@@ -1058,7 +1083,7 @@ let get_tree_changes gt1 gt2 =
 	     (* 	print_endline "---"; *)
 	     (* 	dfs *)
 	     (* ) *)
-	   +> correlate_diffs 
+	   +> correlate_diffs_new
 	   +> List.filter is_up)
       | _, _ -> [] in
   let (@@) ls1 ls2 = ls1 +> 
