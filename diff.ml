@@ -289,6 +289,8 @@ let rec string_of_gtree str_of_t str_of_c gt =
 	    loop t_gt ^ " : " ^
 	    loop f_gt
       | C ("argtype", [at]) ->loop at
+      | C ("macroargs", args) -> 
+	  "(" ^ args +> List.map loop +> String.concat "," ^ ")"
       | C ("param", ps) -> string_of_param gt
       | C (t, gtrees) -> 
           str_of_t t ^ "[" ^
@@ -465,7 +467,7 @@ let lcs_shared size_f src tgt =
 	    let t = List.nth tgt (j - 1) in
 	      (* now see how much of s and t is shared *)
 	    let size = size_f s t in
-	    let c = (try m.(i-1).(j-1) + size with _ -> size) in
+	    let c = (try m.(i-1).(j-1) + size with _ -> size) in (* update/equal *)
 	    let a = try m.(i).(j-1) with _ -> 0 in (* adding is better *)
 	    let b = try m.(i-1).(j) with _ -> 0 in (* removing is better *)
 	      m.(i).(j) <- max3 a b c

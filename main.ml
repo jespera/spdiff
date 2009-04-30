@@ -1847,7 +1847,7 @@ let construct_spatches patterns is_freq =
     let after_ops  = get_after chunk in
       (* look for the (could there be more than one?) context point in
        * the spatch and decide whether it has already been handled
-       * it it has not, insert the operations mentioned in the chunk
+       * if it has not, insert the operations mentioned in the chunk
        * operations are "before" "at" "after"
        *)
     let has_been_modified pp chunk_context =
@@ -2132,8 +2132,12 @@ let corresponds st t next_node_val path =
       | C("stmt", [st]) ->
 	  let s_func st = mkC("stmt", [st]) in
 	    (match view st, view t with
-	       | C("macroit",      [{Hashcons.node=C(t_name, [st])}]), 
-		 C("head:macroit", [{Hashcons.node=C(g_name, _)}]) when t_name = g_name ->
+	       | C("macroit",      [{Hashcons.node=C(t_name, [
+						       {Hashcons.node=C("macroargs", args)}
+						       ;st
+						     ])}]), 
+		 C("head:macroit", [{Hashcons.node=C(g_name, args_node)}]) 
+		   when t_name = g_name && args = args_node ->
 		   at_breaking_handler := true;
 		   (match next_node_val with
 		      | None -> raise (Diff.Fail "no next control node val: InLoop could have been expected")
