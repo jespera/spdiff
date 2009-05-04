@@ -1676,22 +1676,6 @@ let equal_flows f1 f2 =
 			     equal_arcs (get_arcs f1 i) (get_arcs f2 i)
 			  ) 
 
-(* given a set of patterns and a terms that have been identified as
- * belonging to a change, we wish to find the patterns that match the
- * term
- *)
-let get_change_matches spatterns term =
-  v_print_endline "[Main] getting patterns that relate to: ";
-  v_print_endline (Diff.string_of_gtree' term);
-  spatterns +> List.filter 
-    (function spat ->
-       (* recall that spat is a list of term-patterns *)
-       spat 
-       +> List.filter (function p -> match view p with 
-			 | C("CM",[p]) -> true 
-			 | _ -> false) 
-       +> List.exists (function p -> Diff.can_match (extract_pat p) term)
-    ) 
 
 (* given a set of patterns and a set of terms that have been identified as
  * belonging to a change, we wish to find the patterns that match any of the
@@ -1700,7 +1684,7 @@ let get_change_matches spatterns term =
 let get_change_matches_terms spatterns terms =
   v_print_endline "[Main] filtering patterns that are related to changed terms";
   let changes = terms 
-    +> List.rev_map (get_change_matches spatterns) in
+    +> List.rev_map (Diff.get_change_matches spatterns) in
   let tmp = tail_flatten changes in
   let tmp1 = rm_dups tmp in
     tmp1
@@ -1800,13 +1784,15 @@ let construct_spatches patterns is_freq =
      * to construct a list of potential chunks to build from
      * *)
   let use_chunk chunk = 
+    (* appends e to all lists in res:
+       [ res' | ls <- res, res' <- res @ [e] ]
+    *)
     let suffix_all res e =
       if res = [] 
       then [[e]]
       else
         res +> List.fold_left (fun res ls -> 
-				 ((e :: List.rev ls)
-				  +> List.rev)
+				 (ls @ [e])
 				 :: res
 			      ) []
     in
@@ -1817,7 +1803,7 @@ let construct_spatches patterns is_freq =
 	| ((Difftype.ID _ | Difftype.RM _) as m) :: chunk -> loop chunk (suffix_all results m)
 	| m :: chunk -> 
             let results' = 
-              suffix_all results m 
+              suffix_all results m
               +> List.rev_append results in 
               loop chunk results'
     in
@@ -1867,6 +1853,8 @@ let construct_spatches patterns is_freq =
 	| Difftype.ID p, Difftype.ID _ -> Difftype.ID p
 	| Difftype.ID p, Difftype.RM _ -> Difftype.RM p
 	| _, _ -> raise (Diff.Fail ("pp not Difftype.ID"))  in
+      (* rev_sub all t in iops based on env and insert in front of
+	 suffix; iops inserted in _reverse_ order *)
     let rec insert_ops env suffix iops = 
       match iops with
 	| [] -> suffix
@@ -1891,7 +1879,8 @@ let construct_spatches patterns is_freq =
 		      ((List.rev prefix_spatch) @ (pp :: suffix_spatch)), []
 		    else 
 	 	      (* insert operations *)
-		      (List.rev (insert_ops env' prefix_spatch (List.rev before_ops))) 
+(*		      (List.rev (insert_ops env' prefix_spatch (List.rev before_ops))) *)
+		      (List.rev (insert_ops env' prefix_spatch before_ops)) 
 		      @ (embed_context_point pp chunk_context_point
 			 :: (insert_ops env' suffix_spatch (List.rev after_ops)))
 			, env' 
@@ -1932,14 +1921,14 @@ let construct_spatches patterns is_freq =
      *)
   let build_from_chunk spatches_env chunk = 
     let potential_chunks = use_chunk chunk  in
-      v_print_endline ("[Main] potential chunks: " ^
+      print_endline ("[Main] use chunks: " ^
 		       List.length potential_chunks +> string_of_int);
       potential_chunks +> List.iter (function diff -> 
-				       v_print_endline "[Chunk]";
-				       v_print_endline (diff 
+				       print_endline "[Chunk]";
+				       print_endline (diff 
 						      +> List.map Diff.string_of_diff
 						      +> String.concat "\n");
-				       v_print_endline "[End]"
+				       print_endline "[End]"
 				    );
       potential_chunks 
       +> List.filter is_transformation_chunk
@@ -1950,7 +1939,7 @@ let construct_spatches patterns is_freq =
       !Diff.flow_changes +>
 	List.fold_left (fun acc_chunks_lists diff ->
 			  List.rev_append 
-			    (Diff.chunks_of_diff diff)
+			    (Diff.chunks_of_diff_spatterns patterns diff)
 			    acc_chunks_lists) [] in
       (* chunks is now a list of (+t)*(t|-t)(+t)* diffs; for each chunk we
        * can extract the context/attachment-point (t|-t) which is to be found
@@ -1964,7 +1953,7 @@ let construct_spatches patterns is_freq =
 			| Difftype.ID context_point 
 			| Difftype.RM context_point -> 
 			    (* does the context-point match anything in at least some pattern *)
-			    not(get_change_matches patterns context_point = [])
+			    not(Diff.get_change_matches patterns context_point = [])
 			| _ -> raise (Impossible 6)
 		     )
       (* +> List.rev_map (function chunk ->  *)
@@ -1975,11 +1964,11 @@ let construct_spatches patterns is_freq =
       print_endline "[Main] good chunks";
       good_chunks  
       +> List.iter (function diff -> 
-		      v_print_endline "[Chunk]";
-		      v_print_endline (diff 
+		      print_endline "[Chunk]";
+		      print_endline (diff 
 				     +> List.map Diff.string_of_diff
 				     +> String.concat "\n");
-		      v_print_endline "[End]"
+		      print_endline "[End]"
                    );
       (* for each pattern, we wish to try and construct a (or many) spatch
        * from it; we iterate over each chunk to try and see whether the chunk
@@ -2830,7 +2819,11 @@ let find_common_patterns () =
   let term_pairs = List.rev (
     List.fold_left (fun acc_pairs (lfile, rfile) ->
 		      Reader.read_filepair_cfg lfile rfile @ acc_pairs
-		   ) [] !file_pairs) in
+		   ) [] !file_pairs)
+    +> List.filter (function ((gt_lhs,f_lhs), (gt_rhs, f_rhs)) -> 
+		      not(!only_changes) 
+		      || not(gt_lhs = gt_rhs)
+		   ) in
     print_endline ("[Main] read " ^ string_of_int (List.length term_pairs) ^ " files");
     let gss = lhs_flows_of_term_pairs term_pairs in
     (* let gss_rhs = List.rev_map (fun (_, (gt',flow')) -> [flow']) term_pairs in *)

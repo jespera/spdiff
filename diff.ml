@@ -292,6 +292,10 @@ let rec string_of_gtree str_of_t str_of_c gt =
       | C ("macroargs", args) -> 
 	  "(" ^ args +> List.map loop +> String.concat "," ^ ")"
       | C ("param", ps) -> string_of_param gt
+      | C ("iniList", inis) -> 
+                      "{" ^ inis +> List.map loop
+                            +> String.concat ","
+                          ^ "}"
       | C (t, gtrees) -> 
           str_of_t t ^ "[" ^
           String.concat "," (List.map loop gtrees)
@@ -3792,30 +3796,72 @@ let rec merge_patterns p1 p2 =
       | _, _ -> None
 
 
-(* based on the assumption that in a diff, we always block removals/additions
- * the following function splits a diff into chunks each being of the form:
-         * chunk ::= (+p)* (-p | p) (+p)*
- * that is: each chunk contains a context node (the -p,p) and some additions.
- * One should take note that given a diff, there can be more than one way to
- * split it according to the chunk-def given. However, any partitioning will be
- * just fine for us.
+(* based on the assumption that in a diff, we always block
+ * removals/additions the following function splits a diff into chunks
+ * each being of the form:
+ * 
+ * chunk ::= (+p)* (-p | p) (+p)*
+ * 
+ * that is: each chunk contains a context node (the -p,p) and some
+ * additions.
+ * 
+ * One should take note that given a diff, there can be more than one
+ * way to split it according to the chunk-def given. 
  *)
 
 let chunks_of_diff diff =
-        let rec loop acc_chunks chunk diff = match diff with
-        | [] -> List.rev ((List.rev chunk) :: acc_chunks)
-        | i :: diff' -> (match i with
-          | ADD t -> loop acc_chunks (i :: chunk) diff'
-          | ID t | RM t -> _loop acc_chunks (i :: chunk) diff'
-        ) 
-        and _loop acc_chunks chunk diff = match diff with
-        | [] -> loop acc_chunks chunk []
-        | i :: diff' -> (match i with
-          | ADD _ -> _loop acc_chunks (i :: chunk) diff'
-          | _ -> loop ((List.rev chunk) :: acc_chunks) [] diff
-        ) in
-        loop [] [] diff
+  let rec loop acc_chunks chunk diff = match diff with
+    | [] -> List.rev ((List.rev chunk) :: acc_chunks)
+    | i :: diff' -> (match i with
+		       | ADD t -> loop acc_chunks (i :: chunk) diff'
+		       | ID t | RM t -> _loop acc_chunks (i :: chunk) diff'
+		    ) 
+  and _loop acc_chunks chunk diff = match diff with
+    | [] -> loop acc_chunks chunk []
+    | i :: diff' -> (match i with
+		       | ADD _ -> _loop acc_chunks (i :: chunk) diff'
+		       | _ -> loop ((List.rev chunk) :: acc_chunks) [] diff
+		    ) in
+    loop [] [] diff
 
 
+(* given a set of patterns and a term that have been identified as
+ * belonging to a change, we wish to find the patterns that match the
+ * term
+ *)
+let get_change_matches spatterns term =
+  v_print_endline "[Diff] getting patterns that relate to: ";
+  v_print_endline (string_of_gtree' term);
+  spatterns +> List.filter 
+    (function spat ->
+       (* recall that spat is a list of term-patterns *)
+       spat 
+       +> List.filter (function p -> match view p with 
+			 | C("CM",[p]) -> true 
+			 | _ -> false) 
+       +> List.exists (function p -> can_match (extract_pat p) term)
+    ) 
 
 
+let chunks_of_diff_spatterns spatterns diff =
+  let rec loop acc_chunks chunk diff = match diff with
+    | [] -> List.rev ((List.rev chunk) :: acc_chunks)
+    | i :: diff' -> (match i with
+		       | ADD t -> loop acc_chunks (i :: chunk) diff'
+		       | ID t ->
+			   if get_change_matches spatterns t = []
+			   then loop acc_chunks [] diff'
+			   else _loop acc_chunks (i :: chunk) diff'
+		       | RM t ->
+			   if get_change_matches spatterns t = []
+			   then loop acc_chunks chunk diff'
+			   else _loop acc_chunks (i :: chunk) diff'
+		    ) 
+  and _loop acc_chunks chunk diff = match diff with
+    | [] -> loop acc_chunks chunk []
+    | i :: diff' -> (match i with
+		       | ADD _ -> _loop acc_chunks (i :: chunk) diff'
+		       | _ -> loop ((List.rev chunk) :: acc_chunks) [] diff
+		    ) in
+    loop [] [] diff
+    +> List.filter (function chunk -> not(chunk = []))
