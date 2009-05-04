@@ -2423,7 +2423,17 @@ let locate_subterm g orig_subterm orig_path f =
       else
 	try loop orig_subterm orig_path 
 	with
-	  | Goto (lab, path) -> search_label (lab, path) 
+	  | Goto (lab, path) -> 
+	      try
+	      search_label (lab, path);
+	      with Break path -> begin
+		print_string ("[Main] caught break after GOTO " ^ lab  ^ " in function ");
+		g +> get_fun_name_gflow +> print_endline;
+		print_string "[Main] at path: ";
+		path +> List.map string_of_int +> String.concat " "
+		+> print_endline;
+		raise (Break path)
+	      end
 	  | Break path -> begin
 	      print_string "[Main] caught break in function ";
 	      g +> get_fun_name_gflow +> print_endline;
