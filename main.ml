@@ -2899,13 +2899,26 @@ let find_common_patterns () =
 				     | Difftype.ID _ -> false
 				     | _ -> true) in
 	    let trans_patches = sp_candidates +> List.filter is_transformation_sp in
-	      print_endline ("[Main] filtering safe semantic patches ("^ trans_patches +> 
+	      print_string ("[Main] filtering safe semantic patches ("^ trans_patches +> 
 	    		       List.length +> 
-			       string_of_int ^")");
+			       string_of_int ^") ... ");
+	      let res_count = ref 0 in
+	      let res_total = List.length trans_patches in
 	      let res_spatches = 
 		trans_patches
-		+> List.filter (function sp -> is_spatch_safe_ttf_list sp ttf_list)
+		+> List.filter (function sp -> begin
+				  ANSITerminal.save_cursor ();
+				  ANSITerminal.print_string 
+				    [ANSITerminal.on_default](
+				      !res_count +> string_of_int ^"/"^
+					res_total +> string_of_int);
+				  ANSITerminal.restore_cursor();
+				  flush stdout;
+				  res_count := !res_count + 1;
+				  is_spatch_safe_ttf_list sp ttf_list;
+				end)
 	      in
+		print_newline ();
 		print_endline ("[Main] filtering largest semantic patches ("^
 				 res_spatches +> List.length +> string_of_int
 			       ^")");
