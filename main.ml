@@ -2097,6 +2097,15 @@ exception Break of int list
 
 let at_breaking_handler = ref false
 
+
+let rec is_looping t = match view t with
+  | C("for", _)
+  | C("dowhile", _)
+  | C("while", _)
+  | C("switch", _) -> true
+  | C("stmt", [s]) -> is_looping t
+  | _ -> false
+
 let corresponds st t next_node_val path =
   let same_path s_st_f = match s_st_f with
     | None -> None
@@ -2389,9 +2398,10 @@ let locate_subterm g orig_subterm orig_path f =
 			if !at_breaking_handler
 			then begin
 			  at_breaking_handler := false;
-			  try
+			  try begin
 			    (ts *> loop) new_path 
-			    +> ins_f
+			    +> ins_f;
+			  end
 			  with Break new_path -> raise (Next new_path)
 			end
 			else
@@ -2406,8 +2416,16 @@ let locate_subterm g orig_subterm orig_path f =
 	    ]) 
 	    when lab = lab' -> loop t path
 	| C(ty, ts) -> 
-	    let ts' = iterate_lab ts loop locate_label (lab, path)
-	    in mkC(ty,ts')
+	    (* if t is a looping construct, we need to setup a break/continue handler *)
+	    if is_looping t
+	    then 
+	      try
+		let ts' = iterate_lab ts loop locate_label (lab, path)
+		in mkC(ty,ts')
+	      with Break new_path -> raise (Next new_path)
+	    else 
+	      let ts' = iterate_lab ts loop locate_label (lab, path)
+	      in mkC(ty,ts')
 	| _ -> raise (Label_not_found lab) 
     in
     let rec search_label (lab, path) =
@@ -2425,7 +2443,9 @@ let locate_subterm g orig_subterm orig_path f =
 	with
 	  | Goto (lab, path) -> 
 	      try
-	      search_label (lab, path);
+		begin
+		  search_label (lab, path);
+		end
 	      with Break path -> begin
 		print_string ("[Main] caught break after GOTO " ^ lab  ^ " in function ");
 		g +> get_fun_name_gflow +> print_endline;
