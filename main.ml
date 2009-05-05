@@ -2334,6 +2334,8 @@ let locate_subterm g orig_subterm orig_path f =
     let rec loop subterm path =
       match path with
 	| [] -> begin
+	    (* we should actually *NEVER* reach this point because of
+	       the next pattern-match *)
 	    print_endline ("[Main] reached end of path at subterm: "
 			   ^ subterm +> Diff.string_of_gtree');
 	    print_string ("Orig path: \t ");
@@ -2375,7 +2377,14 @@ let locate_subterm g orig_subterm orig_path f =
 		  print_newline ();
 		  print_endline ("In function: " ^
 				   get_fun_name_gflow g);
+		  (* Should we bail out at this place or raise
+		     "LocateSubterm" to indicate that the search should
+		     continue but that we did not find the node term at
+		     this point?  *)
+		  raise LocateSubterm
+		  (*
 		  raise (Diff.Fail "unable to locate subterm")
+		  *)
 		end
 	| n' :: path -> 
 	    let t = get_val n' 

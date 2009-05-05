@@ -242,7 +242,8 @@ and trans_iter i =
         trans_statement st]
   | MacroIteration (s, awrap, st) -> 
       "macroit" @@ s @@@ [
-        (*"args" List.map (function (e, ii) -> trans_arg e) awrap;*)
+	"macroargs" @@@ 
+	  awrap +> List.map (function (e,ii) -> trans_arg e);
         trans_statement st
       ]
       (*raise (Fail "macroiterator not yet supported")*)
