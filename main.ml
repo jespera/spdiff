@@ -2103,7 +2103,7 @@ let rec is_looping t = match view t with
   | C("dowhile", _)
   | C("while", _)
   | C("switch", _) -> true
-  | C("stmt", [s]) -> is_looping t
+  | C("stmt", [s]) -> is_looping s
   | _ -> false
 
 let corresponds st t next_node_val path =
@@ -2196,10 +2196,12 @@ let corresponds st t next_node_val path =
 				  List.tl path)
 			  else raise (Next path)
 		   )
-	       | C("dowhile", [s;e]), C("head:do", [e']) when e = e' ->
+	       | C("dowhile", [s;e]), C("head:do", [e']) when e = e' 
+		   (* TODO: we also need to verify the statement s
+		      with the graph *) ->
 		   at_breaking_handler := true;
-		   Some ([s], (function s' ->
-				 mkC("dowhile", s' @ [e]) +> s_func)) +> same_path
+		     Some ([s], (function s' ->
+				   mkC("dowhile", s' @ [e]) +> s_func)) +> same_path
 	       | C("for", [e1;e2;e3;st]), C("head:for", _) ->
 		   at_breaking_handler := true;
 		   (match next_node_val with
@@ -2703,9 +2705,13 @@ let is_spatch_safe_ttf_list sp ttf_list =
     List.iter (function p -> 
   		 Diff.string_of_diff p +> v_print_endline
   	      );
-  ttf_list +> for_some !threshold (function ttf ->
-				     is_spatch_safe_one ttf sp
-				  )
+  let count = ref 0 in
+  let max_ttf = List.length ttf_list in
+  ttf_list +> for_some !threshold 
+    (function ttf -> begin
+       is_spatch_safe_one ttf sp
+     end
+    )
 
 let apply_spatch_ttf spatch (lhs_term, rhs_term, flows) =
   (* find a matching flow 
@@ -2906,17 +2912,20 @@ let find_common_patterns () =
 	      let res_total = List.length trans_patches in
 	      let res_spatches = 
 		trans_patches
-		+> List.filter (function sp -> begin
-				  ANSITerminal.save_cursor ();
-				  ANSITerminal.print_string 
-				    [ANSITerminal.on_default](
-				      !res_count +> string_of_int ^"/"^
-					res_total +> string_of_int);
-				  ANSITerminal.restore_cursor();
-				  flush stdout;
-				  res_count := !res_count + 1;
-				  is_spatch_safe_ttf_list sp ttf_list;
-				end)
+		+> List.fold_left 
+		  (fun acc_sps sp -> begin
+		     ANSITerminal.save_cursor ();
+		     ANSITerminal.print_string 
+		       [ANSITerminal.on_default](
+			 !res_count +> string_of_int ^"/"^
+			   res_total +> string_of_int);
+		     ANSITerminal.restore_cursor();
+		     flush stdout;
+		     res_count := !res_count + 1;
+		     if is_spatch_safe_ttf_list sp ttf_list
+		     then sp :: acc_sps
+		     else acc_sps
+		   end) []
 	      in
 		print_newline ();
 		print_endline ("[Main] filtering largest semantic patches ("^
