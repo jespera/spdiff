@@ -29,6 +29,7 @@ let nesting_depth = ref 1
 let filter_patterns = ref false
 let filter_spatches = ref false
 let print_support = ref false
+let cache = ref false
 
 let speclist =
   Arg.align
@@ -53,7 +54,8 @@ let speclist =
       "-filter_spatches", Arg.Set filter_spatches, "  filter non-largest spatches";
       "-macro_file",    Arg.Set_string Config.std_h, "[filename]  default macros";
       "-fun_common",    Arg.Set fun_common, "  infer one abstraction of all functions given";
-      "-print_support", Arg.Set print_support, "  whether to also print the concrete matched functions for fun_common"
+      "-print_support", Arg.Set print_support, "  whether to also print the concrete matched functions for fun_common";
+      "-cache",         Arg.Set cache,         "  only print the term pairs to stdout"
     ]
 
 exception Impossible of int
@@ -74,6 +76,15 @@ let tail_flatten lss =
   lss +> List.fold_left List.rev_append []
 
 let (+++) x xs = if List.mem x xs then xs else x :: xs
+
+let for_some n f ls = 
+  let rec loop n ls =
+    n = 0 ||
+    match ls with
+      | x :: xs when f x -> loop (n - 1) xs
+      | _ :: xs -> loop n xs
+      | [] -> false in
+    loop n ls
 
 let file_pairs = ref []
 
@@ -468,75 +479,63 @@ let spec_main () =
     if !threshold = 0
     then threshold := List.length term_pairs;
     Diff.no_occurs := !threshold;
-    print_string "[Main] making all lists of all subterms...";
-    let subterms_lists = 
-      term_pairs 
-      +> List.filter (function (l,r) -> not(l = r))
-      +> List.rev_map 
-      (function x -> x +> fst +> Diff.make_all_subterms) in
-      print_newline();
-      print_string "[Main] making list of unique subterms...";
-      let unique_subterms = subterms_lists
-	+> tail_flatten
-	+> Diff.rm_dub in
-      (* now make all (relevant) term updates for each term pair *)
-	print_newline ();
-	print_endline (
-	  "[Main] Constructing all safe parts for " ^ 
+    print_endline ("[Main] Constructing all safe parts for " ^ 
 	    string_of_int (List.length term_pairs) ^ " term pairs");
-	let tcount = ref 1 in
-	let abs_patches = List.rev_map 
-	  (function (t, t'') ->
-	     print_endline ("[Main] Making safe parts for pair " ^ string_of_int !tcount);
-	     tcount := !tcount + 1;
-	     let r = Diff.make_abs_on_demand term_pairs subterms_lists unique_subterms (t, t'') in
-	       print_endline ("[Main] abstracted one pair into " ^ 
-				r +> List.length +> string_of_int ^ " abstract");
-	       r
-	  ) term_pairs in
-	  (*{{{*)
-	  if !print_raw
-	  then (
-	    print_endline "Those were the safe parts";
-	    print_endline "{{{";
-	    List.iter (fun ds ->
-			 List.iter (fun d -> 
-				      print_endline (Diff.string_of_diff d);
-				      print_newline ()
-				   ) ds;
-			 print_endline " ++ ";
-		      ) abs_patches;
-	    print_endline "}}}"
-	  );
-	  (* we now have lists of safe updates as out itemset; create the database to
-	   * mine now; we use the db.ml functions for that
-	   *)
-	  (*do_datamining abs_patches*)(*}}}*)
-	  print_endline "[Main] filtering all safe patches."; 
-	  let filtered_patches = 
-	    if !do_dmine
-	    then do_datamining abs_patches
-	    else get_all_safe term_pairs abs_patches
-	  in
-	    if !print_raw
-	    then (
-	      print_endline "Raw list of simple updates";
-	      print_endline "{{{";
-	      List.iter (fun d ->
-			   print_endline (Diff.string_of_diff d);
-			   print_endline " ++ ";
-			) filtered_patches;
-	      print_endline "}}}"
-	    );
-	    print_endline "[Main] generating solutions...";
-	    let stripped_patches = 
-	      if !strip_eq
-	      then strip term_pairs filtered_patches 
-	      else filtered_patches
-	    in
-	    let solutions = generate_sols term_pairs stripped_patches in
-	      print_sols solutions
 
+    let filtered_patches = 
+      (* if !do_dmine *)
+      (* then do_datamining abs_patches *)
+      (* else get_all_safe term_pairs abs_patches *)
+      Diff.find_simple_updates_merge_changeset term_pairs
+      +> (function x ->
+	    begin
+	      print_string "[Main] find_simple_updates_merge return this many updates: ";
+	      x +> List.length +> string_of_int +> print_endline;
+	      if !Jconfig.print_abs
+	      then begin
+		x +> List.iter (function tu ->
+				  tu 
+				  +> Diff.string_of_diff 
+				  +> print_endline);
+	      end;
+	      x
+	    end
+	 )
+      +> (function x ->
+	    print_endline "[Main] filtering all safe patches."; 
+	    x)
+      +> List.filter (function tu -> 
+			term_pairs +> 
+			  for_some !threshold
+			  (Diff.safe_part tu)
+		     )
+      +> (function tus -> begin
+	    print_string "[Main] after filtering we have this many updates: ";
+	    tus +> List.length +> string_of_int +> print_endline;
+	    tus
+	  end
+	  )
+      +> List.rev_map Diff.renumber_metas_up
+    in
+      if !print_raw
+      then (
+	print_endline "Raw list of simple updates";
+	print_endline "{{{";
+	List.iter (fun d ->
+		     print_endline (Diff.string_of_diff d);
+		     print_endline " ++ ";
+		  ) filtered_patches;
+	print_endline "}}}"
+      );
+      print_endline "[Main] generating solutions...";
+      let stripped_patches = 
+	if !strip_eq
+	then strip term_pairs filtered_patches 
+	else filtered_patches
+      in
+      let solutions = generate_sols term_pairs stripped_patches in
+	print_sols solutions
+	  
 (* ---------------------------------------------------------- *
  * imported from graph.ml                                     *
  *                                                            *
@@ -882,14 +881,6 @@ let follows_p p g pa =
 
 let rm_dups xs = List.fold_left (fun acc_xs x -> x +++ acc_xs) [] xs
 
-let for_some n f ls = 
-  let rec loop n ls =
-    n = 0 ||
-    match ls with
-      | x :: xs when f x -> loop (n - 1) xs
-      | _ :: xs -> loop n xs
-      | [] -> false in
-    loop n ls
 
 let follows_sp sp g pa =
   if sp = []
@@ -2426,6 +2417,9 @@ let locate_subterm g orig_subterm orig_path f =
 				 {Hashcons.node=A("lname",lab') }; _])}
 	    ]) 
 	    when lab = lab' -> loop t path
+	| C("exp", _)
+	| C("exprstmt", _)
+	| C("stmtexp", _) -> raise (Label_not_found lab)
 	| C(ty, ts) -> 
 	    (* if t is a looping construct, we need to setup a break/continue handler *)
 	    if is_looping t
@@ -3044,7 +3038,23 @@ let find_fun_common () =
 			end
 		     )
       end
-		  
+
+let print_term_pairs () =
+  file_pairs := Reader.read_spec !mfile; (* gets names to process in file_pairs *)
+  (* now make diff-pairs is a list of abs-term pairs *)
+  let term_pairs = 
+    List.fold_left (fun acc_pairs (lfile, rfile) ->
+		      Reader.read_filepair_defs lfile rfile @ acc_pairs
+		   ) [] !file_pairs
+    +> List.filter (function (l,r) ->
+    		      not(!only_changes) || not(l = r)
+    		   )
+  in
+    term_pairs +> List.iter (function (t,t') ->
+			      t +> Diff.verbose_string_of_gtree +> print_string;
+			      print_string " ";
+			      t' +> Diff.verbose_string_of_gtree +> print_endline;
+			   )
 		  
 let main () =
   (* decide which mode to operate in *)
@@ -3067,6 +3077,8 @@ let main () =
   if !threshold = 0 then do_dmine := false;
   if !mfile = ""
   then raise (Diff.Fail "No specfile given")
+  else if !cache
+  then print_term_pairs ()
   else if !spatch || !patterns
   then find_common_patterns ()
   else if !fun_common

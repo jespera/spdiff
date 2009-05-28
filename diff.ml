@@ -307,11 +307,11 @@ let rec string_of_gtree str_of_t str_of_c gt =
 
 let verbose_string_of_gtree gt =
   let rec loop gt = match view gt with
-    | A(t,c) -> t ^ "<" ^ c ^ ">"
+    | A(t,c) -> t ^ "⟨" ^ c ^ "⟩"
     | C (t, gtrees) -> 
-        t ^ "[" ^
+        t ^ "⟦" ^
           String.concat "," (List.map loop gtrees)
-        ^ "]"
+        ^ "⟧"
   in loop gt
 
 let str_of_ctype x = x
@@ -758,8 +758,9 @@ let rec sub env t =
             List.fold_left (fun b a -> (loop a) :: b) [] ts
           ))
       | A ("meta", mvar) -> (try 
-	    List.assoc mvar env with (Fail _) ->
-              (print_endline "sub?"; mkA ("meta", mvar)))
+			       List.assoc mvar env with Not_found ->
+				 mkA ("meta", mvar)
+			    )
       | _ -> t'
     in
       loop t
@@ -3723,6 +3724,8 @@ let abstract_term subterms_lists unique_terms env t =
 	   
     ) []
 
+
+
 let rm_dups_pred eq_f ls = 
   let (+++) x xs = if List.exists (function y -> eq_f x y) xs then xs else x :: xs in
     List.fold_left (fun acc_xs x -> x +++ acc_xs) [] ls
@@ -3865,3 +3868,146 @@ let chunks_of_diff_spatterns spatterns diff =
 		    ) in
     loop [] [] diff
     +> List.filter (function chunk -> not(chunk = []))
+
+let merge_terms t1 t2 =
+  let rec loop env t1 t2 = 
+    if t1 == t2 
+    then (t1, env)
+    else match view t1, view t2 with
+      | C(ty1, ts1), C(ty2, ts2) when 
+	  ty1 = ty2 && List.length ts1 = List.length ts2
+	  -> let ts1, env' = List.fold_left2 
+	    (fun (acc_ts, env') t1' t2' -> 
+	       let t'', env'' = loop env' t1' t2'
+	       in (t'' :: acc_ts, env'')
+	    ) ([],env) ts1 ts2
+	  in (mkC(ty1, List.rev ts1), env')
+      | _ -> (match rev_lookup env (t1, t2) with
+		| None -> let metaName = "X" ^ ref_meta () +> string_of_int in
+		    (mkA ("meta", metaName), (metaName, (t1,t2)) :: env)
+		| Some name -> (mkA ("meta", name), env)
+	     )					
+  in
+    loop [] t1 t2
+
+
+let rename_env_using env1 env2 =
+  env1 +> List.fold_left 
+    (fun acc_env_rename (x,pair1) ->
+       try let (y,pair2) = List.find (function (y,pair2) ->
+					pair1 = pair2
+				     ) env2 in
+	 (x, mkA("meta", y)) :: acc_env_rename
+       with Not_found -> 
+	 let newMeta = "Y" ^ ref_meta () +> string_of_int in
+	   (x, mkA("meta", newMeta)) :: acc_env_rename
+    ) 
+    []
+
+let merge_tus (UP (l1,r1)) (UP (l2,r2)) =
+  let l_pat, l_env = merge_terms l1 l2 in
+  let r_pat, r_env = merge_terms r1 r2 in
+  let rp_env = rename_env_using r_env l_env in
+    begin
+      (* print_endline "[Diff] lhs merged terms "; *)
+      (* l1 +> string_of_gtree' +> print_endline; *)
+      (* l2 +> string_of_gtree' +> print_endline; *)
+      (* print_string "[Diff] into L-pattern "; *)
+      (* l_pat +> string_of_gtree' +> print_endline; *)
+      (* print_endline "[Diff] l_env "; *)
+      (* l_env +> List.iter  *)
+      (* 	(function (name, (t,t')) -> *)
+      (* 	   (name ^ " -> ( " ^  *)
+      (* 	     string_of_gtree' t ^ "," ^  *)
+      (* 	     string_of_gtree' t' ^ " )") *)
+      (* 	   +> print_endline  *)
+      (* 	); *)
+      (* print_endline "[Diff] rhs merged terms "; *)
+      (* r1 +> string_of_gtree' +> print_endline; *)
+      (* r2 +> string_of_gtree' +> print_endline; *)
+      (* print_string "[Diff] into R-pattern "; *)
+      (* r_pat +> string_of_gtree' +> print_endline; *)
+      (* print_endline "[Diff] r_env "; *)
+      (* r_env +> List.iter  *)
+      (* 	(function (name, (t,t')) -> *)
+      (* 	   (name ^ " -> ( " ^  *)
+      (* 	     string_of_gtree' t ^ "," ^  *)
+      (* 	     string_of_gtree' t' ^ " )") *)
+      (* 	   +> print_endline  *)
+      (* 	); *)
+      (* print_endline "rp_env:"; *)
+      (* rp_env +> List.iter  *)
+      (* 	(function (name, t) -> *)
+      (* 	   (name ^ " -> " ^  *)
+      (* 	     string_of_gtree' t) *)
+      (* 	   +> print_endline  *)
+      (* 	); *)
+      (* print_endline ("[Main] resulting in RHS pattern " ^  *)
+      (* 		       sub rp_env r_pat +> string_of_gtree'); *)
+      UP (l_pat, sub rp_env r_pat)
+    end
+
+let some x = Some x
+let get_some x = match x with
+  | None -> raise (Fail "get_some applied to none")
+  | Some x -> x
+
+let get_metas t =
+  let rec loop acc_ms t = match view t with
+    | A ("meta", _) -> t +++ acc_ms
+    | C (_, ts) -> List.fold_left loop acc_ms ts
+    | _ -> acc_ms
+  in
+    loop [] t
+
+let find_simple_updates_merge_changeset changeset =
+  print_endline ("[Diff] threshold " ^ string_of_int !no_occurs);
+  let for_some n f ls = 
+    let rec loop n ls =
+      n = 0 ||
+      match ls with
+	| x :: xs when f x -> loop (n - 1) xs
+	| _ :: xs -> loop n xs
+	| [] -> false in
+      loop n ls
+  in
+  let interesting_tu (UP (l,r)) = 
+    not(l = r) &&
+      not(infeasible l) &&
+      let l_metas = get_metas l in
+      let r_metas = get_metas r in
+	sublist r_metas l_metas 
+	&& changeset +> for_some !no_occurs (safe_part (UP(l,r)))
+  in
+    changeset
+    +> List.rev_map (function (l,r) -> get_tree_changes l r)
+    +> List.fold_left 
+      (fun acc_tus tu_list ->
+	 match acc_tus with
+	   | None -> tu_list +> some
+	   | Some tus -> 
+	       begin
+		 if !Jconfig.print_abs
+		 then begin
+		   print_endline ("[Diff] acc_tus (" ^ tus +> List.length +> string_of_int ^ ")");
+		   tus +> List.iter (function tu ->
+				       tu 
+				       +> string_of_diff 
+				       +> print_endline);
+		 end;
+		 tus
+		 +> List.fold_left (fun acc_tus tu_merged -> 
+				      tu_list +> List.fold_left 
+					(fun acc_tus tu ->
+					   let tu' = merge_tus tu tu_merged in
+					     if interesting_tu tu'
+					     then tu' :: acc_tus
+					     else acc_tus
+					)
+					acc_tus
+				   ) (List.rev_append tus tu_list)
+		 +> some
+	       end 
+      ) 
+      None
+    +> get_some
