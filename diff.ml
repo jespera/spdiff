@@ -2693,7 +2693,7 @@ let renumber_metas_up up =
     | UP(lhs, rhs) -> 
 	let lhs_re, lhs_env = fold_botup lhs renumber_metas [] in
       	let rhs_re, rhs_env = fold_botup rhs renumber_metas lhs_env in
-	  assert(lhs_env = rhs_env);
+	  (* assert(lhs_env = rhs_env);*)
 	  UP(lhs_re, rhs_re)
     | ID s -> 
 	let nm, new_env = renumber_metas s [] in ID nm
@@ -3944,7 +3944,8 @@ let merge_tus (UP (l1,r1)) (UP (l2,r2)) =
       (* 	); *)
       (* print_endline ("[Main] resulting in RHS pattern " ^  *)
       (* 		       sub rp_env r_pat +> string_of_gtree'); *)
-      UP (l_pat, sub rp_env r_pat)
+      UP (l_pat, sub rp_env r_pat) +> 
+	renumber_metas_up 
     end
 
 let some x = Some x
@@ -3971,16 +3972,34 @@ let find_simple_updates_merge_changeset changeset =
 	| [] -> false in
       loop n ls
   in
-  let interesting_tu (UP (l,r)) = 
+  let interesting_tu (UP (l,r)) acc_tus = 
     not(l = r) &&
       not(infeasible l) &&
       let l_metas = get_metas l in
       let r_metas = get_metas r in
 	sublist r_metas l_metas 
 	&& changeset +> for_some !no_occurs (safe_part (UP(l,r)))
+	&& not(acc_tus +> List.exists (function tu' -> (UP(l,r)) = tu'))
+  in
+  let filter_larger (l,r) parts =
+    parts +> List.filter (function bp -> 
+			    List.for_all (function bp' ->
+					       subpatch_single bp bp' (l,r) 
+					    || not(subpatch_single bp' bp (l,r))
+						 
+					 ) parts
+			 )
   in
     changeset
-    +> List.rev_map (function (l,r) -> get_tree_changes l r)
+    +> List.rev_map (function (l,r) -> get_tree_changes l r +> rm_dub +> filter_larger (l,r))
+    +> (function x -> begin
+	  print_endline ("[Diff] got all non-abstract tree changes ("
+			 ^ x +> List.rev_map List.length +> List.fold_left (+) 0 +> string_of_int
+			 ^ ")");
+	  print_string ("[Diff] possible combinations: ");
+	  x +> List.rev_map List.length +> List.fold_left ( * ) 1 +> string_of_int +> print_endline;
+	  x
+	end)
     +> List.fold_left 
       (fun acc_tus tu_list ->
 	 match acc_tus with
@@ -4000,7 +4019,7 @@ let find_simple_updates_merge_changeset changeset =
 				      tu_list +> List.fold_left 
 					(fun acc_tus tu ->
 					   let tu' = merge_tus tu tu_merged in
-					     if interesting_tu tu'
+					     if interesting_tu tu' acc_tus
 					     then tu' :: acc_tus
 					     else acc_tus
 					)
