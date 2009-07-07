@@ -348,6 +348,21 @@ let read_ast file =
     Parse_c.parse_print_error_heuristic file in
     pgm2
 
+exception Reader_fail of string
+
+(* this function reads a file in the generic tree/term 
+   format and returns a gtree value *)
+let read_ast_gtree file = 
+  let inchan = open_in file in
+  let lexb   = Lexing.from_channel inchan in
+  try 
+    Genericparser.main Genericlexer.token lexb
+  with 
+    | Genericlexer.Error msg ->
+	raise (Reader_fail msg)
+    | Genericparser.Error ->
+	raise (Reader_fail ("At offset " ^ Lexing.lexeme_start lexb +> string_of_int ^ ": syntax error"))
+    
 
 let read_src_tgt src tgt =
   let gt1 = gtree_of_ast_c (read_ast src) in
@@ -362,16 +377,21 @@ let read_filepair old_file new_file =
 
 
 let read_src_tgt_def src tgt =
-  let gts1 = gtree_of_ast_c (read_ast src)
-    +> extract_gt is_def in
-  let gts2 = gtree_of_ast_c (read_ast tgt)
-    +> extract_gt is_def in
+  let readf = 
+    if !Jconfig.read_generic
+    then function f -> [read_ast_gtree f]
+    else function f -> 
+      read_ast f 
+      +> gtree_of_ast_c 
+      +> extract_gt is_def in 
+  let gts1 = readf src in
+  let gts2 = readf tgt in
     gts1 +> List.fold_left
       (fun acc_pairs gt1 -> 
-	 let f_name = get_fname_ast gt1 in
+ 	 let f_name = if !Jconfig.read_generic then "" else get_fname_ast gt1 in 
 	   (gt1, 
 	    gts2 
-	    +> List.filter (function gt2 -> 
+	    +> List.filter (function gt2 -> !Jconfig.read_generic ||
 			      get_fname_ast gt2 = f_name
 			   )
 	    +> List.fold_left (fun selected_def gt2_cand ->
@@ -390,11 +410,58 @@ let read_src_tgt_def src tgt =
       ) []
 
 
+let extract_tops t =
+  match view t with 
+    | C(_, ts) -> ts
+    | _ -> []
+
+let read_src_tgt_top src tgt =
+  let readf = 
+    if !Jconfig.read_generic
+    then function f -> 
+      read_ast_gtree f
+      +> extract_tops
+    else function f -> 
+      read_ast f
+      +> gtree_of_ast_c
+      +> extract_tops in
+  let gts1 = readf src in
+  let gts2 = readf tgt in
+    gts1 +> List.fold_left
+      (fun acc_pairs gt1 -> 
+	 (gt1, 
+	  gts2 
+	  +> List.fold_left 
+	    (fun selected_def gt2_cand ->
+	       match selected_def with
+		 | None -> Some (gt2_cand, Diff.edit_cost gt1 gt2_cand)
+		 | Some (gt2, cost) ->
+		     let cost' = Diff.edit_cost gt1 gt2_cand in
+		       if cost' < cost
+		       then Some (gt2_cand, cost')
+		       else selected_def
+	    ) None
+	  +> (function x -> match x with
+		| None -> gt1
+		| Some (gt2,_) -> gt2)
+	 ) :: acc_pairs
+      ) []
+
+
+
+
+
 let read_filepair_defs old_file new_file =
   print_endline 
     ("Reading file pair " ^
        old_file ^ " " ^ new_file);
   read_src_tgt_def old_file new_file
+
+let read_filepair_top old_file new_file =
+  print_endline 
+    ("Reading file pair " ^
+       old_file ^ " " ^ new_file);
+  read_src_tgt_top old_file new_file
 
 
 let read_filepair_cfg old_file new_file =

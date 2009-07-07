@@ -32,21 +32,11 @@ let falign callb s1 s2 s3 =
 	| _, _, 0 -> s1 ** i = s2 ** j && loop (i-1) (j-1) 0
 	| _, _, _ ->
 	    (
-	      (loop (i-1) (j-1) (k-1) && 
-		 s(Some i, Some j, Some k)      
-	      ) ||
-		(loop (i  ) (j-1) (k-1) &&
-		   s(None, Some j, Some k)
-		) ||
-		(loop (i-1) (j-1) (k  ) &&
-		   s(Some i, Some j, None)
-		) ||
-		(loop (i  ) (j  ) (k-1) &&
-		   s(None, None, Some k)
-		) ||
-		(loop (i-1) (j  ) (k  ) &&
-		   s(Some i, None, None)
-		)
+	      (loop (i-1) (j-1) (k-1) && s(Some i, Some j, Some k)      
+	      ) || (loop (i  ) (j-1) (k-1) && s(None, Some j, Some k)
+        ) || (loop (i-1) (j-1) (k  ) && s(Some i, Some j, None)
+        ) || (loop (i  ) (j  ) (k-1) && s(None, None, Some k)
+        ) || (loop (i-1) (j  ) (k  ) && s(Some i, None, None))
 	    )
     )
   in
@@ -107,18 +97,18 @@ let align s1 s2 s3 =
       );
     r
 
-let get_alignment m s1 s2 s3 = 
-  let s1_len = Array.length s1 in
-  let s2_len = Array.length s2 in 
-  let s3_len = Array.length s3 in
-  let rec loop i j k =
-    i = 0 && j = 0 && k = 0 ||
-    (try m.(i).(j).(k) with _ -> false) && (
-      loop (i-1) (j-1) (k-1) ||
-	loop (i  ) (j-1) (k-1) ||
-	loop (i-1) (j-1) (k  ) ||
-	loop (i  ) (j  ) (k-1) ||
-	loop (i-1) (j  ) (k  )
-    )
-  in
-    loop s1_len s2_len s3_len
+  let get_alignment m s1 s2 s3 = 
+          let s1_len = Array.length s1 in
+          let s2_len = Array.length s2 in 
+          let s3_len = Array.length s3 in
+          let rec loop i j k =
+                  i = 0 && j = 0 && k = 0 ||
+                  (try m.(i).(j).(k) with _ -> false) && (
+                          loop (i-1) (j-1) (k-1) ||
+                          loop (i  ) (j-1) (k-1) ||
+                          loop (i-1) (j-1) (k  ) ||
+                          loop (i  ) (j  ) (k-1) ||
+                          loop (i-1) (j  ) (k  )
+                          )
+          in
+          loop s1_len s2_len s3_len

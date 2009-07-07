@@ -27,10 +27,11 @@ let (!!) a = mkA(a, "N/H")
 let rec trans_expr exp = 
   let (unwrap_e, typ), ii = exp in
   match unwrap_e with
-  | Ident s -> "exp" @@ "ident" %% s
-      (* (match !typ with *)
-      (*   | None, _ -> "exp" @@ "ident" %% s *)
-      (*   | Some (ft, _), _ -> "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% s]) *)
+  | Ident s -> 
+      (* "exp" @@ "ident" %% s *)
+      (match !typ with
+        | None, _ -> "exp" @@ "ident" %% s
+        | Some (ft, _), _ -> "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% s])
   | Constant (String (s, _)) -> 
       "exp" @@ "const" @@ "string" %% s
   | Constant (Int s) -> 

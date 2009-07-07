@@ -2,3 +2,4 @@
 
 let verbose = ref false
 let print_abs = ref false
+let read_generic = ref false

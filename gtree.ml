@@ -19,9 +19,9 @@ module Gtree_node = struct
   | _ -> false
   let hash = function
     | A (t, v) -> abs(19 * (Hashtbl.hash t + Hashtbl.hash v))
-    | C (t,ts) -> abs (List.fold_left (fun acc_k t' -> 
+    | C (t,ts) -> abs(List.fold_left (fun acc_k t' -> 
         19 * (t'.hkey + acc_k)
-        ) 1 ts)
+        ) (Hashtbl.hash t) ts)
 end
 
 module HGtree = Make(Gtree_node)
