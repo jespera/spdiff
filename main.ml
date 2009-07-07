@@ -1581,6 +1581,306 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
     grow [] ([], [], orig_gss)
 
 
+let contained_in p1 p2 = 
+  let rec loop rp1 rp2 =
+      rp1 = rp2 
+      || is_meta rp1 
+      || is_meta rp2
+      || (match view rp1, view rp2 with
+        | C(ty1, ts1), C(ty2, ts2) ->
+            ty1 = ty2 
+            && List.for_all2 loop ts1 ts2
+        | _ -> raise (Impossible 1001)
+      ) in
+  p1 = p2
+  || match view p1, view p2 with
+  | C("CM",[rp1]), C("CM",[rp2]) -> loop rp1 rp2
+  | _, _ when p1 = ddd || p2 = ddd -> false
+  | _ -> raise (Impossible 1000)
+
+
+exception True_found
+
+let contained_subseq seq1 seq2 =
+  let rec loop seq1 seq2 =
+    match seq1, seq2 with
+      | [], _ -> raise True_found
+      | (x::xs), (y::ys) ->
+          if contained_in x y
+          then loop xs ys || loop seq1 ys
+          else loop seq1 ys
+      | _ -> false in
+  try loop seq1 seq2 
+  with True_found -> true
+
+
+let find_seq_patterns_newest 
+      singleton_patterns
+      valid =
+(*
+grow acc cur =
+    next = { semp | p in pool, p not int cur, 
+                    extend cur p = semp
+                    valid semp}
+    if next == {}
+    then {cur} ++ acc
+    else fold (\acc new_cur->
+              if prune acc new_cur
+              then acc
+              else grow acc new_cur
+              ) acc next
+*)
+  let sub_pat semp1 semp2 = contained_subseq semp1 semp2 in
+  let (++) pat pats = pat :: pats in
+  let (@@@) sem_pat node_pat =
+          begin
+                  print_endline "next pattern";
+                  let ext_pat = sem_pat @ (ddd :: [node_pat]) in
+                  ext_pat +> List.iter (function p -> 
+                          p +> Diff.string_of_gtree' +> print_string;
+                          print_string " ";
+                  );
+                  print_newline ();
+                  ext_pat
+          end
+                  in
+  let (<<=) sem_pat patterns =
+          patterns +> List.exists
+          (function sem_pat' ->
+                  sub_pat sem_pat sem_pat'
+          ) in
+  let rec grow acc cur =
+          let next = singleton_patterns +> List.fold_left
+            (fun acc_next p -> 
+                    if List.mem p cur
+                    then acc_next
+                    else 
+                      let new_cur = cur @@@ p in
+                      if valid new_cur 
+                      then new_cur :: acc_next
+                      else 
+                              begin
+                                      print_endline "invalid";
+                                      acc_next
+                              end
+            ) [] in 
+          if next = []
+          then begin
+                  print_endline "empty";
+                  cur ++ acc
+          end
+          else next +> List.fold_left
+            (fun acc new_cur ->
+                    if new_cur <<= acc
+                    then acc
+                    else grow acc new_cur
+            ) acc in
+  singleton_patterns 
+  +> List.fold_left (fun acc p -> grow acc [p]) []
+
+let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
+  print_endline "[Main] growing patterns from functions: ";
+  orig_gss +> List.iter (function [f] -> begin
+			   print_string "\t";
+			   f +> Diff.get_fun_name_gflow +> print_endline;
+			 end
+        | _ -> raise (Diff.Fail "impossible match! in find_seq_patterns")
+			);
+  reset_meta();
+  let mk_pat p = [mkC("CM",[p])] in
+  let (<==) sp ps gss = ps +> List.exists (function sp' -> 
+					     sub_pat gss sp sp'
+					     && embedded_pattern sp sp'
+
+					  (*
+					    if sub_pat gss sp sp' 
+					    then 
+					    (print_endline "sub-pattern found :";
+					    print_patterns [sp];
+					    print_endline "is less than :";
+					    print_patterns [sp'];
+					    true)
+					    else
+					    false
+					  *)
+					  ) in
+    (*   let (||-) gss sp = is_frequent_sp gss sp in *)
+  let (+++) x xs = 
+    if List.mem x xs then xs else (
+      if !print_adding then (
+	print_endline "[Main] adding pattern ";
+	print_endline (string_of_pattern x);
+      );
+      (*
+	if !filter_patterns
+	then filter_shorter_sub gss sub_pat (x :: xs)
+	else x :: xs
+      *)
+      x :: xs
+    ) in
+  let (++) ps p = p +++ ps
+  in
+  let valid p' =
+    let rec loop p =
+      match p with 
+			| [] -> true
+			| p :: seq when 
+					loop seq 
+					&& is_match p -> 
+						not(
+							List.exists (function p' -> 
+							equal_pattern_term p p') seq
+						)
+						&& (match get_metas_single p with
+									| [] -> true
+									| p_metas -> 
+											(match get_metas_pattern seq with
+												| [] -> true
+												| seq_metas -> not(intersect_lists p_metas seq_metas = []))
+              ) 
+     	| skip :: seq when skip == ddd -> loop seq
+    	| _ -> false
+    in
+      match p' with
+      	| skip :: _ when skip == ddd -> false
+      	| _ -> loop p' in
+  let get_next abs_P_env ext p gss =
+    if p = [] 
+    then List.rev_map (function (p,e) -> (p,e,gss)) abs_P_env
+    else
+      begin
+        v_print_string "[Main] get_next ... ";
+      	let res = abs_P_env 
+        	  +> List.fold_left 
+            (fun acc_abs_P_env (pat, env) -> 
+                    
+	              let gss' = gss +> List.filter 
+	                (function 
+              		  | [f] -> f |- (mk_pat pat) && f |- (ext p pat)
+              		  | _ -> raise (Impossible 117)) in
+      	       if List.length gss' < !threshold 
+      	       then begin
+            		 if !Jconfig.print_abs
+            		 then begin
+            		   print_string "[Main] not including pattern with threshold: ";
+            		   gss' +> List.length +> string_of_int +> print_endline;
+            		   print_endline "[Main] env: ";
+            		   env +> List.iter (function (m, t) -> 
+                            print_endline (m ^ " ⇾ " ^
+                            Diff.string_of_gtree' t);
+                   );
+                   print_patterns [(ext p pat)];
+		             end;
+		             acc_abs_P_env
+	             end
+	             else (pat,env, gss') :: acc_abs_P_env
+	          ) [] in
+	      v_print_endline "done";
+	      res
+      end 
+  in
+    (* ext1 = p1 p2  -- p2 is immediate successor *)
+  let ext1 p1 p2 = 
+    if p1 = [] 
+    then [mkC("CM",[p2])] 
+    else p1 @ [mkC("CM", [p2])] in
+    (* ext2 = p1 ... p2 -- p2 is all-paths successor *)
+  let ext2 p1 p2 = 
+    if p1 = [] 
+    then [mkC("CM",[p2])] 
+    else p1 @ (ddd :: [mkC("CM", [p2])]) in
+  let rec grow' ext p ps (p', env', gss) =
+    (* flush_string "."; *)
+    let ext_p = ext p p' in
+    let pp' = ext_p (* renumber_metas_pattern ext_p *) in
+      if !Jconfig.verbose then ( 
+	print_string ("[Main] testing : " ^ 
+			List.map Diff.string_of_gtree' pp'
+		      +> String.concat " ");
+      );
+      if
+	valid pp'
+        && (v_print " valid "; is_frequent_sp gss pp')
+        && (v_print "is_freq "; 
+	    if !prune then not((pp' <== ps) gss) else true)
+      then (
+	v_print_endline "not_subseq";
+	let ps' = ps ++ pp' in
+	let last_p =  pp' +> List.rev +> List.hd in
+	  if Diff.matches_exit last_p
+	  then
+	    (* if the last pattern matches an exit-node, there is no
+	       need to grow the pattern any more *)
+	    ps'
+	  else
+	    grow ps' (ext_p, env', gss)
+      )
+      else (
+	v_print_endline "";
+	ps)
+  and grow ps (p, env, gss) =
+    v_print_string "[Main] getting common cterms after pattern: ";
+    v_print_endline (string_of_pattern p);
+    let abs_P_env = 
+      get_pa p (* env *)
+(*      
+      +> sort_pa_env gss
+      +> List.filter 
+	(function (pat,env) ->
+	   p = [] 
+	    || gss
+	    +> for_some !threshold
+	    (function flows ->
+	       flows
+	       +> List.exists
+		 (function f ->
+		    f |- mk_pat pat
+		 )
+	    )
+	)
+*)
+    in
+      v_print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
+      let nextP2 = get_next abs_P_env ext2 p gss in
+	(* there is no need to look for matches of "p...p'" in case
+	   there were no matches of "p p'" because 
+	   |- p p' => |- p...p'
+
+	   thus, if we can determine that |- p...p' is not the case
+	   then we know that |- p p' can also NOT be the case 
+	*)
+      let abs_P_env' = abs_P_env
+(*
+	+> List.filter
+	(fun (pat, env) -> 
+	   nextP2 +> List.exists 
+		 (function (p'', env', gss') -> 
+		    if Diff.node_pat_eq unique_subterms (pat, env) (p'', env')
+		    then (
+		      (* print_endline "pat eq:";
+			 pat +> Diff.string_of_gtree' +> print_endline;
+			 p'' +> Diff.string_of_gtree' +> print_endline;
+		      *)
+		      true
+		    )
+		    else
+		      false
+		 )
+	) 
+*) 
+      in
+      let nextP1 = get_next abs_P_env' ext1 p gss in
+	v_print_endline ("[Main] from pattern :\n" ^ string_of_pattern p);
+	v_print_endline ("[Main] potential new patterns : " ^ string_of_int (
+			   List.length nextP1 + List.length nextP2));
+	v_print_newline ();
+	let ps' = 
+	  List.fold_left (fun acc_ps p_e_gss -> grow' ext2 p acc_ps p_e_gss) ps nextP2 in
+	  List.fold_left (fun acc_ps p_e_gss -> grow' ext1 p acc_ps p_e_gss) ps' nextP1
+  in
+    grow [] ([], [], orig_gss)
+
+
 let patterns_of_graph is_frequent_sp common_np g =
   if !Jconfig.verbose then print_endline ("[Main] considering graph with [" ^ 
 				    string_of_int (List.length (concrete_of_graph g)) ^ 
@@ -1709,6 +2009,8 @@ let common_patterns_graphs gss =
   			&& not(Diff.control_true = p)
   			&& not(Diff.is_head_node p)
   		) in
+  
+  (*
   let static_get_pa ps =
   	node_patterns_pool
   	+> List.filter (function (p,e) ->
@@ -1727,12 +2029,25 @@ let common_patterns_graphs gss =
 		     *)
 		     
   in
+  *)
+
   (* let get_pa = get_common_node_patterns gss in *)
+  (*
     find_seq_patterns_new unique_subterms 
       is_subpattern 
       is_frequent_sp_some 
       gss
       static_get_pa
+      *)
+    find_seq_patterns_newest 
+      (* singleton_patterns: all node patterns with 'fresh' metas' *) 
+      (node_patterns_pool
+      +> List.fold_left (
+        fun acc (node_pat, _) ->
+                mkC("CM",[node_pat]) :: acc
+      ) [])
+      (* valid: check that sempat is frequent *)
+      (is_frequent_sp_some gss)
     +> rm_dups
     +> (function pss -> 
 	  if !filter_patterns
