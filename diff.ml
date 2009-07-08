@@ -3992,6 +3992,8 @@ let rename_env_using env1 env2 =
     ) 
     []
 
+
+
 let merge_tus (UP (l1,r1)) (UP (l2,r2)) =
   let l_pat, l_env = merge_terms l1 l2 in
   let r_pat, r_env = merge_terms r1 r2 in
@@ -4036,10 +4038,6 @@ let merge_tus (UP (l1,r1)) (UP (l2,r2)) =
 	renumber_metas_up 
     end
 
-let some x = Some x
-let get_some x = match x with
-  | None -> raise (Fail "get_some applied to none")
-  | Some x -> x
 
 let get_metas t =
   let rec loop acc_ms t = match view t with
@@ -4072,9 +4070,9 @@ let find_simple_updates_merge_changeset changeset =
   let filter_larger (l,r) parts =
     parts +> List.filter (function bp -> 
 			    List.for_all (function bp' ->
-					       subpatch_single bp bp' (l,r) 
+					    subpatch_single bp bp' (l,r) 
 					    || not(subpatch_single bp' bp (l,r))
-						 
+					      
 					 ) parts
 			 )
   in
