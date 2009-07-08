@@ -2662,6 +2662,18 @@ let renumber_metas t metas =
 	  mkA ("meta", nm), (mvar, nm) :: metas)
     | _ -> t, metas
 
+let renumber_metas_pure t (metas, next_meta) =
+  match view t with
+    | A ("meta", x) -> 
+	(try
+	   let v = List.assoc x metas in
+	     mkA("meta", v), (metas, next_meta)
+	 with Not_found ->
+	   let nm = "X" ^ string_of_int next_meta in
+	     mkA ("meta", nm), ((x,nm) :: metas, next_meta + 1)
+	)
+    | _ -> t, (metas, next_meta)
+
 let fold_botup term upfun initial_result =
   let rec loop t acc_result =
     match view t with
@@ -2676,6 +2688,10 @@ let fold_botup term upfun initial_result =
             upfun (mkC(ct, List.rev new_terms)) new_acc_result
   in
     loop term initial_result
+
+let renumber_metas_gtree gt_pattern =
+  fold_botup gt_pattern renumber_metas_pure ([],0)
+  +> fst
 
 let renumber_metas_up up =
   (*print_endline "[Diff] renumbering metas";*)
