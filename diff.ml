@@ -3898,6 +3898,87 @@ let merge_terms t1 t2 =
     loop [] t1 t2
 
 
+let some x = Some x
+let get_some x = match x with
+  | None -> raise (Fail "get_some applied to none")
+  | Some x -> x
+
+
+
+
+let merge_abstract_terms subterms_lists unique_subterms =
+  let non_dub_subterms_lists =
+    List.rev_map rm_dub subterms_lists in
+  let pat_extension p = 
+    node_pat_extension unique_subterms p in
+  let interesting_t t acc_ts = 
+    not(acc_ts 
+	+> List.exists (function t' ->
+			  eq_lists (pat_extension t) (pat_extension t')
+			  && Gtree.zsize t' > Gtree.zsize t
+		       )
+       ) in
+    non_dub_subterms_lists
+    +> List.rev_map rm_dub
+    +> List.fold_left 
+      (fun acc_ts ts_list ->
+	 match acc_ts with
+	   | None -> ts_list +> some
+	   | Some ts -> 
+	       begin
+		 if !Jconfig.print_abs
+		 then begin
+		   print_endline ("[Diff] acc_ts (" ^ ts +> List.length +> string_of_int ^ ")");
+		   ts +> List.iter (function t ->
+				      t
+				      +> string_of_gtree'
+				      +> print_endline);
+		 end;
+		 ts
+		 +> List.fold_left 
+		   (fun acc_ts t_merged -> 
+		      ts_list +> List.fold_left 
+			(fun acc_ts t ->
+			   let t', env = merge_terms t t_merged in
+			   let p = renumber_metas_gtree t' in
+			     if interesting_t p acc_ts
+			     then 
+				 p +++ acc_ts
+			     else acc_ts
+			)
+			acc_ts
+		   ) (List.rev_append ts ts_list)
+		 +> some
+	       end 
+      ) 
+      None
+    +> get_some
+    +> List.filter (
+      function p ->
+	let real_occurs = non_dub_subterms_lists
+	  +> List.fold_left
+	  (fun acc_n ts ->
+	     if ts +> List.exists (can_match p)
+	     then acc_n + 1
+	     else acc_n
+	  ) 0 in
+	  real_occurs >= !no_occurs
+    )
+    +> function ps ->
+      if !Jconfig.print_abs
+      then begin
+	ps
+	+> List.iter (function p ->
+			p +> string_of_gtree' +> print_endline
+		     );
+	ps
+      end
+      else ps
+
+  
+
+
+
 let rename_env_using env1 env2 =
   env1 +> List.fold_left 
     (fun acc_env_rename (x,pair1) ->
