@@ -697,6 +697,16 @@ let renumber_metas_pattern pat =
     let (rev_pat, env) = List.fold_left loop ([], []) pat in
       (meta_counter := old_meta; List.rev rev_pat)
 
+let renumber_fresh_metas_pattern patterns =
+  let rec rename_pat p =
+    match view p with
+      | A("meta",_) -> new_meta () 
+      | C(ty,ts) -> mkC(ty, List.rev_map rename_pat ts +> List.rev)
+      | skip when skip == view ddd -> ddd 
+      | _ -> p in
+    List.rev_map rename_pat patterns
+
+
 let renumber_metas_gtree gt = 
   let old_meta = !meta_counter in
     reset_meta ();
@@ -1584,13 +1594,13 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
 let contained_in p1 p2 = 
   let rec loop rp1 rp2 =
       rp1 = rp2 
-      || is_meta rp1 
-      || is_meta rp2
+      || (is_meta rp1 && is_meta rp2)
       || (match view rp1, view rp2 with
         | C(ty1, ts1), C(ty2, ts2) ->
             ty1 = ty2 
+	    && List.length ts1 = List.length ts2
             && List.for_all2 loop ts1 ts2
-        | _ -> raise (Impossible 1001)
+        | _ -> false
       ) in
   p1 = p2
   || match view p1, view p2 with
@@ -1634,13 +1644,13 @@ grow acc cur =
   let (++) pat pats = pat :: pats in
   let (@@@) sem_pat node_pat =
           begin
-                  print_endline "next pattern";
+                  v_print_endline "next pattern";
                   let ext_pat = sem_pat @ (ddd :: [node_pat]) in
                   ext_pat +> List.iter (function p -> 
-                          p +> Diff.string_of_gtree' +> print_string;
-                          print_string " ";
+                          p +> Diff.string_of_gtree' +> v_print_string;
+                          v_print_string " ";
                   );
-                  print_newline ();
+                  v_print_newline ();
                   ext_pat
           end
                   in
@@ -1660,13 +1670,13 @@ grow acc cur =
                       then new_cur :: acc_next
                       else 
                               begin
-                                      print_endline "invalid";
+                                      v_print_endline "invalid";
                                       acc_next
                               end
             ) [] in 
           if next = []
           then begin
-                  print_endline "empty";
+                  v_print_endline "empty";
                   cur ++ acc
           end
           else next +> List.fold_left
@@ -1959,28 +1969,165 @@ let get_common_node_patterns gss env =
       abs_P_env
 
 
+let rec infer map ps ts = 
+  match ps, ts with
+    | [], [] -> 
+	v_print_endline "returning map: ";
+	map +> List.map (function (gt,xs) ->
+			   gt +> Diff.string_of_gtree'
+			     ^ "=>" ^ String.concat "," xs
+			)
+	+> String.concat " " +> v_print_endline;
+	map
+    | (skip :: ps), ts when skip = ddd -> 
+	infer map ps ts
+    | (p::ps), (t :: ts) -> 
+	let sigma = Diff.match_term (extract_pat p) t in
+	  v_print_endline "[Main] sigma in infer: ";
+	  sigma +> List.map (function (x,t) -> 
+			       x ^ "=>" ^ Diff.string_of_gtree' t
+			    )
+	  +> String.concat " "
+	  +> v_print_endline;
+	let map' = List.fold_left
+	  (fun map_acc (x, term) ->
+	     try
+	       let xs = List.assoc term map_acc in
+		 (term, x :: xs) :: (List.remove_assoc term map_acc)
+	     with Not_found -> (term, [x]) :: map_acc
+	  ) map sigma
+	in
+	  infer map' ps ts
+
+let infer_all spattern occ = 
+  occ 
+  +> List.fold_left (
+    fun map ts -> infer map spattern ts
+  ) []
+
+let infer_strongest spattern occ = 
+  infer_all spattern occ
+  +> List.fold_left (
+  fun rb (t, xs) ->
+    match xs with
+      | []
+      | [_] -> rb
+      | _ -> xs :: rb
+  ) []
+
+let unify sigma1 sigma2 = 
+  if sigma1 = []
+  then sigma2
+  else
+    sigma1 
+    +> List.fold_left (
+      fun acc_rb s1 ->
+	sigma2
+	+> List.fold_left (
+	  fun acc_rb s2 ->
+	    let s' = intersect_lists s1 s2 in
+	      match s' with
+		| []
+		| [_] -> acc_rb
+		| _ -> s' :: acc_rb
+	) acc_rb
+    ) []
+
+let infer_bindings spattern graphs = 
+  let occ = graphs
+    +> List.rev_map 
+    (function g -> 
+       get_pattern_traces g spattern
+       +> List.rev_map
+	 (function ilistlist ->
+	    ilistlist 
+	    +> List.rev_map
+	      (function ilist ->
+		 List.map (function n -> g#nodes#find n) ilist
+	      )
+	 )
+    ) 
+    +> tail_flatten in
+    List.fold_left (
+      fun sigma occ_i ->
+	v_print_endline "[Main] occ_i = ";
+	occ_i 
+	+> List.iter 
+	  (function gts -> 
+	     gts
+	     +> List.map Diff.string_of_gtree'
+	     +> String.concat " "
+	     +> v_print_endline
+	  );
+	let sigma_i = infer_strongest spattern occ_i in
+	  v_print_endline "[Main] strongest inferred sigma_i";
+	  sigma_i +> List.iter 
+	    (function is ->
+	       is +> String.concat " " +> v_print_endline
+	    );
+	  unify sigma sigma_i
+    ) [] occ
+
+let instantiate sigma p = 
+  let rec loop p = match view p with
+    | A("meta", x) -> 
+	(try 
+	  let xs = List.find (function xs -> List.mem x xs) sigma in
+	    mkA("meta", List.hd xs)
+	with Not_found -> p)
+    | C(ty,ps) ->
+	mkC(ty, List.map loop ps)
+    | _ -> p
+  in
+    loop p
+	
+let construct_pattern sigma pattern = 
+  List.map (function p ->
+	      instantiate sigma p
+	   ) pattern
+
+
+let infer_meta_variables graphs sem_patterns =
+  v_print_endline "[Main] inferring metavariables";
+  sem_patterns 
+  +> List.fold_left (
+    fun acc_patterns spattern ->
+      v_print_endline "[Main] inferring for :";
+      spattern +> List.map Diff.string_of_gtree' +> String.concat " " +> v_print_endline;
+      let sigma = infer_bindings spattern graphs in
+	v_print_endline "[Main] strong eq-classes";
+	sigma
+	+> List.iter 
+	  (function xs -> 
+	     xs +> String.concat " " +> v_print_endline;
+	  );
+	(construct_pattern sigma spattern)
+	  :: acc_patterns
+  ) []
+  
+  
 
 
 let common_patterns_graphs gss =
   (* detect whether a threshold was given *)
 
-(*  let loc_pred = 
-    if !threshold = 0
-    then (
+  (*  let loc_pred = 
+      if !threshold = 0
+      then (
       threshold := List.length gss;
       List.for_all)
-    else begin
-(*      threshold := int_of_float (
-	((float (List.length gss)) /. 100.0) *. 
-	(float !threshold)); *)
+      else begin
+  (*      threshold := int_of_float (
+      ((float (List.length gss)) /. 100.0) *. 
+      (float !threshold)); *)
       for_some !threshold
-    end in
-*)
+      end in
+  *)
   if !threshold = 0
   then threshold := List.length gss;
-    print_endline ("[Main] threshold is " ^ string_of_int !threshold ^
-		  " of " ^ gss +> List.length +> string_of_int);
-    Diff.no_occurs := !threshold;
+  print_endline ("[Main] threshold is " ^ string_of_int !threshold ^
+		   " of " ^ gss +> List.length +> string_of_int);
+  Diff.no_occurs := !threshold;
   let subterms_lists = gss
     +> List.rev_map (function 
 		       | [f] -> 
@@ -1997,57 +2144,70 @@ let common_patterns_graphs gss =
     +> Diff.rm_dub in
   let (|-) g sp = List.exists (cont_match g sp) (nodes_of_graph g) in
   let (||-) gss sp = gss +> for_some !threshold (function fs -> 
-				   fs +> List.exists (function f -> f |- sp)
-				) in
+						   fs +> List.exists (function f -> f |- sp)
+						) in
   let is_frequent_sp_some gss sp = gss ||- sp in
   let is_subpattern gss sp1 sp2 = subpattern_some gss sp1 sp2 in
   let node_patterns_pool = 
-  		Diff.abstract_all_terms subterms_lists unique_subterms []
-  		+> List.filter (function (p,e) -> 
-  			not(infeasible p)
-  			&& Diff.non_phony p
-  			&& not(Diff.control_true = p)
-  			&& not(Diff.is_head_node p)
-  		) in
-  
-  (*
-  let static_get_pa ps =
-  	node_patterns_pool
-  	+> List.filter (function (p,e) ->
-            not(List.mem p ps)
+    (*
+      Diff.abstract_all_terms subterms_lists unique_subterms []
+    *)
+    Diff.merge_abstract_terms subterms_lists unique_subterms
+    +> List.filter (function p -> 
+  		      not(infeasible p)
+  		      && Diff.non_phony p
+  		      && not(Diff.control_true = p)
+  		      && not(Diff.is_head_node p)
+  		   ) in
+    
+    (*
+      let static_get_pa ps =
+      node_patterns_pool
+      +> List.filter (function (p,e) ->
+      not(List.mem p ps)
       )
-  		(*
-  let new_get_pa = 
-    function env ->
+    (*
+      let new_get_pa = 
+      function env ->
       Diff.abstract_all_terms subterms_lists unique_subterms env 
       +> List.filter (function (p,e) -> 
-			not(infeasible p) 
-			&& Diff.non_phony p
-			&& not(Diff.control_true = p)
-			&& not(Diff.is_head_node p)
-		     )
-		     *)
-		     
-  in
-  *)
+      not(infeasible p) 
+      && Diff.non_phony p
+      && not(Diff.control_true = p)
+      && not(Diff.is_head_node p)
+      )
+    *)
+      
+      in
+    *)
 
-  (* let get_pa = get_common_node_patterns gss in *)
-  (*
-    find_seq_patterns_new unique_subterms 
+    (* let get_pa = get_common_node_patterns gss in *)
+    (*
+      find_seq_patterns_new unique_subterms 
       is_subpattern 
       is_frequent_sp_some 
       gss
       static_get_pa
-      *)
-    find_seq_patterns_newest 
+    *)
+    find_seq_patterns_newest (* simulates _ wildcards with all fresh metavariables *)
       (* singleton_patterns: all node patterns with 'fresh' metas' *) 
       (node_patterns_pool
-      +> List.fold_left (
-        fun acc (node_pat, _) ->
-                mkC("CM",[node_pat]) :: acc
-      ) [])
+       +> List.fold_left (
+         fun acc p ->
+	   if 
+	     not(infeasible p) 
+	     && Diff.non_phony p
+	     && not(Diff.control_true = p)
+	     && not(Diff.is_head_node p)
+	   then
+             mkC("CM",[p]) :: acc
+	   else 
+	     acc
+       ) []
+       +> renumber_fresh_metas_pattern)
       (* valid: check that sempat is frequent *)
       (is_frequent_sp_some gss)
+    +> infer_meta_variables (tail_flatten gss)
     +> rm_dups
     +> (function pss -> 
 	  if !filter_patterns
@@ -2192,17 +2352,16 @@ let construct_spatches patterns is_freq =
   (*     | Difftype.ADD (i,t) -> Difftype.ADD t *)
   (*     | Difftype.RM (i,t) -> Difftype.RM t in *)
   (*     List.map local diff in *)
-    (* The idea is to refine a spatch given a chunk under a certain
-     * environment. What kinds of chunks are there and what are appropriate
-     * actions for them?
-     * chunk ::= (+t)* (-t | t) (+t)* 
-     * All additions can be selected for inclusion so for each chunk we need
-     * to construct a list of potential chunks to build from
-     * *)
+  (* The idea is to refine a spatch given a chunk under a certain
+   * environment. What kinds of chunks are there and what are appropriate
+   * actions for them?
+   * chunk ::= (+t)* (-t | t) (+t)* 
+   * All additions can be selected for inclusion so for each chunk we need
+   * to construct a list of potential chunks to build from
+   * *)
   let use_chunk chunk = 
-    (* appends e to all lists in res:
-       [ res' | ls <- res, res' <- res @ [e] ]
-    *)
+    (* appends e to all lists in res: [ res' | ls <- res, res' <- res
+       @ [e] ] *)
     let suffix_all res e =
       if res = [] 
       then [[e]]
@@ -2295,7 +2454,7 @@ let construct_spatches patterns is_freq =
 		      ((List.rev prefix_spatch) @ (pp :: suffix_spatch)), []
 		    else 
 	 	      (* insert operations *)
-(*		      (List.rev (insert_ops env' prefix_spatch (List.rev before_ops))) *)
+		      (*		      (List.rev (insert_ops env' prefix_spatch (List.rev before_ops))) *)
 		      (List.rev (insert_ops env' prefix_spatch before_ops)) 
 		      @ (embed_context_point pp chunk_context_point
 			 :: (insert_ops env' suffix_spatch (List.rev after_ops)))
@@ -2397,8 +2556,8 @@ let construct_spatches patterns is_freq =
 			   print_patterns [sp];
 			   sp +> List.map (function p -> Difftype.ID p), []) in
 	v_print_endline ("[Main] building spatches based on " ^
-			 List.length good_chunks +> string_of_int 
-		       ^ " chunks");
+			   List.length good_chunks +> string_of_int 
+			 ^ " chunks");
 	let spatches_env =
 	  good_chunks 
 	  +> List.fold_left 
