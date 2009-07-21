@@ -158,156 +158,154 @@ let extract_aop a_string = match a_string with
   | _ -> raise (Fail "Not assign operator?")
 
 let rec string_of_gtree str_of_t str_of_c gt = 
-        let rec string_of_itype itype = (match view itype with
-        | A("itype", c) -> "char"
-        | C("itype", [sgn;base]) ->
-                        (match view sgn, view base with
-                        | A ("sgn", "signed") , A (_, b) -> "signed " ^ string_of_meta base
-                        | A ("sgn", "unsigned"), A (_, b) -> "unsigned " ^ string_of_meta base
-                        | A ("meta", _), A(_, b) -> b
-                        | _ -> raise (Fail "string_of_itype inner")
-                        )
-        | _ -> raise (Fail "string_of_itype outer")
-        ) 
-        and string_of_param param =
-                match view param with
-                | C("param", [reg;name;ft]) ->
-                    let r = match view reg with 
-                            | A("reg",r) -> r
-                            | A("meta",x0) -> string_of_meta reg 
-                            | _ -> raise (Fail "string_of_param reg") in
-                    let n = match view name with
-                            | A("name", n) -> n
-                            | A("meta", x0) -> string_of_meta name 
-                            | _ -> raise (Fail "string_of_param name") in
-                                r ^ " " ^ string_of_ftype [ft] ^ " " ^ n
-                            | _ -> loop param
-        and string_of_ftype fts = 
-                let loc cvct = match view cvct with
-                | A("tqual","const") -> "const"
-                | A("tqual","vola")  -> "volatile"
-                | A("btype","void")  -> "void"
-                | C("btype", [{node=C("itype", _)} as c])   -> string_of_itype c
-                | C("btype", [{node=A("itype", _)} as a])   -> string_of_itype a
-                | C("btype", [{node=A("ftype", ft)}]) -> ft
-                | C("pointer", [ft]) -> "*" ^ string_of_ftype [ft]
-                | C("array", [cexpopt; ft]) ->
-                                string_of_ftype [ft] ^ " " ^
-                                (match view cexpopt with
-                                | A("constExp", "none") -> "[]"
-                                | C("constExp", [e]) -> "[" ^ loop e ^ "]"
-                                | A("meta", x0) -> string_of_meta cexpopt
-                                | _ -> raise (Fail "fail:array")
-                                )
-                | C("funtype", rt :: pars) -> 
-                    let ret_type_string = string_of_ftype [rt] in
-                    let par_type_strings = List.map string_of_param pars in
-                    "("^ String.concat ", " par_type_strings 
-                    ^ ")->" ^ ret_type_string
-                | C("enum", [{node=A ("enum_name", en)}; enumgt]) -> "enumTODO"
-                | C("struct", [{node=C(sname, [stype])}]) -> 
-                                "struct " ^ sname ^ "{" ^ loop stype ^"}"
-                | A ("struct", name) -> "struct " ^ name
-                | C ("typeName", [{node=A("meta",id)}; {node=A("fullType","unknown")}])
-                | C ("typeName", [{node=A("ident",id)}; {node=A("fullType","unknown")}]) -> id
-                | C ("typeName", [{node=A("ident",id)}; ft]) 
-                | C ("typeName", [{node=A("meta",id)}; ft]) -> string_of_ftype [ft] ^ " " ^ id
-                | _ -> loop cvct
-                | C(tp,ts) -> tp ^ "<" ^ String.concat ", " (List.map loop ts) ^ ">"
-                | A(tp,t) -> tp ^ ":" ^ t ^ ":"
-                    in
-                    String.concat " " (List.map loc fts)
-        and string_of_aop aop = match view aop with
-            | A("aop", op_str) -> op_str
-            | A("meta", x) -> x
-            | _ -> raise (Impossible 1017)
-        and none_exprstmt es = match view es with
-          | C("stmt", [e]) when none_exprstmt e -> true
-          | A("exprstmt", "none") -> true
-          | _ -> false
-        and loop gt = match view gt with
-          | A ("meta", c) -> string_of_meta gt
-          (*      | A ("itype", _) -> string_of_itype gt 
-          | A (t,c) -> t ^ ":" ^ c *)
-          | C ("cast", [totype; exp]) -> "(" ^ loop totype ^ ")" ^ loop exp
-          | C ("if", [c;b1;b2]) ->
-                "if(" ^ loop c ^") " ^ loop b1 ^
-                  (if none_exprstmt b2
-                  then ""
-                  else " else " ^ loop b2)
-          | C ("binary_arith", [aop;e1;e2]) ->
-                let aop_str = string_of_aop aop in
-                let e1_str = loop e1 in
-                let e2_str = loop e2 in
-                e1_str ^ " " ^ aop_str ^ " " ^ e2_str
-        | C ("fulltype", ti) -> string_of_ftype ti
-        | C ("const", [{node=A(_, c)}]) -> c
-        | C ("itype", _ ) -> string_of_itype gt
-        | C ("exp", [e]) -> loop e 
+  let rec string_of_itype itype = (match view itype with
+				     | A("itype", c) -> "char"
+				     | C("itype", [sgn;base]) ->
+					 (match view sgn, view base with
+					    | A ("sgn", "signed") , A (_, b) -> "signed " ^ string_of_meta base
+					    | A ("sgn", "unsigned"), A (_, b) -> "unsigned " ^ string_of_meta base
+					    | A ("meta", _), A(_, b) -> b
+					    | _ -> raise (Fail "string_of_itype inner")
+					 )
+				     | _ -> raise (Fail "string_of_itype outer")
+				  ) 
+  and string_of_param param =
+    match view param with
+      | C("param", [reg;name;ft]) ->
+          let r = match view reg with 
+            | A("reg",r) -> r
+            | A("meta",x0) -> string_of_meta reg 
+            | _ -> raise (Fail "string_of_param reg") in
+          let n = match view name with
+            | A("name", n) -> n
+            | A("meta", x0) -> string_of_meta name 
+            | _ -> raise (Fail "string_of_param name") in
+            r ^ " " ^ string_of_ftype [ft] ^ " " ^ n
+      | _ -> loop param
+  and string_of_ftype fts = 
+    let loc cvct = match view cvct with
+      | A("tqual","const") -> "const"
+      | A("tqual","vola")  -> "volatile"
+      | A("btype","void")  -> "void"
+      | C("btype", [{node=C("itype", _)} as c])   -> string_of_itype c
+      | C("btype", [{node=A("itype", _)} as a])   -> string_of_itype a
+      | C("btype", [{node=A("ftype", ft)}]) -> ft
+      | C("pointer", [ft]) -> "*" ^ string_of_ftype [ft]
+      | C("array", [cexpopt; ft]) ->
+          string_of_ftype [ft] ^ " " ^
+            (match view cexpopt with
+               | A("constExp", "none") -> "[]"
+               | C("constExp", [e]) -> "[" ^ loop e ^ "]"
+               | A("meta", x0) -> string_of_meta cexpopt
+               | _ -> raise (Fail "fail:array")
+            )
+      | C("funtype", rt :: pars) -> 
+          let ret_type_string = string_of_ftype [rt] in
+          let par_type_strings = List.map string_of_param pars in
+            "("^ String.concat ", " par_type_strings 
+            ^ ")->" ^ ret_type_string
+      | C("enum", [{node=A ("enum_name", en)}; enumgt]) -> "enumTODO"
+      | C("struct", [{node=C(sname, [stype])}]) -> 
+          "struct " ^ sname ^ "{" ^ loop stype ^"}"
+      | A ("struct", name) -> "struct " ^ name
+      | C ("typeName", [{node=A("meta",id)}; {node=A("fullType","unknown")}])
+      | C ("typeName", [{node=A("ident",id)}; {node=A("fullType","unknown")}]) -> id
+      | C ("typeName", [{node=A("ident",id)}; ft]) 
+      | C ("typeName", [{node=A("meta",id)}; ft]) -> string_of_ftype [ft] ^ " " ^ id
+      | _ -> loop cvct
+      (* | C(tp,ts) -> tp ^ "<" ^ String.concat ", " (List.map loop ts) ^ ">" *)
+      (* | A(tp,t) -> tp ^ ":" ^ t ^ ":" *)
+    in
+      String.concat " " (List.map loc fts)
+  and string_of_aop aop = match view aop with
+    | A("aop", op_str) -> op_str
+    | A("meta", x) -> x
+    | _ -> raise (Impossible 1017)
+  and none_exprstmt es = match view es with
+    | C("stmt", [e]) when none_exprstmt e -> true
+    | A("exprstmt", "none") -> true
+    | _ -> false
+  and loop gt = match view gt with
+    | A ("meta", c) -> string_of_meta gt
+        (*      | A ("itype", _) -> string_of_itype gt 
+		| A (t,c) -> t ^ ":" ^ c *)
+    | C ("cast", [totype; exp]) -> "(" ^ loop totype ^ ")" ^ loop exp
+    | C ("if", [c;b1;b2]) ->
+        "if(" ^ loop c ^") " ^ loop b1 ^
+          (if none_exprstmt b2
+           then ""
+           else " else " ^ loop b2)
+    | C ("binary_arith", [aop;e1;e2]) ->
+        let aop_str = string_of_aop aop in
+        let e1_str = loop e1 in
+        let e2_str = loop e2 in
+          e1_str ^ " " ^ aop_str ^ " " ^ e2_str
+    | C ("fulltype", ti) -> string_of_ftype ti
+    | C ("const", [{node=A(_, c)}]) -> c
+    | C ("itype", _ ) -> string_of_itype gt
+    | C ("exp", [e]) -> loop e 
         (*| C ("exp", [{node=A("meta", x0)}; e]) -> "(" ^ loop e ^ ":_)"*)
-        | C ("exp", [{node=C ("TYPEDEXP", [t])} ; e]) ->
-                        (* "(" ^ loop e ^ ":" ^ loop t ^ ")" *)
-                        loop e 
-        | C ("call", f :: args) ->
-                        loop f ^ "(" ^ String.concat "," (List.map loop args) ^ ")"
-        | C ("binary_arith", [{node=A("aop",op_str)} ;e1;e2]) ->
-                        loop e1 ^ op_str ^ loop e2
-        | C ("binary_logi", [{node=A("logiop", op_str)}; e1;e2]) ->
-                        loop e1 ^ op_str ^ loop e2
-        | C ("record_ptr", [e;f]) -> 
-                        loop e ^ "->" ^ loop f
-        | C ("record_acc", [e;f]) ->
-                        loop e ^ "." ^ loop f
-        | C ("stmt", [st]) when not_compound st -> 
-                        loop st ^ ";"
-        | C ("exprstmt", [gt]) -> loop gt
-        | C (assignment, [l;r]) when is_assignment assignment ->
-                        loop l ^ extract_aop assignment ^ loop r
-        | C ("&ref", [gt]) -> "&" ^ loop gt
-        | C ("dlist", ds) -> 
-                ds 
-                +> List.map loop 
-                +> String.concat ", " 
-        | C ("onedecl", [v;ft;sto]) ->
-                loop ft ^ " " ^ loop v ^ ";" (* storage and inline ignored *)
-        | C ("onedecl_ini", [var_gt; ini_exp; ftype; stor]) ->
-                loop ftype ^ " "
-                ^ loop var_gt ^ " = " 
-                ^ loop ini_exp
-        | C ("ini", [e]) -> loop e
-        | C ("stmt", [s]) -> loop s ^ ";"
-        | C ("return", [e]) -> "return " ^ loop e
-        | A ("goto", lab) -> "goto " ^ lab
-        | C ("comp{}", compound) -> 
-                "{" ^ 
-                compound +> List.map loop +> String.concat " "
-                ^ "}"
-        | C ("def", [{node=A("fname", n)}; {node=C("funtype", rt :: args)}; body]) 
-        | C ("def", [{node=A("meta", n)};  {node=C("funtype", rt :: args)}; body]) ->
-                string_of_ftype [rt] ^ " " ^ n ^ " (" ^ 
-                List.map string_of_param args +> String.concat ", "
-                ^ ") " ^ 
-                loop body
-        | C ("cond3", [cond_gt;t_gt;f_gt]) ->
-                loop cond_gt ^ " ? " ^
-                loop t_gt ^ " : " ^
-                loop f_gt
-        | C ("argtype", [at]) ->loop at
-        | C ("macroargs", args) -> 
-                "(" ^ args +> List.map loop +> String.concat "," ^ ")"
-        | C ("param", ps) -> string_of_param gt
-        | C ("iniList", inis) -> 
-                "{" ^ inis +> List.map loop
-                +> String.concat ","
-                ^ "}"
-        | C (t, gtrees) -> 
-                str_of_t t ^ "[" ^
-                String.concat "," (List.map loop gtrees)
-                ^ "]"
-        | A (t,c) -> c
+    | C ("exp", [{node=C ("TYPEDEXP", [t])} ; e]) ->
+        (* "(" ^ loop e ^ ":" ^ loop t ^ ")" *)
+        loop e 
+    | C ("call", f :: args) ->
+        loop f ^ "(" ^ String.concat "," (List.map loop args) ^ ")"
+    | C ("binary_logi", [{node=A("logiop", op_str)}; e1;e2]) ->
+        loop e1 ^ op_str ^ loop e2
+    | C ("record_ptr", [e;f]) -> 
+        loop e ^ "->" ^ loop f
+    | C ("record_acc", [e;f]) ->
+        loop e ^ "." ^ loop f
+    | C ("stmt", [st]) when not_compound st -> 
+        loop st ^ ";"
+    | C ("exprstmt", [gt]) -> loop gt
+    | C (assignment, [l;r]) when is_assignment assignment ->
+        loop l ^ extract_aop assignment ^ loop r
+    | C ("&ref", [gt]) -> "&" ^ loop gt
+    | C ("dlist", ds) -> 
+        ds 
+        +> List.map loop 
+        +> String.concat ", " 
+    | C ("onedecl", [v;ft;sto]) ->
+        loop ft ^ " " ^ loop v ^ ";" (* storage and inline ignored *)
+    | C ("onedecl_ini", [var_gt; ini_exp; ftype; stor]) ->
+        loop ftype ^ " "
+        ^ loop var_gt ^ " = " 
+        ^ loop ini_exp
+    | C ("ini", [e]) -> loop e
+    | C ("stmt", [s]) -> loop s ^ ";"
+    | C ("return", [e]) -> "return " ^ loop e
+    | A ("goto", lab) -> "goto " ^ lab
+    | C ("comp{}", compound) -> 
+        "{" ^ 
+          compound +> List.map loop +> String.concat " "
+        ^ "}"
+    | C ("def", [{node=A("fname", n)}; {node=C("funtype", rt :: args)}; body]) 
+    | C ("def", [{node=A("meta", n)};  {node=C("funtype", rt :: args)}; body]) ->
+        string_of_ftype [rt] ^ " " ^ n ^ " (" ^ 
+          List.map string_of_param args +> String.concat ", "
+        ^ ") " ^ 
+          loop body
+    | C ("cond3", [cond_gt;t_gt;f_gt]) ->
+        loop cond_gt ^ " ? " ^
+          loop t_gt ^ " : " ^
+          loop f_gt
+    | C ("argtype", [at]) ->loop at
+    | C ("macroargs", args) -> 
+        "(" ^ args +> List.map loop +> String.concat "," ^ ")"
+    | C ("param", ps) -> string_of_param gt
+    | C ("iniList", inis) -> 
+        "{" ^ inis +> List.map loop
+        +> String.concat ","
+        ^ "}"
+    | C (t, gtrees) -> 
+        str_of_t t ^ "[" ^
+          String.concat "," (List.map loop gtrees)
+        ^ "]"
+    | A (t,c) -> c
         (*      | A (t,c) -> str_of_t t ^ "<" ^ str_of_c c ^ ">" *)
-      in
-        loop gt
+  in
+    loop gt
 
 let verbose_string_of_gtree gt =
   let rec loop gt = match view gt with
@@ -375,7 +373,6 @@ let rec string_of_diff d =
   let make_string_header gt = collect_metas gt in
     match d with
       | SEQ(p1,p2) -> "SEQ:  " ^ string_of_diff p1 ^ " ; " ^ string_of_diff p2
-      | ID s -> "ID:  " ^ string_of_gtree' s
       | UP(s,s') -> 
 	  "@@\n" ^ String.concat "\n" (make_string_header s) ^
 	    "\n@@\n" ^
@@ -383,7 +380,10 @@ let rec string_of_diff d =
 	    "\n" ^
 	    "+ " ^ (string_of_gtree' s')
       | ADD s -> "ADD:  " ^ string_of_gtree' s
+      | ID s -> "ID:  " ^ string_of_gtree' s
       | RM s -> "RM:  " ^ string_of_gtree' s
+      | PENDING_ID s -> "PID:  " ^ string_of_gtree' s
+      | PENDING_RM s -> "PRM:  " ^ string_of_gtree' s
 
 let extract_pat p = match view p with
 | C("CM", [p]) -> p
@@ -866,6 +866,11 @@ let is_header head_str =
 let control_else = mkA("control:else", "Else")
 let control_true = mkA("control:true", "True")
 let control_inloop = mkA("control:loop", "InLoop")
+
+let is_control_node n =
+  n = control_else
+  || n = control_true
+  || n = control_inloop
 
 let is_head_node n = 
   n = control_else ||
@@ -2758,7 +2763,6 @@ let rec abs_term_imp terms_changed is_fixed up =
     | C("dowhile", _)
     | C("for", _) 
     | C("switch", _) 
-    | C("comp{}", _)
     | C("storage", _) -> [t], env
     (* | C (ct, ts) when !abs_subterms <= zsize t ->  *)
     (* 	(fdebug_endline !Jconfig.print_abs ("[Diff] abs_subterms " ^ string_of_gtree' t); *)
@@ -3909,15 +3913,35 @@ let get_some x = match x with
 let merge_abstract_terms subterms_lists unique_subterms =
   let non_dub_subterms_lists =
     List.rev_map rm_dub subterms_lists in
+  let abs_count = ref 0 in
+  let abs_total = ref 0 in
   let pat_extension p = 
     node_pat_extension unique_subterms p in
+  let interesting_post t acc_ts =
+    not(infeasible t)
+    && non_phony t
+    && not(control_true = t)
+    && not(is_head_node t)
+    && not(acc_ts 
+	   +> List.exists (function t' ->
+			     not(t = t')
+			     && eq_lists (pat_extension t) (pat_extension t')
+			     && Gtree.zsize t' > Gtree.zsize t
+			  )
+	  ) in
   let interesting_t t acc_ts = 
-    not(acc_ts 
-	+> List.exists (function t' ->
-			  eq_lists (pat_extension t) (pat_extension t')
-			  && Gtree.zsize t' > Gtree.zsize t
-		       )
-       ) in
+    not(infeasible t)
+    && non_phony t
+    && not(control_true = t)
+    && not(is_head_node t)
+    && not(acc_ts 
+	   +> List.exists (function t' -> t = t'
+	       (*
+		 eq_lists (pat_extension t) (pat_extension t')
+		 && Gtree.zsize t' > Gtree.zsize t
+	       *)
+			  )
+	  ) in
     non_dub_subterms_lists
     +> List.rev_map rm_dub
     +> List.fold_left 
@@ -3926,14 +3950,6 @@ let merge_abstract_terms subterms_lists unique_subterms =
 	   | None -> ts_list +> some
 	   | Some ts -> 
 	       begin
-		 if !Jconfig.print_abs
-		 then begin
-		   print_endline ("[Diff] acc_ts (" ^ ts +> List.length +> string_of_int ^ ")");
-		   ts +> List.iter (function t ->
-				      t
-				      +> string_of_gtree'
-				      +> print_endline);
-		 end;
 		 ts
 		 +> List.fold_left 
 		   (fun acc_ts t_merged -> 
@@ -3943,7 +3959,7 @@ let merge_abstract_terms subterms_lists unique_subterms =
 			   let p = renumber_metas_gtree t' in
 			     if interesting_t p acc_ts
 			     then 
-				 p +++ acc_ts
+			       p +++ acc_ts
 			     else acc_ts
 			)
 			acc_ts
@@ -3953,11 +3969,27 @@ let merge_abstract_terms subterms_lists unique_subterms =
       ) 
       None
     +> get_some
+    +> (function x -> begin
+	  print_string ("[Diff] found " ^ x +> List.length +> string_of_int
+			^ " patterns; fixing occurrences... ");
+	  abs_total := List.length x;
+	  x
+	end)
     +> List.filter (
       function p ->
+	ANSITerminal.save_cursor ();
+	ANSITerminal.print_string 
+	  [ANSITerminal.on_default](
+	    !abs_count +> string_of_int ^"/"^
+	      !abs_total +> string_of_int);
+	ANSITerminal.restore_cursor();
+	flush stdout;
+	abs_count := !abs_count + 1;
+
 	let real_occurs = non_dub_subterms_lists
 	  +> List.fold_left
 	  (fun acc_n ts ->
+
 	     if ts +> List.exists (can_match p)
 	     then acc_n + 1
 	     else acc_n
@@ -3965,17 +3997,36 @@ let merge_abstract_terms subterms_lists unique_subterms =
 	  real_occurs >= !no_occurs
     )
     +> function ps ->
-      if !Jconfig.print_abs
-      then begin
+      print_newline ();
+      print_string "[Diff] computing interesting patterns";
+      let ps = 
 	ps
-	+> List.iter (function p ->
-			p +> string_of_gtree' +> print_endline
-		     );
-	ps
-      end
-      else ps
+	+> List.filter (function t -> 
+			  not(infeasible t)
+			  && non_phony t
+			  && not(control_true = t)
+			  && not(is_head_node t)
+		       )
+	+> function ps' ->
+	  ps' +>
+	  List.fold_left (fun acc t ->
+			    if interesting_post t ps'
+			    then 
+			      t +++ acc
+			    else acc
+			 ) [] in
+	print_endline "... done";
+	if !Jconfig.print_abs
+	then begin
+	  ps
+	  +> List.iter (function p ->
+			  p +> string_of_gtree' +> print_endline
+		       );
+	  ps
+	end
+	else ps
 
-  
+	
 
 
 
