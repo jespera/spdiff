@@ -2222,7 +2222,7 @@ let common_patterns_graphs gss =
 	  (node_patterns_pool
 	   +> List.fold_left (
              fun acc p ->
-	       if 
+	       if
 		 not(infeasible p) 
 		 && Diff.non_phony p
 		 && not(Diff.control_true = p)
@@ -3925,19 +3925,6 @@ let find_embedded t1 t2 =
   in 
     loop [] t1 t2
 
-exception Found_leaf
-let no_leaves t = 
-  let rec loop t = match view t with
-    | A("meta",_) -> ()
-    | A(_,_) -> raise Found_leaf
-    | C(_,ts) -> List.iter loop ts;
-  in
-    try 
-      begin 
-	loop t;
-	true
-      end
-    with Found_leaf -> false
 
 let some = Diff.some
 let get_some = Diff.get_some 

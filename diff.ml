@@ -3930,7 +3930,8 @@ let merge_abstract_terms subterms_lists unique_subterms =
 			  )
 	  ) in
   let interesting_t t acc_ts = 
-    not(infeasible t)
+    not(Gtree.no_leaves t)
+    && not(infeasible t)
     && non_phony t
     && not(control_true = t)
     && not(is_head_node t)
@@ -3998,7 +3999,9 @@ let merge_abstract_terms subterms_lists unique_subterms =
     )
     +> function ps ->
       print_newline ();
-      print_string "[Diff] computing interesting patterns";
+      print_string ("[Diff] computing interesting patterns from " 
+		    ^ ps +> List.length +> string_of_int 
+		    ^ " patterns");
       let ps = 
 	ps
 	+> List.filter (function t -> 

@@ -67,3 +67,17 @@ let rec gdepth t =
       (fun a b -> max a (gdepth b)) 1 ts
 
 
+exception Found_leaf
+(* returns true iff t does not contain any leaves *)
+let no_leaves t = 
+  let rec loop t = match view t with
+    | A("meta",_) -> ()
+    | A(_,_) -> raise Found_leaf
+    | C(_,ts) -> List.iter loop ts;
+  in
+    try 
+      begin 
+	loop t;
+	true
+      end
+    with Found_leaf -> false
