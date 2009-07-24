@@ -1659,33 +1659,10 @@ let contained_subseq seq1 seq2 =
 let find_seq_patterns_newest 
     singleton_patterns
     valid =
-  (*
-    grow acc cur =
-    next = { semp | p in pool, p not int cur, 
-    extend cur p = semp
-    valid semp}
-    if next == {}
-    then {cur} ++ acc
-    else fold (\acc new_cur->
-    if prune acc new_cur
-    then acc
-    else grow acc new_cur
-    ) acc next
-  *)
+  meta_counter := 0;
   let sub_pat semp1 semp2 = contained_subseq semp1 semp2 in
   let (++) pat pats = pat :: pats in
-  let (@@@) sem_pat node_pat =
-    begin
-      v_print_endline "next pattern";
-      let ext_pat = sem_pat @ (ddd :: [node_pat]) in
-        ext_pat +> List.iter (function p -> 
-				p +> Diff.string_of_gtree' +> v_print_string;
-				v_print_string " ";
-			     );
-        v_print_newline ();
-        ext_pat
-    end
-  in
+  let (@@@) sem_pat node_pat =  sem_pat @ (ddd :: [node_pat]) +> renumber_metas_pattern in
   let (<<=) sem_pat patterns =
     patterns +> List.exists
       (function sem_pat' ->
@@ -1714,7 +1691,7 @@ let find_seq_patterns_newest
 	  print_endline "[Main] adding pattern:";
 	  string_of_pattern cur +> print_endline;
 	end;
-        cur ++ acc
+	cur ++ acc
       end
       else next +> List.fold_left
         (fun acc new_cur ->
