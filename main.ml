@@ -1659,6 +1659,8 @@ let contained_subseq seq1 seq2 =
 let find_seq_patterns_newest 
     singleton_patterns
     valid =
+  let grow_counter = ref 0 in
+  let grow_total = List.length singleton_patterns in
   meta_counter := 0;
   let sub_pat semp1 semp2 = contained_subseq semp1 semp2 in
   let (++) pat pats = pat :: pats in
@@ -1700,7 +1702,12 @@ let find_seq_patterns_newest
            else grow acc new_cur
         ) acc in
     singleton_patterns 
-    +> List.fold_left (fun acc p -> grow acc [p]) []
+    +> List.fold_left (fun acc p -> 
+			 begin
+			   Jconfig.counter_tick !grow_counter grow_total;
+			   grow_counter := !grow_counter + 1;
+			   grow acc [p]
+			 end) []
 
 let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
   print_endline "[Main] growing patterns from functions: ";
@@ -2193,7 +2200,7 @@ let common_patterns_graphs gss =
 	  gss
 	  static_get_pa
 	*)
-	print_endline "[Main] finding semantic patterns";
+	print_string "[Main] finding semantic patterns ";
 	find_seq_patterns_newest (* simulates _ wildcards with all fresh metavariables *)
 	  (* singleton_patterns: all node patterns with 'fresh' metas' *) 
 	  (node_patterns_pool
