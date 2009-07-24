@@ -37,14 +37,15 @@ let (+>) o f = f o
 (* separator for files is at least one SPACE (not tabs) *)
 let filesep = Str.regexp " +"
 
+exception Fail of string
 
 let get_fname_ast gt = match view gt with
   | C("def", gt_name :: _ ) -> (
       match view gt_name with 
 	| A("fname", name) -> name
-	| _ -> raise (Diff.Fail "no fname!")
+	| _ -> raise (Fail "no fname!")
     )
-  | _ -> raise (Diff.Fail "no fname!!")
+  | _ -> raise (Fail "no fname!!")
 
 let gtree_of_ast_c parsed = Visitor_j.trans_prg2 parsed
 
