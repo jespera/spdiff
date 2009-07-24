@@ -3508,16 +3508,21 @@ let get_largest_spatchs ttf_list spatches =
      δ(f1,m1) + δ(m1,m2) = δ(f2,m2)
 
   *)
-  v_print_endline "[Main] applying spatches";
+  print_string "[Main] applying spatches ";
+  let a_counter = ref 0 in
+  let a_total = List.length spatches in
   let applied_spatches = spatches
     +> List.rev_map 
-    (function sp -> 
+    (function sp -> begin
+       Jconfig.counter_tick !a_counter a_total;
+       a_counter := !a_counter + 1;
        sp,
        ttf_list +> 
 	 List.rev_map 
 	 (function (lhs,rhs,flows)  ->
 	    lhs, apply_spatch_ttf sp (lhs,rhs,flows)
 	 )
+     end 
     )
   in
   let is_sub lhss_fmlists1 lhss_fmlists2 = 
@@ -3539,13 +3544,13 @@ let get_largest_spatchs ttf_list spatches =
       )
   in
     (* the largest spatches are those for which all others are either smaller or not-comparable *)
+    print_string "[Main] filtering largest ";
+    a_counter := 0;
     applied_spatches 
     +> List.rev_map
       (function (sp, lhs_fmlists) ->
-	 v_print_endline "[Main] testing one for largest:";
-	 v_print_endline (sp
-			  +> List.map Diff.string_of_spdiff
-			  +> String.concat "\n");
+	 Jconfig.counter_tick !a_counter a_total;
+	 a_counter := !a_counter + 1;
 	 
 	 if applied_spatches +> List.for_all (function (sp', lhs_fmlists') ->
 						v_print_endline "[Main] against : ";
@@ -3718,6 +3723,7 @@ let get_chunks patterns =
 			 then sp :: acc_sps
 			 else acc_sps
 		       end) []
+		    +> rm_dups
 		  in
 		    print_newline ();
 		    if !Jconfig.print_abs
