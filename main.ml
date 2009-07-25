@@ -2601,7 +2601,7 @@ let construct_spatches patterns is_freq =
 	  List.rev_map fst spatches_env
 
 
-let construct_spatches_new chunks changeset patterns =
+let construct_spatches_new chunks safe_part_loc patterns =
   let pending_or_add tp = match tp with
     | Difftype.PENDING_RM _ 
     | Difftype.PENDING_ID _ 
@@ -2670,10 +2670,11 @@ let construct_spatches_new chunks changeset patterns =
       apply_chunk_loop i p 
   in
 
-  let safe_part_loc spa = true in
+  (*   let safe_part_loc spa = true in *)
 
   let rec handle_p acc orig_p =
     let rec loop_p (wq, out) (i, p) = 
+
       match p with
 	| [] -> (wq, out)
 	| tp :: p_rest ->
@@ -2681,28 +2682,37 @@ let construct_spatches_new chunks changeset patterns =
 	      (* we skip term patterns which have already been paired
 		 with a chunk *)
 	    then loop_p (wq, out) (i+1, p_rest)
-	    else
+	    else begin
 	      let new_wq, new_out = chunks +> List.fold_left 
 		(fun (wq, out) ch ->
 
 		   match try_match tp (get_ctx_trans ch) with
 		     | None -> (wq, out)
 		     | Some env ->
+
 			 let spa = apply_chunk env ch i orig_p in
-			   if safe_part_loc spa 
-			     && not(List.mem spa out)
-			   then (spa :: wq, 
+
+			   if (* safe_part_loc spa 
+			     && *) not(List.mem spa out)
+			   then begin
+
+			     (spa +++ wq, 
 				 (spa 
 				  +> List.map 
 				  (function p -> match p with
 				     | Difftype.PENDING_RM tp -> Difftype.RM tp
 				     | Difftype.PENDING_ID tp -> Difftype.ID tp
 				     | _ -> p
-				  )) :: out)
-			   else (wq, out)
+				  )) +++ out)
+			   end
+			   else begin
+
+			     (wq, out)
+			   end
 		) (wq, out) 
 	      in 
 		loop_p (new_wq, new_out) (i+1, p_rest)
+	    end
     in
       loop_p acc (0, orig_p)
 
@@ -3382,7 +3392,8 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
   (* fold_right is ok to use here as patterns are most likely never
      much longer than 5 node-patterns/items *)
   let pattern = List.fold_right (fun iop acc_pattern -> match iop with
-				   | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
+				   | Difftype.ID p | Difftype.RM p ->
+				       p :: acc_pattern
 				   | Difftype.ADD _ -> acc_pattern
 				   | _ -> raise (Impossible 18)
 				) spatch [] in
@@ -3655,7 +3666,7 @@ let get_chunks patterns =
 	let gss = lhs_flows_of_term_pairs term_pairs in
 	  (* let gss_rhs = List.rev_map (fun (_, (gt',flow')) -> [flow']) term_pairs in *)
 	let gpats'' = common_patterns_graphs gss in
-	let gpats' = filter_changed (* gss_rhs *) gpats'' in
+	let gpats' = filter_changed (* gss_rhs *) gpats'' +> rm_dups in
 	  if List.length gpats' = 0
 	  then print_endline "[Main] *NO* common patterns found"
 	  else begin
@@ -3689,7 +3700,6 @@ let get_chunks patterns =
 		  (*	    let sp_candidates = construct_spatches gpats' is_freq in *)
 		let chunks = get_chunks gpats' in
 		  print_endline "[Main] constructing s.patches";
-		let sp_candidates = construct_spatches_new chunks [] gpats'  in
 		let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flow),(rhs_gt,_)) -> 
 							     (lhs_gt, rhs_gt, [lhs_flow])
 							  ) in
@@ -3698,6 +3708,18 @@ let get_chunks patterns =
 				       match p with
 					 | Difftype.ID _ -> false
 					 | _ -> true) in
+		let is_safe_part sp =
+		  let spa = List.map 
+		    (function p -> 
+		       match p with
+			 | Difftype.PENDING_RM p' -> Difftype.RM p'
+			 | Difftype.PENDING_ID p' -> Difftype.ID p'
+			 | _ -> p
+		    ) sp in
+		  not(is_transformation_sp spa)
+		  || is_spatch_safe_ttf_list spa ttf_list in
+		  
+		let sp_candidates = construct_spatches_new chunks is_safe_part gpats'  in
 		let trans_patches = sp_candidates +> List.filter is_transformation_sp in
 		  if !print_raw
 		  then begin
