@@ -2713,11 +2713,11 @@ let construct_spatches_new chunks changeset patterns =
 	  p
 	  +> handle_p (ps, out)
 	  +> construct_loop in 
-  let rec init_patterns p = match p with
+  let rec init_pattern p = match p with
     | [] -> []
-    | p :: p_tail -> Difftype.ID p :: init_patterns p_tail 
+    | p :: p_tail -> Difftype.ID p :: init_pattern p_tail 
   in
-    construct_loop (List.rev_map init_patterns patterns, [])
+    construct_loop (List.rev_map init_pattern patterns, [])
 
 let get_rhs_flows term_pairs =
   term_pairs
