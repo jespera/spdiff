@@ -3688,6 +3688,7 @@ let get_chunks patterns =
 		in *)
 		  (*	    let sp_candidates = construct_spatches gpats' is_freq in *)
 		let chunks = get_chunks gpats' in
+		  print_endline "[Main] constructing s.patches";
 		let sp_candidates = construct_spatches_new chunks [] gpats'  in
 		let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flow),(rhs_gt,_)) -> 
 							     (lhs_gt, rhs_gt, [lhs_flow])
