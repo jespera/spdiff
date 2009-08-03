@@ -32,6 +32,7 @@ let print_support = ref false
 let cache = ref false
 let max_embedded_depth = ref 2 (* this allows us to find similarities in function signatures; higher values is very expensive *)
 let tmp_flag = ref false
+let show_support = ref false
 
 let speclist =
   Arg.align
@@ -41,7 +42,7 @@ let speclist =
       "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing, 
       "  also parse if0 blocks";
       "-print_abs",     Arg.Set Jconfig.print_abs,  "  print abstract updates for each term pair";
-(*      "-relax_safe",    Arg.Set Diff.relax,      "  consider non-application safe [experimental]"; *)
+(*      "-relax_safe",    Arg.Set Diff.relax,      "  consider non-application safe [experimental]";  *)
       "-print_raw",     Arg.Set print_raw,       "  print the raw list of generated simple updates";
       "-print_uniq",    Arg.Set print_uniq,      "  print the unique solutions before removing smaller ones";
       "-print_add",     Arg.Set print_adding,    "  print statement when adding a new solution";
@@ -60,9 +61,10 @@ let speclist =
       "-cache",         Arg.Set cache,         "  only print the term pairs to stdout";
       "-read_generic",  Arg.Set Jconfig.read_generic, "  input is given in gtree-format";
       "-max_embedding", Arg.Set_int max_embedded_depth, "  how deep to look inside terms when discovering nested patterns";
-      "-tmp",           Arg.Set tmp_flag,        "  find embedded PATCHES also"
+      "-tmp",           Arg.Set tmp_flag,        "  find embedded PATCHES also";
+      "-show_support",  Arg.Set show_support,    "  show the support of each sem. patch inferred"
     ]
-
+    
 exception Impossible of int
 
 let v_print s = if !Jconfig.verbose then (print_string s; flush stdout)
@@ -3648,6 +3650,7 @@ let get_chunks patterns =
     good_chunks 
     +> List.rev_map use_chunk
     +> tail_flatten
+    +> rm_dups
 
 
     let find_common_patterns () =
@@ -3784,6 +3787,26 @@ let get_chunks patterns =
 				      print_endline (diff
 						     +> List.map Diff.string_of_spdiff
 						     +> String.concat "\n");
+				      if !show_support
+				      then begin
+					let sup = ttf_list +> List.filter 
+					  (function (gt_l,gt_t,flows) as ttf ->
+						       is_spatch_safe_one ttf diff
+					  ) 
+					in
+					  print_endline ("supporting functions (" 
+							 ^ sup +> List.length +> string_of_int 
+							 ^ "/" ^ ttf_list +> List.length +> string_of_int 
+							 ^ ")");
+					  print_string "< ";
+					  sup +> List.iter 
+					    (function (l,r,fs) -> 
+					       l +> Reader.get_fname_ast +> print_string;
+					       print_string " ";
+					    );
+					  print_endline " >";
+					  print_newline ();
+				      end
 				   )
 	  end		  
 
