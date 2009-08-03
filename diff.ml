@@ -4131,7 +4131,7 @@ let find_simple_updates_merge_changeset changeset =
 			 )
   in
     changeset
-    +> List.rev_map (function (l,r) -> get_tree_changes l r +> rm_dub +> filter_larger (l,r))
+    +> List.rev_map (function (l,r) -> get_tree_changes l r +> rm_dub (* +> filter_larger (l,r) *) )
     +> (function x -> begin
 	  print_endline ("[Diff] got all non-abstract tree changes ("
 			 ^ x +> List.rev_map List.length +> List.fold_left (+) 0 +> string_of_int
