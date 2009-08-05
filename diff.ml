@@ -311,11 +311,19 @@ let rec string_of_gtree str_of_t str_of_c gt =
 
 let verbose_string_of_gtree gt =
   let rec loop gt = match view gt with
-    | A(t,c) -> t ^ "⟨" ^ c ^ "⟩"
-    | C (t, gtrees) -> 
+      (*
+	| A(t,c) -> t ^ "⟨" ^ c ^ "⟩"
+	| C (t, gtrees) -> 
         t ^ "⟦" ^
-          String.concat "," (List.map loop gtrees)
+        String.concat "," (List.map loop gtrees)
         ^ "⟧"
+      *)
+    | A(t,c) -> t ^ "(" ^ c ^ ")"
+    | C (t, gtrees) -> 
+        t ^ "[" ^
+          String.concat "," (List.map loop gtrees)
+        ^ "]"
+
   in loop gt
 
 let str_of_ctype x = x
