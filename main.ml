@@ -387,9 +387,21 @@ let generate_sols chgset_orig simple_patches =
       [])
     else
       let res = gen [] simple_patches None in
+      let res_final = 
+	if !prune
+	then
+	  res +> List.filter
+	    (function bp -> res +> List.for_all
+	       (function bp' ->
+		  (* bp' <= bp || not(bp <= bp') *)
+		  Diff.subpatch_changeset chgset_orig bp' bp
+		  || not(Diff.subpatch_changeset chgset_orig bp bp')
+	       )
+	    )
+	else res in
 	print_endline ("[Main] found " ^
-			 string_of_int (List.length res) ^ " solutions");
-	List.map list_of_bp res
+			 string_of_int (List.length res_final) ^ " solutions");
+	List.map list_of_bp res_final
 
 
 (* a solution is a list of TU patches, not a SEQ value *)
