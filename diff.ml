@@ -84,7 +84,8 @@ let do_dmine = ref false
 let nesting_depth = ref 0
   (* have we not already initialized the table of abstracted terms *)
 let not_counted = ref true
-
+(* should the type of expressions be printed inline ? *)
+let inline_type_print = ref false
 
 let v_print s = if !verbose then (print_string s; flush stdout)
 let v_print_string = v_print
@@ -246,8 +247,11 @@ let rec string_of_gtree str_of_t str_of_c gt =
     | C ("exp", [e]) -> loop e 
         (*| C ("exp", [{node=A("meta", x0)}; e]) -> "(" ^ loop e ^ ":_)"*)
     | C ("exp", [{node=C ("TYPEDEXP", [t])} ; e]) ->
-        "(" ^ loop e ^ ":" ^ loop t ^ ")"
-          (* loop e  *)
+	if !inline_type_print
+	then
+          "(" ^ loop e ^ ":" ^ loop t ^ ")"
+	else
+          loop e
     | C ("call", f :: args) ->
         loop f ^ "(" ^ String.concat "," (List.map loop args) ^ ")"
     | C ("binary_logi", [{node=A("logiop", op_str)}; e1;e2]) ->
