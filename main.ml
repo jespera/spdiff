@@ -42,7 +42,8 @@ let speclist =
       "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing, 
       "  also parse if0 blocks";
       "-print_abs",     Arg.Set Jconfig.print_abs,  "  print abstract updates for each term pair";
-(*      "-relax_safe",    Arg.Set Diff.relax,      "  consider non-application safe [experimental]";  *)
+      "-relax_safe",    Arg.Set Diff.relax,      "  consider non-application safe [experimental]";  
+      "-print_inline",  Arg.Set Diff.inline_type_print, "  print types of identifiers inline";
       "-print_raw",     Arg.Set print_raw,       "  print the raw list of generated simple updates";
       "-print_uniq",    Arg.Set print_uniq,      "  print the unique solutions before removing smaller ones";
       "-print_add",     Arg.Set print_adding,    "  print statement when adding a new solution";
