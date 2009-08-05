@@ -47,7 +47,11 @@ let get_fname_ast gt = match view gt with
     )
   | _ -> raise (Fail "no fname!!")
 
-let gtree_of_ast_c parsed = Visitor_j.trans_prg2 parsed
+let gtree_of_ast_c parsed = 
+  begin
+    Visitor_j.reset_cnt ();
+    Visitor_j.trans_prg2 parsed
+  end
 
 let is_def gt = match view gt with
   | C("def", _) -> true
@@ -284,6 +288,7 @@ let read_ast_cfg file =
       tops_envs +>
 	List.fold_left
 	(fun acc_gt_f_list (c,info) -> 
+	   Visitor_j.reset_cnt ();
 	   let gt_ast = Visitor_j.trans_top c in
 	     if is_def gt_ast
 	     then 
