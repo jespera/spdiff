@@ -2857,7 +2857,7 @@ let corresponds st t next_node_val path =
 	  let s_func st = mkC("stmt", [st]) in
 	    (match view st, view t with
 	       | C("macroit",      [{Hashcons.node=C(t_name, [
-						       {Hashcons.node=C("macroargs", args)}
+						       {Hashcons.node=C("macroargs", args)} as margs
 						       ;st
 						     ])}]), 
 		 C("head:macroit", [{Hashcons.node=C(g_name, args_node)}]) 
@@ -2871,7 +2871,7 @@ let corresponds st t next_node_val path =
 			    Some([st], 
 				 (function 
 				    | [st'] -> 
-					mkC("macroit",[mkC(t_name, [st'])]) +> s_func
+					mkC("macroit",[mkC(t_name, [margs;st'])]) +> s_func
 				    | _ -> raise (Impossible 10))
 			   ,
 				   List.tl path
@@ -3098,8 +3098,8 @@ let locate_subterm g orig_subterm orig_path f =
 		  print_newline ();
 		  print_string ("Current path: \t ");
 		  path +> List.iter (function i -> 
-					    print_string (" " ^ string_of_int i);
-					 );
+				       print_string (" " ^ string_of_int i);
+				    );
 		  print_newline ();
 		  print_endline ("In function: " ^
 				   get_fun_name_gflow g);
@@ -3108,13 +3108,13 @@ let locate_subterm g orig_subterm orig_path f =
 		     continue but that we did not find the node term at
 		     this point?  *)
 		  raise LocateSubterm
-		  (*
-		  raise (Diff.Fail "unable to locate subterm")
-		  *)
+		    (*
+		      raise (Diff.Fail "unable to locate subterm")
+		    *)
 		end
 	| n' :: path -> 
 	    let t = get_val n' 
-	    in 
+	    in
 	      if subterm === t
 	      then 
 		(match extract_label t with
@@ -3142,8 +3142,7 @@ let locate_subterm g orig_subterm orig_path f =
 			  with Break new_path -> raise (Next new_path)
 			end
 			else
- 			  (ts *> loop) new_path 
-			  +> ins_f
+			  (ts *> loop) new_path +> ins_f
 		) 
     and locate_label (lab, path) t =
       match view t with 
