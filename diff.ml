@@ -246,8 +246,8 @@ let rec string_of_gtree str_of_t str_of_c gt =
     | C ("exp", [e]) -> loop e 
         (*| C ("exp", [{node=A("meta", x0)}; e]) -> "(" ^ loop e ^ ":_)"*)
     | C ("exp", [{node=C ("TYPEDEXP", [t])} ; e]) ->
-        (* "(" ^ loop e ^ ":" ^ loop t ^ ")" *)
-        loop e 
+        "(" ^ loop e ^ ":" ^ loop t ^ ")"
+          (* loop e  *)
     | C ("call", f :: args) ->
         loop f ^ "(" ^ String.concat "," (List.map loop args) ^ ")"
     | C ("binary_logi", [{node=A("logiop", op_str)}; e1;e2]) ->
@@ -256,6 +256,8 @@ let rec string_of_gtree str_of_t str_of_c gt =
         loop e ^ "->" ^ loop f
     | C ("record_acc", [e;f]) ->
         loop e ^ "." ^ loop f
+    | C ("array_acc", [e1;e2]) ->
+	loop e1 ^ "[" ^ loop e2 ^ "]"
     | C ("stmt", [st]) when not_compound st -> 
         loop st ^ ";"
     | C ("exprstmt", [gt]) -> loop gt
