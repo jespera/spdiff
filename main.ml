@@ -3427,15 +3427,16 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
     (* check safety of result *)
     v_print_string "safety check: ";
     spatch +> List.map Diff.string_of_diff +> String.concat " " +> v_print_endline;
-    patched_lhss +> List.exists (function (left,middle,right) -> 
-				   v_print_endline ("t1\t" ^ Diff.string_of_gtree' left);
-				   v_print_endline ("t2\t" ^ Diff.string_of_gtree' middle);
-				   v_print_endline ("t3\t" ^ Diff.string_of_gtree' right);
-				   if Diff.part_of_edit_dist left middle right
-				     (* if Diff.msa_cost left middle right *)
-				   then (v_print_endline "ok"; true)
-				   else (v_print_endline "unsafe"; false)
-				)
+    matched_flows = []  (* no match means, the patch is safe also: EXPERIMENTAL *)
+      || patched_lhss +> List.exists (function (left,middle,right) -> 
+					v_print_endline ("t1\t" ^ Diff.string_of_gtree' left);
+					v_print_endline ("t2\t" ^ Diff.string_of_gtree' middle);
+					v_print_endline ("t3\t" ^ Diff.string_of_gtree' right);
+					if Diff.part_of_edit_dist left middle right
+					  (* if Diff.msa_cost left middle right *)
+					then (v_print_endline "ok"; true)
+					else (v_print_endline "unsafe"; false)
+				     )
 
 (* decide whether sp1 <= ttf_list *)
 let is_spatch_safe_ttf_list sp ttf_list =
@@ -3448,7 +3449,8 @@ let is_spatch_safe_ttf_list sp ttf_list =
   let count = ref 0 in
   let max_ttf = List.length ttf_list in
 *)
-  ttf_list +> for_some !threshold 
+  ttf_list +> List.for_all (* for_some !threshold  *) 
+    (* using for_all is related to the above EXPERIMENTAL change *)
     (function ttf -> begin
        is_spatch_safe_one ttf sp
      end
