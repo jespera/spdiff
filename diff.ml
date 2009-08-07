@@ -2287,8 +2287,6 @@ let cont_match_traces  g cp n =
 			 ) envs
 	 with Nomatch -> false)
     | _ when bp == ddd ->
-	n +> print_int;
-	print_string " ";
 	c vp n || (
           match check_vp vp n with
             | FALSE -> false

@@ -500,7 +500,7 @@ let spec_main () =
     then threshold := List.length term_pairs;
     Diff.no_occurs := !threshold;
     print_endline ("[Main] Constructing all safe parts for " ^ 
-	    string_of_int (List.length term_pairs) ^ " term pairs");
+		     string_of_int (List.length term_pairs) ^ " term pairs");
 
     let filtered_patches = 
       (* if !do_dmine *)
@@ -534,8 +534,14 @@ let spec_main () =
 	    tus +> List.length +> string_of_int +> print_endline;
 	    tus
 	  end
-	  )
+	 )
       +> List.rev_map Diff.renumber_metas_up
+      +> Diff.rm_dub
+    in
+    let stripped_patches = 
+      if !strip_eq
+      then strip term_pairs filtered_patches 
+      else filtered_patches
     in
       if !print_raw
       then (
@@ -544,15 +550,12 @@ let spec_main () =
 	List.iter (fun d ->
 		     print_endline (Diff.string_of_diff d);
 		     print_endline " ++ ";
-		  ) filtered_patches;
+		  ) stripped_patches;
 	print_endline "}}}"
       );
-      print_endline "[Main] generating solutions...";
-      let stripped_patches = 
-	if !strip_eq
-	then strip term_pairs filtered_patches 
-	else filtered_patches
-      in
+      print_endline ("[Main] generating solutions from " 
+		      ^ string_of_int (List.length stripped_patches)
+		      ^ " inputs");
       let solutions = generate_sols term_pairs stripped_patches in
 	print_sols solutions
 
@@ -1734,7 +1737,7 @@ let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
 			   print_string "\t";
 			   f +> Diff.get_fun_name_gflow +> print_endline;
 			 end
-        | _ -> raise (Diff.Fail "impossible match! in find_seq_patterns")
+			   | _ -> raise (Diff.Fail "impossible match! in find_seq_patterns")
 			);
   reset_meta();
   let mk_pat p = [mkC("CM",[p])] in
@@ -1773,21 +1776,21 @@ let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
   let valid p' =
     let rec loop p =
       match p with 
-			| [] -> true
-			| p :: seq when 
-					loop seq 
-					&& is_match p -> 
-						not(
-							List.exists (function p' -> 
-							equal_pattern_term p p') seq
-						)
-						&& (match get_metas_single p with
-									| [] -> true
-									| p_metas -> 
-											(match get_metas_pattern seq with
-												| [] -> true
-												| seq_metas -> not(intersect_lists p_metas seq_metas = []))
-              ) 
+	| [] -> true
+	| p :: seq when 
+	    loop seq 
+	    && is_match p -> 
+	    not(
+	      List.exists (function p' -> 
+			     equal_pattern_term p p') seq
+	    )
+	    && (match get_metas_single p with
+		  | [] -> true
+		  | p_metas -> 
+		      (match get_metas_pattern seq with
+			 | [] -> true
+			 | seq_metas -> not(intersect_lists p_metas seq_metas = []))
+               ) 
      	| skip :: seq when skip == ddd -> loop seq
     	| _ -> false
     in
@@ -1801,32 +1804,32 @@ let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
       begin
         v_print_string "[Main] get_next ... ";
       	let res = abs_P_env 
-        	  +> List.fold_left 
-            (fun acc_abs_P_env (pat, env) -> 
-                    
-	              let gss' = gss +> List.filter 
-	                (function 
-              		  | [f] -> f |- (mk_pat pat) && f |- (ext p pat)
-              		  | _ -> raise (Impossible 117)) in
+          +> List.fold_left 
+          (fun acc_abs_P_env (pat, env) -> 
+             
+	     let gss' = gss +> List.filter 
+	       (function 
+              	  | [f] -> f |- (mk_pat pat) && f |- (ext p pat)
+              	  | _ -> raise (Impossible 117)) in
       	       if List.length gss' < !threshold 
       	       then begin
-            		 if !Jconfig.print_abs
-            		 then begin
-            		   print_string "[Main] not including pattern with threshold: ";
-            		   gss' +> List.length +> string_of_int +> print_endline;
-            		   print_endline "[Main] env: ";
-            		   env +> List.iter (function (m, t) -> 
-                            print_endline (m ^ " ⇾ " ^
-                            Diff.string_of_gtree' t);
-                   );
+            	 if !Jconfig.print_abs
+            	 then begin
+            	   print_string "[Main] not including pattern with threshold: ";
+            	   gss' +> List.length +> string_of_int +> print_endline;
+            	   print_endline "[Main] env: ";
+            	   env +> List.iter (function (m, t) -> 
+				       print_endline (m ^ " ⇾ " ^
+							Diff.string_of_gtree' t);
+				    );
                    print_patterns [(ext p pat)];
-		             end;
-		             acc_abs_P_env
-	             end
-	             else (pat,env, gss') :: acc_abs_P_env
-	          ) [] in
-	      v_print_endline "done";
-	      res
+		 end;
+		 acc_abs_P_env
+	       end
+	       else (pat,env, gss') :: acc_abs_P_env
+	  ) [] in
+	  v_print_endline "done";
+	  res
       end 
   in
     (* ext1 = p1 p2  -- p2 is immediate successor *)
@@ -1873,22 +1876,22 @@ let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
     v_print_endline (string_of_pattern p);
     let abs_P_env = 
       get_pa p (* env *)
-(*      
-      +> sort_pa_env gss
-      +> List.filter 
-	(function (pat,env) ->
-	   p = [] 
-	    || gss
-	    +> for_some !threshold
-	    (function flows ->
-	       flows
-	       +> List.exists
-		 (function f ->
-		    f |- mk_pat pat
-		 )
-	    )
-	)
-*)
+	(*      
+		+> sort_pa_env gss
+		+> List.filter 
+		(function (pat,env) ->
+		p = [] 
+		|| gss
+		+> for_some !threshold
+		(function flows ->
+		flows
+		+> List.exists
+		(function f ->
+		f |- mk_pat pat
+		)
+		)
+		)
+	*)
     in
       v_print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
       let nextP2 = get_next abs_P_env ext2 p gss in
@@ -1900,24 +1903,24 @@ let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
 	   then we know that |- p p' can also NOT be the case 
 	*)
       let abs_P_env' = abs_P_env
-(*
-	+> List.filter
-	(fun (pat, env) -> 
-	   nextP2 +> List.exists 
-		 (function (p'', env', gss') -> 
-		    if Diff.node_pat_eq unique_subterms (pat, env) (p'', env')
-		    then (
-		      (* print_endline "pat eq:";
-			 pat +> Diff.string_of_gtree' +> print_endline;
-			 p'' +> Diff.string_of_gtree' +> print_endline;
-		      *)
-		      true
-		    )
-		    else
-		      false
-		 )
-	) 
-*) 
+	(*
+	  +> List.filter
+	  (fun (pat, env) -> 
+	  nextP2 +> List.exists 
+	  (function (p'', env', gss') -> 
+	  if Diff.node_pat_eq unique_subterms (pat, env) (p'', env')
+	  then (
+	(* print_endline "pat eq:";
+	  pat +> Diff.string_of_gtree' +> print_endline;
+	  p'' +> Diff.string_of_gtree' +> print_endline;
+	*)
+	  true
+	  )
+	  else
+	  false
+	  )
+	  ) 
+	*) 
       in
       let nextP1 = get_next abs_P_env' ext1 p gss in
 	v_print_endline ("[Main] from pattern :\n" ^ string_of_pattern p);
@@ -2171,17 +2174,53 @@ let common_patterns_graphs gss =
     let unique_subterms = subterms_lists 
       +> tail_flatten 
       +> Diff.rm_dub in
-    let (|-) g sp = List.exists (cont_match g sp) (nodes_of_graph g) in
-    let (||-) gss sp = gss +> for_some !threshold (function fs -> 
-						     fs +> List.exists (function f -> f |- sp)
-						  ) in
+    let (|-) g sp = 
+      (* pre-test whether the nodes of the pattern are at all
+	 in the graph *)
+      let nodes2 = nodes_of_graph2 g in
+	sp +> List.for_all 
+	  (function p_gt ->
+	     p_gt = ddd 
+	      || nodes2 +> List.exists 
+	      (function i -> 
+		 Diff.can_match 
+		   (extract_pat p_gt)
+		   (g#nodes#find i)
+	      )
+	  ) &&
+	  ((* print_endline "pretest DONE"; *)
+	   List.exists (function i ->
+			  (*
+			  print_string ": ";
+			  g#nodes#find i
+			  +> Diff.string_of_gtree' +> print_endline;
+			  *)
+			  cont_match g sp i) nodes2) in
+    let (||-) gss sp = gss 
+      +> for_some !threshold 
+      (function fs -> 
+	 fs +> List.exists 
+	   (function f -> 
+	      print_string "|- ";
+	      f +> nodes_of_graph2 +> List.length +> string_of_int +> print_endline;
+	      let r = f |- sp in
+		print_endline "done |-";
+		r
+	      )
+      ) in
     let rec check_no_duplicates ls = match ls with
       | [] -> true
       | x :: xs when x == ddd -> check_no_duplicates xs
       | x :: xs -> not(List.mem x xs) && check_no_duplicates xs in
     let is_frequent_sp_some gss sp = 
       check_no_duplicates sp 
-      && gss ||- sp in
+      && (gss +> List.length +> string_of_int +> print_endline;
+	  sp +> List.iter (function t ->
+			     t +> Diff.string_of_gtree' +> print_string;
+			     print_string " ";
+			  );
+	  print_newline();
+	  gss ||- sp) in
     let is_subpattern gss sp1 sp2 = subpattern_some gss sp1 sp2 in
       print_endline "[Main] finding list of common patterns";
       let node_patterns_pool = 
@@ -2244,14 +2283,14 @@ let common_patterns_graphs gss =
 	  print_endline "[Main] now removing duplicates";
 	  ps
 	end
-	+> rm_dups
-	+> (function pss -> 
-	      if !filter_patterns
-	      then begin
-		print_endline "[Main] finding largest patterns";
-		filter_shorter_sub gss (is_subpattern gss) pss 
-	      end
-	      else pss)
+	  +> rm_dups
+	  +> (function pss -> 
+		if !filter_patterns
+		then begin
+		  print_endline "[Main] finding largest patterns";
+		  filter_shorter_sub gss (is_subpattern gss) pss 
+		end
+		else pss)
       
 let get_fun_name_gflow f =
   let head_node = 
