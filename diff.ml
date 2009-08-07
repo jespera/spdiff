@@ -2241,7 +2241,7 @@ let cont_match_traces  g cp n =
       not(List.mem n vp.skip_t) 
       && not(List.exists (function nh -> get_val nh g = get_val n g ) vp.skip_t)
       && can_have_follow vp 
-	  , env %% vp.env_t with Match_failure _ -> false, [] in
+	, env %% vp.env_t with Match_failure _ -> false, [] in
       f, {
 	last_t = Some n; 
 	skip_t = n :: vp.skip_t; 
@@ -2279,14 +2279,16 @@ let cont_match_traces  g cp n =
     | C("CM", [gt]) ->
 	(try 
            (* let env = match_term gt (get_val n g) in *)
-            let envs = find_nested_matches gt (get_val n g) in
-              List.exists (function env ->
-			     let f,vp' = matched_vp vp n env in
-			       f && List.for_all 
-				 (function (n',_) -> c vp' n') (get_succ n g)
-			  ) envs
-	  with Nomatch -> false)
+           let envs = find_nested_matches gt (get_val n g) in
+             List.exists (function env ->
+			    let f,vp' = matched_vp vp n env in
+			      f && List.for_all 
+				(function (n',_) -> c vp' n') (get_succ n g)
+			 ) envs
+	 with Nomatch -> false)
     | _ when bp == ddd ->
+	n +> print_int;
+	print_string " ";
 	c vp n || (
           match check_vp vp n with
             | FALSE -> false
@@ -2299,13 +2301,14 @@ let cont_match_traces  g cp n =
 		    )
                   && not(ns = []) 
                   && let vp' = skipped_vp vp n in
-(*                    List.for_all (trans_bp ddd c vp') ns  *)
+		    (*                    List.for_all (trans_bp ddd c vp') ns  *)
 		    ns +> List.fold_left 
 		      (fun acc_f n' -> 
 			 try trans_bp ddd c vp' n' || acc_f
 			 with Bailout -> acc_f
 		      ) false
-(*		    for_half        (trans_bp ddd c vp') ns *)
+
+		      (*		    for_half        (trans_bp ddd c vp') ns *)
 
 	    | ALWAYSTRUE -> true
 	)
