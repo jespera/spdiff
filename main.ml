@@ -1676,53 +1676,57 @@ let find_seq_patterns_newest
     valid =
   let grow_counter = ref 0 in
   let grow_total = List.length singleton_patterns in
-  meta_counter := 0;
-  let sub_pat semp1 semp2 = contained_subseq semp1 semp2 in
-  let (++) pat pats = pat :: pats in
-  let (@@@) sem_pat node_pat =  sem_pat @ (ddd :: [node_pat]) +> renumber_metas_pattern in
-  let (<<=) sem_pat patterns =
-    patterns +> List.exists
-      (function sem_pat' ->
-         sub_pat sem_pat sem_pat'
-      ) in
-  let rec grow acc cur =
-    let next = singleton_patterns +> List.fold_left
-      (fun acc_next p -> 
-         if List.mem p cur
-         then acc_next
-         else 
-           let new_cur = cur @@@ p in
-             if valid new_cur 
-             then new_cur :: acc_next
-             else 
-               begin
-                 v_print_endline "invalid";
-                 acc_next
-               end
-      ) [] in 
-      if next = []
-      then begin
-        v_print_endline "empty";
-	if !print_adding
+    meta_counter := 0;
+    let sub_pat semp1 semp2 = contained_subseq semp1 semp2 in
+    let (++) pat pats = pat :: pats in
+    let (@@@) sem_pat node_pat =  sem_pat @ (ddd :: [node_pat]) +> renumber_metas_pattern in
+    let (<<=) sem_pat patterns =
+      patterns +> List.exists
+	(function sem_pat' ->
+           sub_pat sem_pat sem_pat'
+	) in
+    let rec grow acc cur =
+      print_endline ".";
+      let next = singleton_patterns +> List.fold_left
+	(fun acc_next p -> 
+           if List.mem p cur
+           then acc_next
+           else 
+             let new_cur = cur @@@ p in
+	       print_endline "?";
+               if valid new_cur 
+               then (print_endline "@"; new_cur :: acc_next)
+               else 
+		 begin
+		   print_endline "!";
+                   v_print_endline "invalid";
+                   acc_next
+		 end
+	) [] in 
+	if next = []
 	then begin
-	  print_endline "[Main] adding pattern:";
-	  string_of_pattern cur +> print_endline;
-	end;
-	cur ++ acc
-      end
-      else next +> List.fold_left
-        (fun acc new_cur ->
-           if new_cur <<= acc
-           then acc
-           else grow acc new_cur
-        ) acc in
-    singleton_patterns 
-    +> List.fold_left (fun acc p -> 
-			 begin
-			   Jconfig.counter_tick !grow_counter grow_total;
-			   grow_counter := !grow_counter + 1;
-			   grow acc [p]
-			 end) []
+          v_print_endline "empty";
+	  if !print_adding
+	  then begin
+	    print_endline "[Main] adding pattern:";
+	    string_of_pattern cur +> print_endline;
+	  end;
+	  cur ++ acc
+	end
+	else next +> List.fold_left
+          (fun acc new_cur ->
+             if new_cur <<= acc
+             then acc
+             else grow acc new_cur
+          ) acc 
+    in
+      singleton_patterns 
+      +> List.fold_left (fun acc p -> 
+			   begin
+			     Jconfig.counter_tick !grow_counter grow_total;
+			     grow_counter := !grow_counter + 1;
+			     grow acc [p]
+			   end) []
 
 let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
   print_endline "[Main] growing patterns from functions: ";
