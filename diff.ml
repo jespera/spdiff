@@ -2226,6 +2226,7 @@ let get_fun_name_gflow f =
 
 
 exception Bailout
+exception UNSAT
 
 let cont_match_traces  g cp n = 
   let can_have_follow vp =
@@ -2289,7 +2290,7 @@ let cont_match_traces  g cp n =
     | _ when bp == ddd ->
 	c vp n || (
           match check_vp vp n with
-            | FALSE -> false
+            | FALSE -> raise UNSAT
             | LOOP -> true
             | SKIP -> 
 		let ns = get_next_vp'' g vp n in
@@ -2299,13 +2300,18 @@ let cont_match_traces  g cp n =
 		    )
                   && not(ns = []) 
                   && let vp' = skipped_vp vp n in
-		    (*                    List.for_all (trans_bp ddd c vp') ns  *)
-		    ns +> List.fold_left 
-		      (fun acc_f n' -> 
-			 try trans_bp ddd c vp' n' || acc_f
-			 with Bailout -> acc_f
-		      ) false
-
+		    List.for_all (function n' ->
+		      try trans_bp ddd c vp' n'
+		      with Bailout -> true
+			   
+		    ) ns  
+		      (*
+			ns +> List.fold_left 
+			(fun acc_f n' -> 
+			try trans_bp ddd c vp' n' || acc_f
+			with Bailout -> acc_f
+			) false
+		      *)
 		      (*		    for_half        (trans_bp ddd c vp') ns *)
 
 	    | ALWAYSTRUE -> true
@@ -2317,7 +2323,7 @@ let cont_match_traces  g cp n =
       (fun vp x -> 
 	 traces_ref := List.rev (vp.trace) :: !traces_ref; (* recall that indices come in reverse order *)
 	 true) in
-    matcher init_vp n 
+    try matcher init_vp n with UNSAT -> (traces_ref := []; false)
 
 
 let cont_match g sp n =
