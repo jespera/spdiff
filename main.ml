@@ -2214,13 +2214,13 @@ let common_patterns_graphs gss =
       | x :: xs -> not(List.mem x xs) && check_no_duplicates xs in
     let is_frequent_sp_some gss sp = 
       check_no_duplicates sp 
-      && (gss +> List.length +> string_of_int +> print_endline;
-	  sp +> List.iter (function t ->
+      && (sp +> List.iter (function t ->
 			     t +> Diff.string_of_gtree' +> print_string;
 			     print_string " ";
 			  );
 	  print_newline();
-	  gss ||- sp) in
+	  gss ||- sp) 
+    in
     let is_subpattern gss sp1 sp2 = subpattern_some gss sp1 sp2 in
       print_endline "[Main] finding list of common patterns";
       let node_patterns_pool = 
