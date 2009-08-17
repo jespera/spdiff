@@ -3886,11 +3886,17 @@ let chunks_of_diff_spatterns spatterns diff =
 		       | ID t ->
 			   if get_change_matches spatterns t = []
 			   then loop acc_chunks [] diff'
-			   else _loop acc_chunks (i :: chunk) diff'
+			   else 
+			     let new_acc_chunks = _loop acc_chunks (i :: chunk) diff'
+			     in
+			       loop new_acc_chunks [] diff'
 		       | RM t ->
 			   if get_change_matches spatterns t = []
 			   then loop acc_chunks chunk diff'
-			   else _loop acc_chunks (i :: chunk) diff'
+			   else 
+			     let new_acc_chunks = _loop acc_chunks (i :: chunk) diff'
+			     in
+			       loop new_acc_chunks [] diff'
 		    ) 
   and _loop acc_chunks chunk diff = match diff with
     | [] -> loop acc_chunks chunk []
