@@ -1682,7 +1682,7 @@ let find_seq_patterns_newest
     meta_counter := 0;
     let sub_pat semp1 semp2 = contained_subseq semp1 semp2 in
     let (++) pat pats = pat :: pats in
-    let (@@@) sem_pat node_pat =  sem_pat @ (ddd :: [node_pat]) +> renumber_metas_pattern in
+    let (@@@) sem_pat node_pat =  sem_pat @ (ddd :: [node_pat]) (* +> renumber_metas_pattern *) in
     let (<<=) sem_pat patterns =
       patterns +> List.exists
 	(function sem_pat' ->
@@ -2193,14 +2193,14 @@ let common_patterns_graphs gss =
 		   (g#nodes#find i)
 	      )
 	  ) &&
-	  ((* print_endline "pretest DONE"; *)
+	  (print_endline "pretest DONE";
 	   List.exists (function i ->
-			  (*
 			  print_string ": ";
 			  g#nodes#find i
 			  +> Diff.string_of_gtree' +> print_endline;
-			  *)
-			  cont_match g sp i) nodes2) in
+			  if cont_match g sp i
+			  then (print_endline "SAT"; true)
+			  else (print_endline "NONSAT"; false)) nodes2) in
     let (||-) gss sp = gss 
       +> for_some !threshold 
       (function fs -> 
@@ -2210,10 +2210,10 @@ let common_patterns_graphs gss =
 	      if !Jconfig.verbose then f +> nodes_of_graph2 +> List.length +> string_of_int +> print_endline;
 	      let r = f |- sp in
 		v_print_endline ("done |- " ^ 
-				  if r then " OK" else " FAIL"
-			       );
+				   if r then " OK" else " FAIL"
+				);
 		r
-	      )
+	   )
       ) in
     let rec check_no_duplicates ls = match ls with
       | [] -> (print_endline "no dups"; true)
@@ -2225,10 +2225,10 @@ let common_patterns_graphs gss =
 	  then (
 	    print_endline "no duplicates";
 	    sp +> List.iter (function t ->
-			     t +> Diff.string_of_gtree' +> print_string;
-			     print_string " ";
-			  );
-	  print_newline());
+			       t +> Diff.string_of_gtree' +> print_string;
+			       print_string " ";
+			    );
+	    print_newline());
 	  gss ||- sp) 
     in
     let is_subpattern gss sp1 sp2 = subpattern_some gss sp1 sp2 in
@@ -2508,9 +2508,7 @@ let construct_spatches_new chunks safe_part_loc patterns =
       apply_chunk_loop i p 
   in
 
-  (*   let safe_part_loc spa = true in *)
-
-  let rec handle_p acc orig_p =
+let rec handle_p acc orig_p =
     let rec loop_p (wq, out) (i, p) = 
 
       match p with

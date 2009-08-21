@@ -2274,7 +2274,7 @@ let cont_match_traces  g cp n =
       then FALSE 
       else if List.mem n vp.skip_t
       then (
-	(* print_endlin0e ("[Diff] LOOP on " ^ 
+	(* print_endline ("[Diff] LOOP on " ^ 
            string_of_int n); *)
 	LOOP)
       else if is_error_exit t_val 
