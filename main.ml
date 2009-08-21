@@ -798,10 +798,10 @@ let get_metas_pattern ps =
 let intersect_lists l1 l2 =
   List.filter (function e1 -> List.mem e1 l2) l1
 
-let rec is_subset_list l1 l2 =
+let rec is_subset_list eq_f l1 l2 =
   l1 = [] ||
   match l1, l2 with
-    | x :: xs, y :: ys when x = y -> is_subset_list xs ys
+    | x :: xs, y :: ys when eq_f x y -> is_subset_list eq_f xs ys
     | _, _ -> false
 
 let num_metas p =
@@ -1444,7 +1444,7 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
 			   print_string "\t";
 			   f +> Diff.get_fun_name_gflow +> print_endline;
 			 end
-        | _ -> raise (Diff.Fail "impossible match! in find_seq_patterns")
+			   | _ -> raise (Diff.Fail "impossible match! in find_seq_patterns")
 			);
   reset_meta();
   let mk_pat p = [mkC("CM",[p])] in
@@ -1483,21 +1483,21 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
   let valid p' =
     let rec loop p =
       match p with 
-			| [] -> true
-			| p :: seq when 
-					loop seq 
-					&& is_match p -> 
-						not(
-							List.exists (function p' -> 
-							equal_pattern_term p p') seq
-						)
-						&& (match get_metas_single p with
-									| [] -> true
-									| p_metas -> 
-											(match get_metas_pattern seq with
-												| [] -> true
-												| seq_metas -> not(intersect_lists p_metas seq_metas = []))
-              ) 
+	| [] -> true
+	| p :: seq when 
+	    loop seq 
+	    && is_match p -> 
+	    not(
+	      List.exists (function p' -> 
+			     equal_pattern_term p p') seq
+	    )
+	    && (match get_metas_single p with
+		  | [] -> true
+		  | p_metas -> 
+		      (match get_metas_pattern seq with
+			 | [] -> true
+			 | seq_metas -> not(intersect_lists p_metas seq_metas = []))
+               ) 
      	| skip :: seq when skip == ddd -> loop seq
     	| _ -> false
     in
@@ -1511,32 +1511,32 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
       begin
         v_print_string "[Main] get_next ... ";
       	let res = abs_P_env 
-        	  +> List.fold_left 
-            (fun acc_abs_P_env (pat, env) -> 
-                    
-	              let gss' = gss +> List.filter 
-	                (function 
-              		  | [f] -> f |- (mk_pat pat) && f |- (ext p pat)
-              		  | _ -> raise (Impossible 117)) in
+          +> List.fold_left 
+          (fun acc_abs_P_env (pat, env) -> 
+             
+	     let gss' = gss +> List.filter 
+	       (function 
+              	  | [f] -> f |- (mk_pat pat) && f |- (ext p pat)
+              	  | _ -> raise (Impossible 117)) in
       	       if List.length gss' < !threshold 
       	       then begin
-            		 if !Jconfig.print_abs
-            		 then begin
-            		   print_string "[Main] not including pattern with threshold: ";
-            		   gss' +> List.length +> string_of_int +> print_endline;
-            		   print_endline "[Main] env: ";
-            		   env +> List.iter (function (m, t) -> 
-                            print_endline (m ^ " ⇾ " ^
-                            Diff.string_of_gtree' t);
-                   );
+            	 if !Jconfig.print_abs
+            	 then begin
+            	   print_string "[Main] not including pattern with threshold: ";
+            	   gss' +> List.length +> string_of_int +> print_endline;
+            	   print_endline "[Main] env: ";
+            	   env +> List.iter (function (m, t) -> 
+				       print_endline (m ^ " ⇾ " ^
+							Diff.string_of_gtree' t);
+				    );
                    print_patterns [(ext p pat)];
-		             end;
-		             acc_abs_P_env
-	             end
-	             else (pat,env, gss') :: acc_abs_P_env
-	          ) [] in
-	      v_print_endline "done";
-	      res
+		 end;
+		 acc_abs_P_env
+	       end
+	       else (pat,env, gss') :: acc_abs_P_env
+	  ) [] in
+	  v_print_endline "done";
+	  res
       end 
   in
     (* ext1 = p1 p2  -- p2 is immediate successor *)
@@ -1583,22 +1583,22 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
     v_print_endline (string_of_pattern p);
     let abs_P_env = 
       get_pa p (* env *)
-(*      
-      +> sort_pa_env gss
-      +> List.filter 
-	(function (pat,env) ->
-	   p = [] 
-	    || gss
-	    +> for_some !threshold
-	    (function flows ->
-	       flows
-	       +> List.exists
-		 (function f ->
-		    f |- mk_pat pat
-		 )
-	    )
-	)
-*)
+	(*      
+		+> sort_pa_env gss
+		+> List.filter 
+		(function (pat,env) ->
+		p = [] 
+		|| gss
+		+> for_some !threshold
+		(function flows ->
+		flows
+		+> List.exists
+		(function f ->
+		f |- mk_pat pat
+		)
+		)
+		)
+	*)
     in
       v_print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
       let nextP2 = get_next abs_P_env ext2 p gss in
@@ -1610,24 +1610,24 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
 	   then we know that |- p p' can also NOT be the case 
 	*)
       let abs_P_env' = abs_P_env
-(*
-	+> List.filter
-	(fun (pat, env) -> 
-	   nextP2 +> List.exists 
-		 (function (p'', env', gss') -> 
-		    if Diff.node_pat_eq unique_subterms (pat, env) (p'', env')
-		    then (
-		      (* print_endline "pat eq:";
-			 pat +> Diff.string_of_gtree' +> print_endline;
-			 p'' +> Diff.string_of_gtree' +> print_endline;
-		      *)
-		      true
-		    )
-		    else
-		      false
-		 )
-	) 
-*) 
+	(*
+	  +> List.filter
+	  (fun (pat, env) -> 
+	  nextP2 +> List.exists 
+	  (function (p'', env', gss') -> 
+	  if Diff.node_pat_eq unique_subterms (pat, env) (p'', env')
+	  then (
+	(* print_endline "pat eq:";
+	  pat +> Diff.string_of_gtree' +> print_endline;
+	  p'' +> Diff.string_of_gtree' +> print_endline;
+	*)
+	  true
+	  )
+	  else
+	  false
+	  )
+	  ) 
+	*) 
       in
       let nextP1 = get_next abs_P_env' ext1 p gss in
 	v_print_endline ("[Main] from pattern :\n" ^ string_of_pattern p);
@@ -1689,20 +1689,25 @@ let find_seq_patterns_newest
            sub_pat sem_pat sem_pat'
 	) in
     let rec grow acc cur =
-      print_endline ".";
+      v_print_endline ".";
       let next = singleton_patterns +> List.fold_left
 	(fun acc_next p -> 
            if List.mem p cur
            then acc_next
            else 
              let new_cur = cur @@@ p in
-	       print_endline "?";
+	       v_print_endline "?";
                if valid new_cur 
-               then (print_endline "@"; new_cur :: acc_next)
+               then (v_print_endline "@"; new_cur :: acc_next)
                else 
 		 begin
-		   print_endline "!";
+		   v_print_endline "!";
                    v_print_endline "invalid";
+		   List.iter (function t -> 
+				print_string (Diff.string_of_gtree' t);
+				print_string " "
+			      ) new_cur;
+		   print_newline ();
                    acc_next
 		 end
 	) [] in 
@@ -2201,24 +2206,29 @@ let common_patterns_graphs gss =
       (function fs -> 
 	 fs +> List.exists 
 	   (function f -> 
-	      print_string "|- ";
-	      f +> nodes_of_graph2 +> List.length +> string_of_int +> print_endline;
+	      v_print_string "|- ";
+	      if !Jconfig.verbose then f +> nodes_of_graph2 +> List.length +> string_of_int +> print_endline;
 	      let r = f |- sp in
-		print_endline "done |-";
+		v_print_endline ("done |- " ^ 
+				  if r then " OK" else " FAIL"
+			       );
 		r
 	      )
       ) in
     let rec check_no_duplicates ls = match ls with
-      | [] -> true
+      | [] -> (print_endline "no dups"; true)
       | x :: xs when x == ddd -> check_no_duplicates xs
       | x :: xs -> not(List.mem x xs) && check_no_duplicates xs in
     let is_frequent_sp_some gss sp = 
       check_no_duplicates sp 
-      && (sp +> List.iter (function t ->
+      && (if !Jconfig.verbose 
+	  then (
+	    print_endline "no duplicates";
+	    sp +> List.iter (function t ->
 			     t +> Diff.string_of_gtree' +> print_string;
 			     print_string " ";
 			  );
-	  print_newline();
+	  print_newline());
 	  gss ||- sp) 
     in
     let is_subpattern gss sp1 sp2 = subpattern_some gss sp1 sp2 in
@@ -2311,23 +2321,22 @@ let get_arcs g i =
   (g#successors i)#tolist
 
 let equal_arcs arcs1 arcs2 =
-  is_subset_list arcs1 arcs2 &&
-    is_subset_list arcs2 arcs1
+  is_subset_list (=) arcs1 arcs2 &&
+    is_subset_list (=) arcs2 arcs1
 
 (* equality of flows *)
 let equal_flows f1 f2 =
+  let eq_f (i1,n1) (i2,n2) = Diff.edit_cost n1 n2 = 0 in
   let ns1 = f1#nodes#tolist in
   let ns2 = f2#nodes#tolist in
     (* all nodes must have same index and value *)
-    is_subset_list ns1 ns2 &&
-      is_subset_list ns2 ns1 
+    is_subset_list eq_f ns1 ns2 &&
+      is_subset_list eq_f ns2 ns1 
       (* arcs should also be equal, we ignore predecessors  *)
     && 
-      ns1 +> List.for_all (function (i,n) -> 
-			     equal_arcs (get_arcs f1 i) (get_arcs f2 i)
+      ns1 +> List.for_all (function (i,n) -> equal_arcs (get_arcs f1 i) (get_arcs f2 i)
 			  ) &&
-      ns2 +> List.for_all (function (i,n) -> 
-			     equal_arcs (get_arcs f1 i) (get_arcs f2 i)
+      ns2 +> List.for_all (function (i,n) -> equal_arcs (get_arcs f1 i) (get_arcs f2 i)
 			  ) 
 
 
@@ -2398,10 +2407,15 @@ let lhs_flows_of_term_pairs term_pairs =
 	   try get_fun_name_gflow flow 
 	   with Not_found ->
 	     raise (Diff.Fail ("no function found in LHS")) 
-	 in
-	   if not(equal_flows flow flow')
+	 in 
+	   (* if not(equal_flows flow flow')
+	   *)
+	 let edit_cost = Diff.edit_cost gt gt' in
+	   if not(edit_cost = 0)
 	   then (
-	     print_endline ("[Main] function " ^ f_name ^ " changed");
+	     print_endline ("[Main] function " ^ f_name ^ " changed (" ^
+			      string_of_int edit_cost
+			    ^ ")" );
 	     [flow] :: acc
 	   )
 	   else
@@ -2423,240 +2437,6 @@ let rec get_context_point chunk =
     | Difftype.ADD _ :: chunk -> get_context_point chunk
     | c :: _ -> c
 
-let construct_spatches patterns is_freq =
-  (* let local_extract diff = *)
-  (*   let local i = match i with *)
-  (*     | Difftype.ID (i,t) -> Difftype.ID t *)
-  (*     | Difftype.ADD (i,t) -> Difftype.ADD t *)
-  (*     | Difftype.RM (i,t) -> Difftype.RM t in *)
-  (*     List.map local diff in *)
-  (* The idea is to refine a spatch given a chunk under a certain
-   * environment. What kinds of chunks are there and what are appropriate
-   * actions for them?
-   * chunk ::= (+t)* (-t | t) (+t)* 
-   * All additions can be selected for inclusion so for each chunk we need
-   * to construct a list of potential chunks to build from
-   * *)
-  let use_chunk chunk = 
-    (* appends e to all lists in res: [ res' | ls <- res, res' <- res
-       @ [e] ] *)
-    let suffix_all res e =
-      if res = [] 
-      then [[e]]
-      else
-        res +> List.fold_left (fun res ls -> 
-				 (ls @ [e])
-				 :: res
-			      ) []
-    in
-      (* results is a list of chunks to include/use/apply *)
-    let rec loop chunk results =
-      match chunk with
-	| [] -> results
-	| ((Difftype.ID _ | Difftype.RM _) as m) :: chunk -> loop chunk (suffix_all results m)
-	| m :: chunk -> 
-            let results' = 
-              suffix_all results m
-              +> List.rev_append results in 
-              loop chunk results'
-    in
-      loop chunk [] in
-  let rec get_before chunk =
-    match chunk with
-      | [] -> []
-      | (Difftype.ID _ | Difftype.RM _) :: _ -> []
-      | a :: chunk -> a :: get_before chunk
-  in
-    (* assume that there is always a context-point in a chunk *)
-  let rec get_after chunk =
-    match chunk with
-      | [] -> []
-      | Difftype.ADD _ :: chunk -> get_after chunk
-      | (Difftype.ID _ | Difftype.RM _) :: chunk ->  chunk
-      | _ -> raise (Impossible 3)
-  in
-    (* the following function does the real work: given a spatch, an env,
-     * and a chunk it finds the context-point of the chunk and inserts the
-     * modifications mentioned in the chunk based on the environment given;
-     * the result is a new spatch + env and the old one is not preserved *)
-  let apply_chunk_one chunk (acc_spatch, env) = 
-    (* find context point in chunk *)
-    let chunk_context_point = get_context_point chunk in
-    let before_ops = get_before chunk in
-    let after_ops  = get_after chunk in
-      (* look for the (could there be more than one?) context point in
-       * the spatch and decide whether it has already been handled
-       * if it has not, insert the operations mentioned in the chunk
-       * operations are "before" "at" "after"
-       *)
-    let has_been_modified pp chunk_context =
-      match pp with
-	| Difftype.ID _ -> false
-	| _ -> true 
-	    (* TODO ; need to mark prev. modifications or use
-	       safe_part filter *) in
-    let at_context_point pp chunk_context env =
-      match pp, chunk_context_point with
-	| (Difftype.ID p | Difftype.RM p) , (Difftype.ID t | Difftype.RM t) -> 
-	    (try Some (Diff.match_term (extract_pat p) t) with _ -> None) 
-	| _ -> raise (Impossible 4) 
-    in
-    let embed_context_point pp chunk_context_point =
-      match pp, chunk_context_point with
-	| Difftype.ID p, Difftype.ID _ -> Difftype.ID p
-	| Difftype.ID p, Difftype.RM _ -> Difftype.RM p
-	| _, _ -> raise (Diff.Fail ("pp not Difftype.ID"))  in
-      (* rev_sub all t in iops based on env and insert in front of
-	 suffix; iops inserted in _reverse_ order *)
-    let rec insert_ops env suffix iops = 
-      match iops with
-	| [] -> suffix
-	| Difftype.ADD t :: iops -> 
-	    insert_ops env (Difftype.ADD (Diff.rev_sub env t) :: suffix) iops 
-	| _ -> raise (Impossible 5)
-    in
-    let rec loop prefix_spatch suffix_spatch =
-      match suffix_spatch with
-	| [] -> (List.rev prefix_spatch, [])
-	| ((Difftype.ID p | Difftype.RM p) as pp) :: suffix_spatch ->
-	    (
-	      match at_context_point pp chunk_context_point env
-	      with
-		| None -> loop (pp :: prefix_spatch) suffix_spatch
-		| Some env' ->
-		    if has_been_modified pp chunk_context_point
-		    then 
-		      (* assume that a context point should
-		       * only match in one patch point
-		       *)
-		      ((List.rev prefix_spatch) @ (pp :: suffix_spatch)), []
-		    else 
-	 	      (* insert operations *)
-		      (*		      (List.rev (insert_ops env' prefix_spatch (List.rev before_ops))) *)
-		      (List.rev (insert_ops env' prefix_spatch before_ops)) 
-		      @ (embed_context_point pp chunk_context_point
-			 :: (insert_ops env' suffix_spatch (List.rev after_ops)))
-			, env' 
-	    )
-	| i :: suffix_spatch -> loop (i :: prefix_spatch) suffix_spatch
-    in
-      loop [] acc_spatch 
-  in
-  let is_pattern_diff sp = sp +> List.for_all 
-    (function p ->
-       match p with
-	 | Difftype.ID _ -> true
-	 | _ -> false
-    ) in
-  let apply_chunk acc_spatch_env chunk =
-    acc_spatch_env +> List.fold_left 
-      (fun acc_spatch_env sp_e -> 
-	 let (sp, env) = apply_chunk_one chunk sp_e in
-	   if is_pattern_diff sp
-	   then acc_spatch_env
-	   else 
-	     if acc_spatch_env +> 
-	       List.exists (function (sp',_) ->
-			      sp = sp'
-			   )
-	     then acc_spatch_env
-	     else (sp, env) :: acc_spatch_env
-      )
-      acc_spatch_env in
-  let is_transformation_chunk chunk = 
-    match chunk with
-      | [Difftype.ID _] -> false
-      | _ -> true in
-    (* this function uses the above _one version to iterate over all
-     * spatches given a chunk; it does NOT preserve the already given based
-     * on the intuition that we already given the spatch_construct functions
-     * more patterns than needed???
-     *)
-  let build_from_chunk spatches_env chunk = 
-    let potential_chunks = use_chunk chunk  in
-      print_endline ("[Main] use chunks: " ^
-		       List.length potential_chunks +> string_of_int);
-      potential_chunks +> List.iter (function diff -> 
-				       print_endline "[Chunk]";
-				       print_endline (diff 
-						      +> List.map Diff.string_of_diff
-						      +> String.concat "\n");
-				       print_endline "[End]"
-				    );
-      potential_chunks 
-      +> List.filter is_transformation_chunk
-      +> List.fold_left apply_chunk spatches_env
-      +> List.rev_append spatches_env
-  in 
-    print_endline "[Main] constructing semantic patches";
-    let chunks = 
-      !Diff.flow_changes +>
-	List.fold_left (fun acc_chunks_lists diff ->
-			  List.rev_append 
-			    (Diff.chunks_of_diff_spatterns patterns diff)
-			    acc_chunks_lists) [] in
-      (* chunks is now a list of (+t)*(t|-t)(+t)* diffs; for each chunk we
-       * can extract the context/attachment-point (t|-t) which is to be found
-       * in some pattern ...
-       *)
-    let good_chunks = chunks 
-      +> List.filter (function diff -> match diff with 
-			| [Difftype.ID _] -> false
-			| _ -> true)
-      +> List.filter (function diff -> match get_context_point diff with
-			| Difftype.ID context_point 
-			| Difftype.RM context_point -> 
-			    (* does the context-point match anything in at least some pattern *)
-			    not(Diff.get_change_matches patterns context_point = [])
-			| _ -> raise (Impossible 6)
-		     )
-      (* +> List.rev_map (function chunk ->  *)
-      (* 			 chunk +> List.filter (function it -> match it with *)
-      (* 						 | Difftype.ADD t -> is_freq t *)
-      (* 						 | _ -> true)) *)
-    in
-      print_endline "[Main] good chunks";
-      good_chunks  
-      +> List.iter (function diff -> 
-		      print_endline "[Chunk]";
-		      print_endline (diff 
-				     +> List.map Diff.string_of_diff
-				     +> String.concat "\n");
-		      print_endline "[End]"
-                   );
-      (* for each pattern, we wish to try and construct a (or many) spatch
-       * from it; we iterate over each chunk to try and see whether the chunk
-       * allows us to add rm/add instructions to the pattern
-       *)
-      v_print_endline "[Main] making init_spatches";
-      let init_spatches_env = 
-	patterns 
-	+> List.rev_map (function sp -> 
-			   print_patterns [sp];
-			   sp +> List.map (function p -> Difftype.ID p), []) in
-	v_print_endline ("[Main] building spatches based on " ^
-			   List.length good_chunks +> string_of_int 
-			 ^ " chunks");
-	let spatches_env =
-	  good_chunks 
-	  +> List.fold_left 
-	    (fun acc_spatch_env chunk -> 
-               build_from_chunk acc_spatch_env chunk) 
-	    init_spatches_env
-	    (*
-	      +> rm_dups_pred (fun (sp,_) (sp', _) -> sp = sp')
-	    *)
-	in
-	  print_endline ("[Main] *CANDIDATE* semantic patches inferred: " ^ 
-			   List.length spatches_env +> string_of_int);
-	  spatches_env 
-	  +> List.iter (function diff, env -> 
-			  print_endline "[spatch:]";
-			  print_endline (diff 
-					 +> List.map Diff.string_of_diff
-					 +> String.concat "\n");
-                       );
-	  List.rev_map fst spatches_env
 
 
 let construct_spatches_new chunks safe_part_loc patterns =
@@ -2746,22 +2526,22 @@ let construct_spatches_new chunks safe_part_loc patterns =
 
 		   match try_match tp (get_ctx_trans ch) with
 		     | None -> (wq, out)
-		     | Some env ->
+		     | Some env' ->
 
-			 let spa = apply_chunk env ch i orig_p in
+			 let spa = apply_chunk env' ch i orig_p in
 
-			   if (* safe_part_loc spa 
-			     && *) not(List.mem spa out)
+			   if (* safe_part_loc spa && *) 
+			     not(List.mem spa out)
 			   then begin
 
-			     (spa +++ wq, 
-				 (spa 
-				  +> List.map 
-				  (function p -> match p with
-				     | Difftype.PENDING_RM tp -> Difftype.RM tp
-				     | Difftype.PENDING_ID tp -> Difftype.ID tp
-				     | _ -> p
-				  )) +++ out)
+			     (spa +++ wq,
+			      (spa 
+			       +> List.map 
+			       (function p -> match p with
+				  | Difftype.PENDING_RM tp -> Difftype.RM tp
+				  | Difftype.PENDING_ID tp -> Difftype.ID tp
+				  | _ -> p
+			       )) +++ out)
 			   end
 			   else begin
 
@@ -2783,7 +2563,7 @@ let construct_spatches_new chunks safe_part_loc patterns =
 	  +> construct_loop in 
   let rec init_pattern p = match p with
     | [] -> []
-    | p :: p_tail -> Difftype.ID p :: init_pattern p_tail 
+    | p :: p_tail -> Difftype.ID p :: init_pattern p_tail
   in
     construct_loop (List.rev_map init_pattern patterns, [])
 
@@ -3669,7 +3449,8 @@ let get_chunks patterns =
     let rec loop chunk results =
       match chunk with
 	| [] -> results
-	| ((Difftype.ID _ | Difftype.RM _) as m) :: chunk -> loop chunk (suffix_all results m)
+	| (Difftype.ID _) as m :: chunk -> loop chunk (suffix_all results m)
+	| (Difftype.RM _) as m :: chunk -> loop chunk (suffix_all results m)
 	| m :: chunk -> 
             let results' = 
               suffix_all results m
@@ -3677,195 +3458,188 @@ let get_chunks patterns =
               loop chunk results'
     in
       loop chunk [] in
-
-  let chunks =
-    !Diff.flow_changes +>
-      List.fold_left (fun acc_chunks_lists diff ->
-			List.rev_append 
-			  (Diff.chunks_of_diff_spatterns patterns diff)
-			  acc_chunks_lists) [] in
-  let good_chunks = chunks 
-    +> List.filter (function diff -> match diff with 
-		      | [Difftype.ID _] -> false
-		      | _ -> true)
-    +> List.filter (function diff -> match get_context_point diff with
-		      | Difftype.ID context_point 
-		      | Difftype.RM context_point -> 
-			  (* does the context-point match anything in at least some pattern *)
-			  not(Diff.get_change_matches patterns context_point = [])
-		      | _ -> raise (Impossible 6)
-		   ) in
-    print_endline "[Main] good chunks";
-    good_chunks  
-    +> List.iter (function diff -> 
-		    print_endline "[Chunk]";
-		    print_endline (diff 
-				   +> List.map Diff.string_of_diff
-				   +> String.concat "\n");
-		    print_endline "[End]"
-                 );
-    good_chunks 
-    +> List.rev_map use_chunk
-    +> tail_flatten
-    +> rm_dups
-
-
-    let find_common_patterns () =
-      (*  malign := true; *)
-      Diff.malign_mode := !malign;
-      file_pairs := Reader.read_spec !mfile; (* gets names to process in file_pairs *)
-      let term_pairs = List.rev (
-	List.fold_left (fun acc_pairs (lfile, rfile) ->
-			  Reader.read_filepair_cfg lfile rfile @ acc_pairs
-		       ) [] !file_pairs)
-	+> List.filter (function ((gt_lhs,f_lhs), (gt_rhs, f_rhs)) -> 
-			  not(!only_changes) 
-			  || not(gt_lhs = gt_rhs)
+  let init_count = ref 0 in
+  let total_count = List.length !Diff.flow_changes in
+    print_string "[Main] getting initial chunks ";
+    let chunks =
+      !Diff.flow_changes +>
+	List.fold_left (fun acc_chunks_lists diff ->
+			  List.rev_append 
+			    (Jconfig.counter_tick !init_count total_count;
+			     init_count := !init_count + 1;
+			     Diff.chunks_of_diff_spatterns patterns diff)
+			    acc_chunks_lists) [] in
+      print_endline "[Main] extracting the good chunks";
+      let good_chunks = chunks 
+	+> List.filter (function diff -> match diff with 
+			  | [Difftype.ID _] -> false
+			  | _ -> true)
+	+> List.filter (function diff -> match get_context_point diff with
+			  | Difftype.ID context_point 
+			  | Difftype.RM context_point -> 
+			      (* does the context-point match anything in at least some pattern *)
+			      not(Diff.get_change_matches patterns context_point = [])
+			  | _ -> raise (Impossible 6)
 		       ) in
-	print_endline ("[Main] read " ^ string_of_int (List.length term_pairs) ^ " files");
-	let gss = lhs_flows_of_term_pairs term_pairs in
-	  (* let gss_rhs = List.rev_map (fun (_, (gt',flow')) -> [flow']) term_pairs in *)
-	let gpats'' = common_patterns_graphs gss in
-	let gpats' = filter_changed (* gss_rhs *) gpats'' +> rm_dups in
-	  if List.length gpats' = 0
-	  then print_endline "[Main] *NO* common patterns found"
-	  else begin
-	    print_endline "[Main] *Common* patterns found:";
-	    print_patterns gpats';
-	  end;
-	  if not(!patterns)
-	  then begin
-	    print_endline "[Main] getting rhs flows";
-	    let rhs_flows = get_rhs_flows term_pairs in
-	      print_endline "[Main] getting COMMON rhs node-patterns";
-	      let common_rhs_node_patterns = 
-		(* this function should be FIXED: it uses abstract_term
-		   which should be removed *)
-		get_common_node_patterns rhs_flows [] in
-		if !Jconfig.verbose
-		then (
-		  print_endline "[Main] common rhs node-patterns:";
-		  common_rhs_node_patterns +> List.iter (function gts,env ->
-							   gts+> List.iter (function gt ->
-									      gt +> Diff.string_of_gtree' 
-									      +> print_endline
-									   )
-							)
-		);
-	(*	let is_freq t = common_rhs_node_patterns +> 
-		  List.exists (function (gts,env) -> 
-				 gts +> List.exists (function cmp -> Diff.can_match cmp t)
-			      ) 
-		in *)
-		  (*	    let sp_candidates = construct_spatches gpats' is_freq in *)
-		let chunks = get_chunks gpats' in
-		  print_endline "[Main] constructing s.patches";
-		let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flow),(rhs_gt,_)) -> 
-							     (lhs_gt, rhs_gt, [lhs_flow])
-							  ) in
-		let is_transformation_sp sp = 
-		  sp +> List.exists (function p ->
-				       match p with
-					 | Difftype.ID _ -> false
-					 | _ -> true) in
-		let is_safe_part sp =
-		  let spa = List.map 
-		    (function p -> 
-		       match p with
-			 | Difftype.PENDING_RM p' -> Difftype.RM p'
-			 | Difftype.PENDING_ID p' -> Difftype.ID p'
-			 | _ -> p
-		    ) sp in
-		  not(is_transformation_sp spa)
-		  || is_spatch_safe_ttf_list spa ttf_list in
-		  
-		let sp_candidates = construct_spatches_new chunks is_safe_part gpats'  in
-		let trans_patches = sp_candidates +> List.filter is_transformation_sp in
-		  if !print_raw
-		  then begin
-		    print_endline "[Main] candidate semantic patches...";
-		    trans_patches +>
-		      List.iter (function sp -> 
-				   print_endline "[spatch:]";
-				   print_endline (sp
-						  +> List.map Diff.string_of_spdiff
-						  +> String.concat "\n");
-				)
-		  end;
-		  print_string ("[Main] filtering safe semantic patches ("^ trans_patches +> 
-	    			  List.length +> 
-				  string_of_int ^") ... ");
-		  let res_count = ref 0 in
-		  let res_total = List.length trans_patches in
-		  let res_spatches = 
-		    trans_patches
-		    +> List.fold_left 
-		      (fun acc_sps sp -> begin
-			 ANSITerminal.save_cursor ();
-			 ANSITerminal.print_string 
-			   [ANSITerminal.on_default](
-			     !res_count +> string_of_int ^"/"^
-			       res_total +> string_of_int);
-			 ANSITerminal.restore_cursor();
-			 flush stdout;
-			 res_count := !res_count + 1;
-			 if is_spatch_safe_ttf_list sp ttf_list
-			 then sp :: acc_sps
-			 else acc_sps
-		       end) []
-		    +> rm_dups
-		  in
-		    print_newline ();
-		    if !Jconfig.print_abs
-		    then begin
-		      res_spatches +>
-			List.iter (function sp -> 
-				     print_endline "[spatch:]";
-				     print_endline (sp
-						    +> List.map Diff.string_of_spdiff
-						    +> String.concat "\n");
-				  )
-		    end;
-		    print_endline ("[Main] filtering largest semantic patches ("^
-				     res_spatches +> List.length +> string_of_int
-				   ^")");
-		    let largest_spatches =
-		      res_spatches 
-		      +> (function spatches -> 
-			    if !filter_spatches then get_largest_spatchs ttf_list spatches
-			    else spatches)
-		      +> rm_dups
-		    in
-		      print_endline ("[Main] *REAL* semantic patches inferred: " ^
-				       List.length largest_spatches +> string_of_int);
-		      largest_spatches
-		      +> List.iter (function diff ->
-				      print_endline "[spatch:]";
-				      print_endline (diff
-						     +> List.map Diff.string_of_spdiff
-						     +> String.concat "\n");
-				      if !show_support
-				      then begin
-					let sup = ttf_list +> List.filter 
-					  (function (gt_l,gt_t,flows) as ttf ->
-						       is_spatch_safe_one ttf diff
-					  ) 
-					in
-					  print_endline ("supporting functions (" 
-							 ^ sup +> List.length +> string_of_int 
-							 ^ "/" ^ ttf_list +> List.length +> string_of_int 
-							 ^ ")");
-					  print_string "< ";
-					  sup +> List.iter 
-					    (function (l,r,fs) -> 
-					       l +> Reader.get_fname_ast +> print_string;
-					       print_string " ";
-					    );
-					  print_endline " >";
-					  print_newline ();
-				      end
-				   )
-	  end		  
+	print_endline "[Main] good chunks";
+	good_chunks  
+	+> List.iter (function diff -> 
+			print_endline "[Chunk]";
+			print_endline (diff 
+				       +> List.map Diff.string_of_diff
+				       +> String.concat "\n");
+			print_endline "[End]"
+                     );
+	print_endline "[Main] exploding the chunks";
+	let returned_chunks = good_chunks 
+	  +> List.rev_map use_chunk
+	  +> tail_flatten
+	  +> rm_dups
+	in
+	  List.iter (function diff -> 
+		       print_endline "[RetChunk]";
+		       print_endline (diff 
+				      +> List.map Diff.string_of_diff
+				      +> String.concat "\n");
+		       print_endline "[End]"
+                    ) returned_chunks;
+	  returned_chunks
+
+
+let find_common_patterns () =
+  (*  malign := true; *)
+  Diff.malign_mode := !malign;
+  file_pairs := Reader.read_spec !mfile; (* gets names to process in file_pairs *)
+  let term_pairs = List.rev (
+    List.fold_left (fun acc_pairs (lfile, rfile) ->
+		      Reader.read_filepair_cfg lfile rfile @ acc_pairs
+		   ) [] !file_pairs)
+    +> List.filter (function ((gt_lhs,f_lhs), (gt_rhs, f_rhs)) -> 
+		      not(!only_changes) 
+		      || not(gt_lhs = gt_rhs)
+		   ) in
+    print_endline ("[Main] read " ^ string_of_int (List.length term_pairs) ^ " files");
+    let gss = lhs_flows_of_term_pairs term_pairs in
+    let gpats'' = common_patterns_graphs gss in
+    let gpats' = filter_changed gpats'' +> rm_dups in
+      if List.length gpats' = 0
+      then print_endline "[Main] *NO* common patterns found"
+      else begin
+	print_endline "[Main] *Common* patterns found:";
+	print_patterns gpats';
+      end;
+      if not(!patterns)
+      then begin
+	print_endline "[Main] getting rhs flows";
+	print_endline ("[Main] finding chunks based on " ^ string_of_int(List.length(gpats')) ^ " patterns");
+	let chunks = get_chunks gpats' in
+	  print_endline "[Main] constructing s.patches";
+	  let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flow),(rhs_gt,_)) -> 
+						       (lhs_gt, rhs_gt, [lhs_flow])
+						    ) in
+	  let is_transformation_sp sp = 
+	    sp +> List.exists (function p ->
+				 match p with
+				   | Difftype.ID _ -> false
+				   | _ -> true) in
+	  let is_safe_part sp =
+	    let spa = List.map 
+	      (function p -> 
+		 match p with
+		   | Difftype.PENDING_RM p' -> Difftype.RM p'
+		   | Difftype.PENDING_ID p' -> Difftype.ID p'
+		   | _ -> p
+	      ) sp in
+	      not(is_transformation_sp spa)
+	      || is_spatch_safe_ttf_list spa ttf_list in
+	    
+	  let sp_candidates = construct_spatches_new chunks is_safe_part gpats'  in
+	  let trans_patches = sp_candidates +> List.filter is_transformation_sp in
+	    if !print_raw
+	    then begin
+	      print_endline "[Main] candidate semantic patches...";
+	      trans_patches +>
+		List.iter (function sp -> 
+			     print_endline "[spatch:]";
+			     print_endline (sp
+					    +> List.map Diff.string_of_spdiff
+					    +> String.concat "\n");
+			  )
+	    end;
+	    print_string ("[Main] filtering safe semantic patches ("^ trans_patches +> 
+	    		    List.length +> 
+			    string_of_int ^") ... ");
+	    let res_count = ref 0 in
+	    let res_total = List.length trans_patches in
+	    let res_spatches = 
+	      trans_patches
+	      +> List.fold_left 
+		(fun acc_sps sp -> begin
+		   ANSITerminal.save_cursor ();
+		   ANSITerminal.print_string 
+		     [ANSITerminal.on_default](
+		       !res_count +> string_of_int ^"/"^
+			 res_total +> string_of_int);
+		   ANSITerminal.restore_cursor();
+		   flush stdout;
+		   res_count := !res_count + 1;
+		   if is_spatch_safe_ttf_list sp ttf_list
+		   then sp :: acc_sps
+		   else acc_sps
+		 end) []
+	      +> rm_dups
+	    in
+	      print_newline ();
+	      if !Jconfig.print_abs
+	      then begin
+		res_spatches +>
+		  List.iter (function sp -> 
+			       print_endline "[spatch:]";
+			       print_endline (sp
+					      +> List.map Diff.string_of_spdiff
+					      +> String.concat "\n");
+			    )
+	      end;
+	      print_endline ("[Main] filtering largest semantic patches ("^
+			       res_spatches +> List.length +> string_of_int
+			     ^")");
+	      let largest_spatches =
+		res_spatches 
+		+> (function spatches -> 
+		      if !filter_spatches then get_largest_spatchs ttf_list spatches
+		      else spatches)
+		+> rm_dups
+	      in
+		print_endline ("[Main] *REAL* semantic patches inferred: " ^
+				 List.length largest_spatches +> string_of_int);
+		largest_spatches
+		+> List.iter (function diff ->
+				print_endline "[spatch:]";
+				print_endline (diff
+					       +> List.map Diff.string_of_spdiff
+					       +> String.concat "\n");
+				if !show_support
+				then begin
+				  let sup = ttf_list +> List.filter 
+				    (function (gt_l,gt_t,flows) as ttf ->
+				       is_spatch_safe_one ttf diff
+				    ) 
+				  in
+				    print_endline ("supporting functions (" 
+						   ^ sup +> List.length +> string_of_int 
+						   ^ "/" ^ ttf_list +> List.length +> string_of_int 
+						   ^ ")");
+				    print_string "< ";
+				    sup +> List.iter 
+				      (function (l,r,fs) -> 
+					 l +> Reader.get_fname_ast +> print_string;
+					 print_string " ";
+				      );
+				    print_endline " >";
+				    print_newline ();
+				end
+			     )
+      end		  
 
 
 

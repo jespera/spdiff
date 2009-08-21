@@ -497,6 +497,12 @@ let lcs_shared size_f src tgt =
 	 ) jarr) m; 
     m
 
+let extract_base_name orig_s =
+  try 
+    let idx = String.index orig_s '@' in
+    String.sub orig_s 0 idx
+  with Not_found -> orig_s
+
 let rec shared_gtree t1 t2 =
   let (+=) a b = if a = b then 1 else 0 in
   let rec comp l1 l2 =
@@ -506,6 +512,11 @@ let rec shared_gtree t1 t2 =
           (*| x :: xs, y :: ys -> localeq x y + comp xs ys in*)
       | x :: xs, y :: ys -> shared_gtree x y + comp xs ys in
     match view t1, view t2 with
+      | A ("ident", name1), A ("ident", name2) ->
+	  if extract_base_name name1 
+	    = extract_base_name name2
+	  then 0
+	  else 1
       | A (ct1, at1), A (ct2, at2) -> 
           (ct1 += ct2) + (at1 += at2)
       | C(ct1, ts1), C(ct2, ts2) ->
@@ -513,6 +524,7 @@ let rec shared_gtree t1 t2 =
       | _, _ -> 0
 
 let rec get_diff_nonshared src tgt =
+  raise (Fail "Dont call me");
   match src, tgt with
     | [], _ -> List.map (function e -> ADD e) tgt
     | _, [] -> List.map (function e -> RM e) src
@@ -815,7 +827,7 @@ let can_match p t =
   try (match match_term p t with
 	 | _ -> true) with
     | Nomatch -> false
-    | _ -> raise (Impossible 190)
+    | _ -> raise (Impossible 191)
 
 (* 
  * occursht is a hashtable indexed by a pair of a pattern and term 
@@ -3879,33 +3891,68 @@ let get_change_matches spatterns term =
 
 
 let chunks_of_diff_spatterns spatterns diff =
-  let rec loop acc_chunks chunk diff = match diff with
-    | [] -> List.rev ((List.rev chunk) :: acc_chunks)
-    | i :: diff' -> (match i with
-		       | ADD t -> loop acc_chunks (i :: chunk) diff'
-		       | ID t ->
-			   if get_change_matches spatterns t = []
-			   then loop acc_chunks [] diff'
-			   else 
-			     let new_acc_chunks = _loop acc_chunks (i :: chunk) diff'
-			     in
-			       loop new_acc_chunks [] diff'
-		       | RM t ->
-			   if get_change_matches spatterns t = []
-			   then loop acc_chunks chunk diff'
-			   else 
-			     let new_acc_chunks = _loop acc_chunks (i :: chunk) diff'
-			     in
-			       loop new_acc_chunks [] diff'
-		    ) 
-  and _loop acc_chunks chunk diff = match diff with
-    | [] -> loop acc_chunks chunk []
-    | i :: diff' -> (match i with
-		       | ADD _ -> _loop acc_chunks (i :: chunk) diff'
-		       | _ -> loop ((List.rev chunk) :: acc_chunks) [] diff
-		    ) in
-    loop [] [] diff
-    +> List.filter (function chunk -> not(chunk = []))
+  let is_id_chunk ch = match ch with
+    | [ID _] | [ADD _] | [] -> true
+    | _ -> false
+  in
+  let print_chunk chunk =
+    if !Jconfig.verbose
+    then List.iter (function 
+		      | ID t -> print_endline ("  " ^ string_of_gtree' t)
+		      | RM t -> print_endline ("- " ^ string_of_gtree' t)
+		      | ADD t-> print_endline ("+ " ^ string_of_gtree' t)
+		   ) (List.rev chunk) ;
+  in
+  let add_chunk chunk acc_chunks = 
+    if List.mem chunk acc_chunks
+    then acc_chunks
+    else chunk :: acc_chunks
+  in
+    print_endline ("[Diff] Length of diff : " ^ string_of_int (List.length diff));
+    let rec loop acc_chunks chunk diff = match diff with
+      | [] -> 
+	  v_print_endline ("[Diff] found " ^ string_of_int (List.length acc_chunks + 1) ^ " chunks so far");
+	  if is_id_chunk chunk
+	  then acc_chunks
+	  else begin
+	    print_chunk (List.rev chunk);
+	    add_chunk (List.rev chunk) acc_chunks
+	  end
+      | i :: diff' -> (match i with
+			 | ADD t -> loop acc_chunks (i :: chunk) diff'
+			 | ID t ->
+			     if get_change_matches spatterns t = []
+			     then loop acc_chunks [] diff'
+			     else 
+			       let new_acc_chunks = _loop acc_chunks (i :: chunk) diff'
+			       in
+				 loop new_acc_chunks [] diff'
+			 | RM t ->
+			     if get_change_matches spatterns t = []
+			     then loop acc_chunks chunk diff'
+			     else 
+			       let new_acc_chunks = _loop acc_chunks (i :: chunk) diff'
+			       in
+				 loop new_acc_chunks [] diff'
+		      ) 
+    and _loop acc_chunks chunk diff = match diff with
+      | [] -> loop acc_chunks chunk []
+      | i :: diff' -> (match i with
+			 | ADD _ -> _loop acc_chunks (i :: chunk) diff'
+			 | _ -> 
+(*			     if is_id_chunk chunk
+			     then acc_chunks (* loop acc_chunks [] diff *)
+			     else 
+*)
+			       begin
+				 v_print_endline "[Diff] adding chunk : ";
+				 print_chunk (List.rev chunk);
+				 add_chunk (List.rev chunk) acc_chunks
+				 (* loop (add_chunk (List.rev chunk) acc_chunks) [] diff *)
+			       end
+		      ) in
+      loop [] [] diff
+      +> List.filter (function chunk -> not(chunk = []))
 
 let merge_terms t1 t2 =
   let rec loop env t1 t2 = 

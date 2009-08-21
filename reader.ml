@@ -288,19 +288,27 @@ let read_ast_cfg file =
       tops_envs +>
 	List.fold_left
 	(fun acc_gt_f_list (c,info) -> 
-	   Visitor_j.reset_cnt ();
+	   (* Visitor_j.reset_cnt (); *)
 	   let gt_ast = Visitor_j.trans_top c in
 	     if is_def gt_ast
-	     then 
-	       match Ast_to_flow2.ast_to_control_flow c with
-		 | None -> acc_gt_f_list
-		 | Some f -> (gt_ast, flow_to_gflow f) :: acc_gt_f_list
+	     then
+	       let fname = get_fname_ast gt_ast in
+		 Visitor_j.current_fun := fname;
+		 let res = (match Ast_to_flow2.ast_to_control_flow c with
+			      | None -> acc_gt_f_list
+			      | Some f -> (gt_ast, flow_to_gflow f) :: acc_gt_f_list) in
+		   Visitor_j.current_fun := "TOP";
+		   res
 	     else acc_gt_f_list
 	) []
 
 let read_src_tgt_cfg src tgt =
+  (* let old_cnt = !Visitor_j.id_cnt in *)
   let gt_f_list_src = read_ast_cfg src in
+    (* Visitor_j.id_cnt := old_cnt; *)
+    (* Visitor_j.reset_cnt (); *)
   let gt_f_list_tgt = read_ast_cfg tgt in
+    Hashtbl.clear Visitor_j.id_hash;
     if !Jconfig.verbose then (
       print_endline "[Diff] gflows for file:";
       print_endline "[Diff] LHS flows";
@@ -323,12 +331,12 @@ let read_src_tgt_cfg src tgt =
 	     )
 	   +> List.fold_left (fun selected_def (gt,f) -> 
 				let cost = Diff.edit_cost gt_lhs gt in
-				match selected_def with
-				  | None -> Some((gt,f), cost)
-				  | Some ((gt',f'), cost') ->
-				      if cost < cost'
-				      then Some ((gt,f),cost)
-				      else selected_def
+				  match selected_def with
+				    | None -> Some((gt,f), cost)
+				    | Some ((gt',f'), cost') ->
+					if cost < cost'
+					then Some ((gt,f),cost)
+					else selected_def
 			     ) None 
 	   +> (function x -> match x with
 		 | None -> acc_pairs
@@ -344,7 +352,8 @@ let read_src_tgt_cfg src tgt =
 
       ) [] in
       pairs +> List.iter (function ((gt1,f1), (gt2,f2)) -> 
-			    Diff.get_flow_changes [f1] [f2]);
+			    if not(Diff.edit_cost gt1 gt2 = 0)
+			    then Diff.get_flow_changes [f1] [f2]);
       pairs
 
 
