@@ -52,6 +52,31 @@ let rec gsize t =
   | C(ct, ts) -> 1 + List.fold_left 
       (fun a b -> a + gsize b) 1 ts
 
+let pair_size t =
+  let rec loop ((c,m),env) t = match view t with
+    | A ("meta", x) -> 
+	if List.mem x env
+	then (c,m), env
+	else (c,m+1), x :: env
+    | A _ -> (c+1,m), env
+    | C(_, ts) ->
+	List.fold_left loop ((c+1,m), env) ts
+  in
+    fst(loop ((0,0),[]) t)
+
+(* return true iff t1 is less than or eq to t2
+   ONLY use this comparison for *equivalent* patterns
+*)
+let leq_pair_size t1 t2 =
+  let (c1,m1) = pair_size t1 in
+  let (c2,m2) = pair_size t2 in
+    if c1 <= c2
+    then 
+      if c1 = c2
+      then m2 <= m1
+      else true
+    else false (* t2 < t1 *)
+
 let rec zsize t =
   match view t with
   | A ("meta", _) -> 0

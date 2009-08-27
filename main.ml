@@ -33,6 +33,7 @@ let cache = ref false
 let max_embedded_depth = ref 2 (* this allows us to find similarities in function signatures; higher values is very expensive *)
 let tmp_flag = ref false
 let show_support = ref false
+let flow_support = ref 0
 
 let speclist =
   Arg.align
@@ -63,7 +64,8 @@ let speclist =
       "-read_generic",  Arg.Set Jconfig.read_generic, "  input is given in gtree-format";
       "-max_embedding", Arg.Set_int max_embedded_depth, "  how deep to look inside terms when discovering nested patterns";
       "-tmp",           Arg.Set tmp_flag,        "  find embedded PATCHES also";
-      "-show_support",  Arg.Set show_support,    "  show the support of each sem. patch inferred"
+      "-show_support",  Arg.Set show_support,    "  show the support of each sem. patch inferred";
+      "-flow_support",  Arg.Set_int flow_support,"  threshold required of flow-patterns"
     ]
     
 exception Impossible of int
@@ -74,6 +76,7 @@ let v_print_endline s = if !Jconfig.verbose then print_endline s
 let v_print_newline () = v_print_endline ""
 
 let ddd = Diff.ddd
+let cmddd = mkC("CM", [Diff.ddd])
 
 let (+>) o f = f o
 
@@ -1656,7 +1659,15 @@ let contained_in p1 p2 =
   || match view p1, view p2 with
   | C("CM",[rp1]), C("CM",[rp2]) -> loop rp1 rp2 && gsize rp1 < gsize rp2
   | _, _ when p1 = ddd || p2 = ddd -> false
-  | _ -> raise (Impossible 1000)
+  | _ -> false
+      (* 
+	 begin
+	 print_newline();
+	 print_endline (Diff.verbose_string_of_gtree p1);
+	 print_endline (Diff.verbose_string_of_gtree p2);
+	 raise (Impossible 1000)
+    end
+      *)
 
 
 exception True_found
@@ -1677,6 +1688,14 @@ let contained_subseq seq1 seq2 =
 let find_seq_patterns_newest 
     singleton_patterns
     valid =
+  if not(!flow_support = 0)
+  then begin
+    print_endline ("[Main] setting new threshold : " 
+		   ^ string_of_int !flow_support);
+    threshold := !flow_support;
+    Diff.no_occurs := !threshold;
+  end;
+
   let grow_counter = ref 0 in
   let grow_total = List.length singleton_patterns in
     meta_counter := 0;
@@ -1703,11 +1722,14 @@ let find_seq_patterns_newest
 		 begin
 		   v_print_endline "!";
                    v_print_endline "invalid";
-		   List.iter (function t -> 
-				print_string (Diff.string_of_gtree' t);
-				print_string " "
-			      ) new_cur;
-		   print_newline ();
+		   if !Jconfig.verbose then
+		     begin 
+		       List.iter (function t -> 
+				    print_string (Diff.string_of_gtree' t);
+				    print_string " "
+				 ) new_cur;
+		       print_newline ();
+		     end;
                    acc_next
 		 end
 	) [] in 
@@ -2193,14 +2215,15 @@ let common_patterns_graphs gss =
 		   (g#nodes#find i)
 	      )
 	  ) &&
-	  (print_endline "pretest DONE";
+	  ((* print_endline "pretest DONE"; *)
 	   List.exists (function i ->
-			  print_string ": ";
+(*			  print_string ": ";
 			  g#nodes#find i
 			  +> Diff.string_of_gtree' +> print_endline;
+*)
 			  if cont_match g sp i
-			  then (print_endline "SAT"; true)
-			  else (print_endline "NONSAT"; false)) nodes2) in
+			  then ((*print_endline "SAT";*) true)
+			  else ((* print_endline "NONSAT"; *) false)) nodes2) in
     let (||-) gss sp = gss 
       +> for_some !threshold 
       (function fs -> 
@@ -2216,7 +2239,7 @@ let common_patterns_graphs gss =
 	   )
       ) in
     let rec check_no_duplicates ls = match ls with
-      | [] -> (print_endline "no dups"; true)
+      | [] -> ((* print_endline "no dups"; *) true)
       | x :: xs when x == ddd -> check_no_duplicates xs
       | x :: xs -> not(List.mem x xs) && check_no_duplicates xs in
     let is_frequent_sp_some gss sp = 
@@ -2649,7 +2672,7 @@ let annotate_spatch spatch trace =
 		      );
       raise (Invalid_argument e)
   in
-    trace +> List.fold_left anno_seq spatch
+    List.fold_left anno_seq spatch trace
 
 exception LocateSubterm 
 exception Next of int list 
@@ -3098,7 +3121,7 @@ let insert_chunk flow pending_term chunk =
     match view t with
       | C("pending", _) -> t
       | _ -> pending_of_chunk chunk t in
-  let paths = ctx_point_nodes +> List.rev_map (get_path flow) in
+  let paths = List.rev_map (get_path flow) ctx_point_nodes in
     paths +>
       List.fold_left (fun acc_t path -> 
 			try 
@@ -3193,19 +3216,99 @@ let apply_spatch spatch (term,flow) =
     (function iop -> match iop with
        | Difftype.ID p when p ==  ddd -> false
        | _ -> true) in
-  let init_annotated = stripped_spatch +> List.map (function iop -> match iop with
-						      | Difftype.ID p -> Difftype.ID (p, empty_annotation)
-						      | Difftype.RM p -> Difftype.RM (p, empty_annotation)
-						      | Difftype.ADD p -> Difftype.ADD (p, empty_annotation)
-						      | _ -> raise (Impossible 17)) in
-  
-  let annotated_spatches = traces +> List.map (annotate_spatch init_annotated) in
+  let init_annotated = 
+    stripped_spatch +> List.map (function iop -> match iop with
+				   | Difftype.ID p -> Difftype.ID (p, empty_annotation)
+				   | Difftype.RM p -> Difftype.RM (p, empty_annotation)
+				   | Difftype.ADD p -> Difftype.ADD (p, empty_annotation)
+				   | _ -> raise (Impossible 17)) in
+    
+  let annotated_spatches = List.map (annotate_spatch init_annotated) traces in
   let chunkified_spatches = annotated_spatches +> List.rev_map Diff.chunks_of_diff in
-  let pending_term = chunkified_spatches +> 
-    List.fold_left (fun acc_pending_term chunk_set -> 
-		      chunk_set +> List.fold_left (insert_chunk flow) acc_pending_term
-		   ) term in
+  let pending_term = List.fold_left 
+    (fun acc_pending_term chunk_set -> 
+       chunk_set +> List.fold_left (insert_chunk flow) acc_pending_term
+    ) term chunkified_spatches in
     perform_pending pending_term
+
+let apply_spatch_fixed spatch (term, flow) =
+  let get_pattern_env_traces g sp =
+    g#nodes#tolist 
+    +> List.filter (function (i,gt) -> Diff.non_phony gt && not(Diff.is_control_node gt))
+    +> List.fold_left (fun acc_trs (i,gt) -> 
+			 match Diff.get_env_traces g sp i with
+			   | None -> acc_trs
+			   | Some trs -> trs :: acc_trs
+		      ) [] in
+    (* use env to replace metavars with the corresponding subterms *)
+  let instantiate spatch env = 
+    (* annotate elements with the nodei matched *)
+    let f spatch = match spatch with
+      | Difftype.ID  (t, ann) -> Difftype.ID  (Diff.sub env t, ann)
+      | Difftype.RM  (t, ann) -> Difftype.RM  (Diff.sub env t, ann)
+      | Difftype.ADD (t, ann) -> Difftype.ADD (Diff.sub env t, ann)
+      | _ -> raise (Impossible 1990)
+    in
+      List.map f spatch in
+  let annotate_spatch_seq sp node_seq = 
+    let map2 skipf f ls1 ls2 = 
+      let rec loop ls1 ls2 = match ls1, ls2 with
+	| [], [] -> []
+	| e1 :: ls1', _ when skipf e1 -> e1 :: loop ls1' ls2
+	| e1 :: ls1, e2 :: ls2 -> f e1 e2 :: loop ls1 ls2 
+	| _, _ -> raise (Invalid_argument "annotate_spatch_seq")
+      in
+	loop ls1 ls2 in
+    let skip_add p = match p with
+	Difftype.ADD _ -> true | _ -> false in
+      map2 skip_add add_annotation_iop sp node_seq in
+  let pattern = List.fold_right (fun iop acc_pattern -> match iop with
+				   | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
+				   | Difftype.ADD _ -> acc_pattern
+				   | _ -> raise (Impossible 1042)
+				) spatch [] in
+  let stripped_spatch = spatch +> List.filter 
+    (function iop -> match iop with
+       | Difftype.ID p when p ==  ddd -> false
+       | _ -> true) in
+  let init_annotated = 
+    stripped_spatch +> List.map 
+      (function iop -> match iop with
+	 | Difftype.ID p -> Difftype.ID (p, empty_annotation)
+	 | Difftype.RM p -> Difftype.RM (p, empty_annotation)
+	 | Difftype.ADD p -> Difftype.ADD (p, empty_annotation)
+	 | _ -> raise (Impossible 17)) in
+
+  let env_traces = get_pattern_env_traces flow pattern in
+    perform_pending 
+      (List.fold_left 
+	 (fun acc_pending_term seq_env_list ->
+	    List.fold_left 
+	      (fun acc_pending_term (seq, env) ->
+		 let sp' = instantiate init_annotated env in  (* TODO *)
+		 let spa = annotate_spatch_seq sp' seq in      (* TODO *)
+		 let chunks = Diff.chunks_of_diff spa in
+		   List.fold_left (insert_chunk flow) acc_pending_term chunks
+	      )
+	      acc_pending_term
+	      seq_env_list
+	 )
+	 term
+	 env_traces
+      )
+      
+(*
+
+
+    
+  let annotated_spatches = List.map (annotate_spatch init_annotated) traces in
+  let chunkified_spatches = annotated_spatches +> List.rev_map Diff.chunks_of_diff in
+  let pending_term = List.fold_left 
+    (fun acc_pending_term chunk_set -> 
+       chunk_set +> List.fold_left (insert_chunk flow) acc_pending_term
+    ) term chunkified_spatches in
+    perform_pending pending_term
+*)
 
 
 (* this function tries to determine if the spatch is safe for some
@@ -3255,40 +3358,52 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
        function flow *)
   let patched_lhss = funs +> List.map (function (fname, flow, lhs_def_term, rhs_def_term) ->
 					 (lhs_def_term, 
-					  apply_spatch spatch (lhs_def_term, flow), 
+					  apply_spatch_fixed spatch (lhs_def_term, flow), 
 					  rhs_def_term)
 				      ) in
     (* check safety of result *)
     v_print_string "safety check: ";
     spatch +> List.map Diff.string_of_diff +> String.concat " " +> v_print_endline;
-    matched_flows = []  (* no match means, the patch is safe also: EXPERIMENTAL *)
-      || patched_lhss +> List.exists (function (left,middle,right) -> 
-					v_print_endline ("t1\t" ^ Diff.string_of_gtree' left);
-					v_print_endline ("t2\t" ^ Diff.string_of_gtree' middle);
-					v_print_endline ("t3\t" ^ Diff.string_of_gtree' right);
-					if Diff.part_of_edit_dist left middle right
-					  (* if Diff.msa_cost left middle right *)
-					then (v_print_endline "ok"; true)
-					else (v_print_endline "unsafe"; false)
-				     )
+    if matched_flows = []
+    then None (* no match means, the patch is safe also: EXPERIMENTAL *)
+    else Some ( 
+      List.exists (function (left,middle,right) -> 
+		     v_print_endline ("t1\t" ^ Diff.string_of_gtree' left);
+		     v_print_endline ("t2\t" ^ Diff.string_of_gtree' middle);
+		     v_print_endline ("t3\t" ^ Diff.string_of_gtree' right);
+		     if Diff.part_of_edit_dist left middle right
+		       (* if Diff.msa_cost left middle right *)
+		     then (v_print_endline "ok"; true)
+		     else (v_print_endline "unsafe"; false)
+		  ) patched_lhss
+    )
 
 (* decide whether sp1 <= ttf_list *)
 let is_spatch_safe_ttf_list sp ttf_list =
   v_print_endline "[Main] considering safety of:";
-  sp +>
-    List.iter (function p -> 
-  		 Diff.string_of_diff p +> v_print_endline
-  	      );
-(*
   let count = ref 0 in
-  let max_ttf = List.length ttf_list in
-*)
-  ttf_list +> List.for_all (* for_some !threshold  *) 
-    (* using for_all is related to the above EXPERIMENTAL change *)
-    (function ttf -> begin
-       is_spatch_safe_one ttf sp
-     end
-    )
+    begin
+      sp +>
+	List.iter (function p -> 
+  		     Diff.string_of_diff p +> v_print_endline
+  		  );
+      (*
+	let count = ref 0 in
+	let max_ttf = List.length ttf_list in
+      *)
+    List.iter
+      (* using for_all is related to the above EXPERIMENTAL change *)
+      (function ttf -> 
+	 match is_spatch_safe_one ttf sp with
+	   | None -> ()
+	   | Some t -> begin
+	       if t
+	       then count := !count + 1
+	       else ()
+	     end
+      ) ttf_list ;
+    (!count >= !threshold)
+    end
 
 let apply_spatch_ttf spatch (lhs_term, rhs_term, flows) =
   (* find a matching flow 
@@ -3326,10 +3441,35 @@ let apply_spatch_ttf spatch (lhs_term, rhs_term, flows) =
        function flow *)
   let patched_lhss = funs +> List.map (function (fname, flow, lhs_def_term, rhs_def_term) ->
 					 (lhs_def_term, 
-					  apply_spatch spatch (lhs_def_term, flow), 
+					  apply_spatch_fixed spatch (lhs_def_term, flow), 
 					  rhs_def_term)
 				      ) in
     patched_lhss
+
+
+let implies a b = not(a) || b
+
+let iff a b = (implies a b) && (implies b a)
+
+let strip_patch sp = 
+  let rec f rev_sp sp = match sp with
+    | [] -> List.rev rev_sp
+    | Difftype.ID  t :: sp when t == ddd -> f rev_sp sp
+    | (Difftype.ID  t 
+    | Difftype.RM  t 
+    | Difftype.ADD t 
+    | Difftype.PENDING_RM t 
+    | Difftype.PENDING_ID t) as hd :: sp -> f (hd :: rev_sp) sp
+    | _ -> raise (Impossible 1992)
+  in
+    f [] sp
+
+let rec subseq s1 s2 = 
+  s1 = [] || match s1, s2 with
+    | x :: xs, y :: ys ->
+	(x = y && subseq xs ys) 
+	|| subseq s1 ys
+    | _ -> false
 
 
 (* decide whether sp1 <= sp2 relative to ttf_list *)
@@ -3337,10 +3477,10 @@ let get_largest_spatchs ttf_list spatches =
   (* - for spatch
      -- for each triple (lhs,rhs,flows) produce 
      [ (f_lhs, f_mhs) | f_lhs ∈ lhs, [[spatch]](f_lhs) = f_mhs ]
-     - we can then produce a list indexed by spatches:
+     - we can produce a list indexed by spatches:
      [ (spatch, [(lhs, [(f_lhs, f_mhs) | f_lhs ∈ lhs, [[spatch]](f_lhs)=f_mhs] ) | (lhs,rhs,flows) ∈ ttf_list]
      we denote this list "applied_spatches"
-     - now sp1 ≼ sp2 (relative to t1,t2,t3) iff
+     - recall that sp1 ≼ sp2 (relative to t1,t2,t3) iff
      δ(t1,t2) + δ(t2,t3) = δ(t1,t3)
      and we have [[sp2]](t1)=t3, [[sp1]](t1)=t2
 
@@ -3373,14 +3513,17 @@ let get_largest_spatchs ttf_list spatches =
        a_counter := !a_counter + 1;
        sp,
        ttf_list +> 
-	 List.rev_map 
-	 (function (lhs,rhs,flows)  ->
-	    lhs, apply_spatch_ttf sp (lhs,rhs,flows)
-	 )
+	 List.fold_left
+	 (fun acc (lhs,rhs,flows)  ->
+	    let a_ttf = apply_spatch_ttf sp (lhs,rhs,flows) in
+	      if a_ttf = []
+	      then acc
+	      else (lhs, a_ttf) :: acc
+	 ) []
      end 
     )
   in
-  let is_sub lhss_fmlists1 lhss_fmlists2 = 
+  let is_sub lhss_fmlists1 lhss_fmlists2 = (* lhss_fmlists1 : (orig_lhs_gt, (f_src, f_mod, f_dst) list ) list *)
     lhss_fmlists2 +> for_some !threshold 
       (function (lhs2, fm_lists2) ->
 	 try
@@ -3389,13 +3532,15 @@ let get_largest_spatchs ttf_list spatches =
 	       (function (f2,m2,_) ->
 		  try
 		    let (_, m1, _) = List.find (function (f1,m1,r1) -> f1 = f2) fm_lists1 in
-		      Diff.part_of_edit_dist f2 m1 m2
+		      if Diff.part_of_edit_dist f2 m1 m2
+		      then (print_endline "part_of"; true)
+		      else (print_endline "NOT part_of";false)
 			(* Diff.msa_cost f2 m1 m2 *)
 		  with Not_found -> 
-		    (v_print_endline  ("Not finding: " ^ Diff.string_of_gtree' f2);
+		    (print_endline  ("Not finding: " ^ Diff.string_of_gtree' f2);
 		     raise Not_found)
 	       )
-	 with Not_found -> false
+	 with Not_found -> false (*  (raise Not_found) *)
       )
   in
     (* the largest spatches are those for which all others are either smaller or not-comparable *)
@@ -3406,28 +3551,63 @@ let get_largest_spatchs ttf_list spatches =
       (function (sp, lhs_fmlists) ->
 	 Jconfig.counter_tick !a_counter a_total;
 	 a_counter := !a_counter + 1;
-	 
-	 if applied_spatches +> List.for_all (function (sp', lhs_fmlists') ->
-						v_print_endline "[Main] against : ";
-						v_print_endline (sp'
-								 +> List.map Diff.string_of_spdiff
-								 +> String.concat "\n");
-						
-						is_sub lhs_fmlists' lhs_fmlists ||
-						  not(is_sub lhs_fmlists lhs_fmlists')
-					     )
+	 print_endline "[Main] checking maximality of:";
+	 print_endline (sp
+			+> List.map Diff.string_of_spdiff
+			+> String.concat "\n");
+      
+	 if applied_spatches +> List.for_all 
+	   (function (sp', lhs_fmlists') ->
+	      print_endline "[Main] against : ";
+	      print_endline (sp'
+			       +> List.map Diff.string_of_spdiff
+			       +> String.concat "\n");
+	      if (
+		sp = sp'
+		  || (
+		    let b1 = is_sub lhs_fmlists' lhs_fmlists in
+		      if b1 then print_endline "b1";
+		    let b2 = is_sub lhs_fmlists lhs_fmlists' in
+		      if b2 then print_endline "b2";
+		      if b1
+		      then 
+			if b2
+			then (
+			  print_endline "[Main] subseq?";
+			  if subseq (strip_patch sp') (strip_patch sp)
+			  then (print_endline "true"; true)
+			  else false
+			)
+			else true
+		      else not b2 (* sp strictly larger *)
+			(*
+			  if b1
+			  then not b2
+			  || contained_subseq 
+			  (strip_patch sp') 
+			  (strip_patch sp)
+			  else not b2
+			*)
+		  )
+	      )
+	      then
+		(print_endline "local ok"; true)
+	      else
+		(print_endline "local counter example"; false)
+	   )
 	 then
 	   (
-	     v_print_endline "[Main] including as largest: ";
+	     print_endline "[Main] including as largest: ";
 	     Some sp 
 	   )
 	 else (
-	   v_print_endline "[Main] not largest";
+	   print_endline "[Main] not largest";
 	   None
 	 )
       )
     +> List.fold_left (fun acc opt -> match opt with Some sp -> 
 			 sp :: acc | _ -> acc) []
+    +> rm_dups
 
 
 let get_chunks patterns =
@@ -3494,6 +3674,7 @@ let get_chunks patterns =
 	  +> tail_flatten
 	  +> rm_dups
 	in
+	  (*
 	  List.iter (function diff -> 
 		       print_endline "[RetChunk]";
 		       print_endline (diff 
@@ -3501,7 +3682,70 @@ let get_chunks patterns =
 				      +> String.concat "\n");
 		       print_endline "[End]"
                     ) returned_chunks;
+	  *)
 	  returned_chunks
+
+(* function to find more abstractins in RHS of spatches *)
+let get_missed_rhs cand_spatches gss =
+  let gs = tail_flatten gss in
+  (* find graphs where sp matches *)
+  (* for each node that makes sp match: *)
+  (* - collect matching env 
+     - map find_rhs spatch
+  *)
+  let f x subterm acc_term =
+    let rec loop current_subterm = 
+(*
+      print_endline "comparing current subterm :";
+      print_endline (Diff.string_of_gtree' current_subterm);
+      print_endline "to env-bound subterm :";
+      print_endline (Diff.string_of_gtree' subterm);
+*)
+      if current_subterm = subterm
+      then (
+(*	print_endline ("inserting " ^ x); *)
+	mkA("meta", x)
+      )
+      else match view current_subterm with
+	| C(ty, ts) -> mkC(ty, List.rev (List.rev_map loop ts))
+	| _ -> current_subterm
+    in
+      loop acc_term in
+  let find_rhs_one env patch_term = match patch_term with
+    | Difftype.ADD t -> 
+	Difftype.ADD (Hashtbl.fold f env t)
+    | _ -> patch_term in
+  let find_rhs_sp env spatch =
+    List.map (find_rhs_one env) spatch
+  in
+    (* for each spatch *)
+    List.fold_left 
+      (fun acc_spatches sp -> 
+	 let s_pattern = List.fold_right
+	   (fun po acc_pat -> match po with
+	      | (Difftype.ID t | Difftype.RM t) -> t :: acc_pat
+	      | _ -> acc_pat) sp [] 
+	 in
+	   (* for each graph *)
+	   List.fold_left (fun acc_spatches f ->
+			     let envs = 
+			       List.fold_left 
+				 (fun acc_envs n ->
+				    match Diff.get_merged_env f s_pattern n with
+				      | None -> acc_envs
+				      | Some e -> e :: acc_envs
+				 )
+				 []
+				 (nodes_of_graph2 f) 
+			     in
+			       (* for each env found *)
+			       List.fold_left 
+				 (fun acc_spatches env ->
+				    find_rhs_sp env sp +++ acc_spatches
+				 ) acc_spatches envs
+			  ) acc_spatches gs
+	   
+      ) [] cand_spatches
 
 
 let find_common_patterns () =
@@ -3528,7 +3772,6 @@ let find_common_patterns () =
       end;
       if not(!patterns)
       then begin
-	print_endline "[Main] getting rhs flows";
 	print_endline ("[Main] finding chunks based on " ^ string_of_int(List.length(gpats')) ^ " patterns");
 	let chunks = get_chunks gpats' in
 	  print_endline "[Main] constructing s.patches";
@@ -3552,11 +3795,11 @@ let find_common_patterns () =
 	      || is_spatch_safe_ttf_list spa ttf_list in
 	    
 	  let sp_candidates = construct_spatches_new chunks is_safe_part gpats'  in
-	  let trans_patches = sp_candidates +> List.filter is_transformation_sp in
+	  let trans_patches' = sp_candidates +> List.filter is_transformation_sp in
 	    if !print_raw
 	    then begin
 	      print_endline "[Main] candidate semantic patches...";
-	      trans_patches +>
+	      trans_patches' +>
 		List.iter (function sp -> 
 			     print_endline "[spatch:]";
 			     print_endline (sp
@@ -3564,33 +3807,12 @@ let find_common_patterns () =
 					    +> String.concat "\n");
 			  )
 	    end;
-	    print_string ("[Main] filtering safe semantic patches ("^ trans_patches +> 
-	    		    List.length +> 
-			    string_of_int ^") ... ");
-	    let res_count = ref 0 in
-	    let res_total = List.length trans_patches in
-	    let res_spatches = 
-	      trans_patches
-	      +> List.fold_left 
-		(fun acc_sps sp -> begin
-		   ANSITerminal.save_cursor ();
-		   ANSITerminal.print_string 
-		     [ANSITerminal.on_default](
-		       !res_count +> string_of_int ^"/"^
-			 res_total +> string_of_int);
-		   ANSITerminal.restore_cursor();
-		   flush stdout;
-		   res_count := !res_count + 1;
-		   if is_spatch_safe_ttf_list sp ttf_list
-		   then sp :: acc_sps
-		   else acc_sps
-		 end) []
-	      +> rm_dups
-	    in
-	      print_newline ();
-	      if !Jconfig.print_abs
+	    print_endline ("[Main] getting missed RHS bindings");
+	    let trans_patches = get_missed_rhs trans_patches' gss in
+	      if !print_raw
 	      then begin
-		res_spatches +>
+		print_endline "[Main] after missed-analysis we have semantic patches...";
+		trans_patches +>
 		  List.iter (function sp -> 
 			       print_endline "[spatch:]";
 			       print_endline (sp
@@ -3598,45 +3820,88 @@ let find_common_patterns () =
 					      +> String.concat "\n");
 			    )
 	      end;
-	      print_endline ("[Main] filtering largest semantic patches ("^
-			       res_spatches +> List.length +> string_of_int
-			     ^")");
-	      let largest_spatches =
-		res_spatches 
-		+> (function spatches -> 
-		      if !filter_spatches then get_largest_spatchs ttf_list spatches
-		      else spatches)
+	      print_string ("[Main] filtering safe semantic patches ("^ trans_patches +> 
+	    		      List.length +> 
+			      string_of_int ^") ... ");
+	      let res_count = ref 0 in
+	      let res_total = List.length trans_patches in
+	      let res_spatches = 
+		trans_patches
+		+> List.fold_left 
+		  (fun acc_sps sp -> begin
+		     ANSITerminal.save_cursor ();
+		     ANSITerminal.print_string 
+		       [ANSITerminal.on_default](
+			 !res_count +> string_of_int ^"/"^
+			   res_total +> string_of_int);
+		     ANSITerminal.restore_cursor();
+		     flush stdout;
+		     res_count := !res_count + 1;
+		     if is_spatch_safe_ttf_list sp ttf_list
+		     then sp :: acc_sps
+		     else begin
+		       if !Jconfig.print_abs
+		       then 
+			 begin
+			   print_endline "[Main] not safe...";
+			   print_endline (String.concat "\n" (List.map Diff.string_of_spdiff sp));
+			 end;
+		       acc_sps
+		     end
+		   end) []
 		+> rm_dups
 	      in
-		print_endline ("[Main] *REAL* semantic patches inferred: " ^
-				 List.length largest_spatches +> string_of_int);
-		largest_spatches
-		+> List.iter (function diff ->
-				print_endline "[spatch:]";
-				print_endline (diff
-					       +> List.map Diff.string_of_spdiff
-					       +> String.concat "\n");
-				if !show_support
-				then begin
-				  let sup = ttf_list +> List.filter 
-				    (function (gt_l,gt_t,flows) as ttf ->
-				       is_spatch_safe_one ttf diff
-				    ) 
-				  in
-				    print_endline ("supporting functions (" 
-						   ^ sup +> List.length +> string_of_int 
-						   ^ "/" ^ ttf_list +> List.length +> string_of_int 
-						   ^ ")");
-				    print_string "< ";
-				    sup +> List.iter 
-				      (function (l,r,fs) -> 
-					 l +> Reader.get_fname_ast +> print_string;
-					 print_string " ";
-				      );
-				    print_endline " >";
-				    print_newline ();
-				end
-			     )
+		print_newline ();
+		if !Jconfig.print_abs
+		then begin
+		  List.iter (function sp -> 
+			       print_endline "[spatch:]";
+			       print_endline (sp
+					      +> List.map Diff.string_of_spdiff
+					      +> String.concat "\n");
+			    ) res_spatches
+		end;
+		print_endline ("[Main] filtering largest semantic patches ("^
+				 res_spatches +> List.length +> string_of_int
+			       ^")");
+		let largest_spatches =
+		  res_spatches 
+		  +> (function spatches -> 
+			if !filter_spatches then get_largest_spatchs ttf_list spatches
+			else spatches)
+		  +> rm_dups
+		in
+		  print_endline ("[Main] *REAL* semantic patches inferred: " ^
+				   List.length largest_spatches +> string_of_int);
+		  largest_spatches
+		  +> List.iter (function diff ->
+				  print_endline "[spatch:]";
+				  print_endline (diff
+						 +> List.map Diff.string_of_spdiff
+						 +> String.concat "\n");
+				  if !show_support
+				  then begin
+				    let sup = ttf_list +> List.filter 
+				      (function (gt_l,gt_t,flows) as ttf ->
+					 match is_spatch_safe_one ttf diff with
+					   | None -> false
+					   | Some t -> t
+				      ) 
+				    in
+				      print_endline ("supporting functions (" 
+						     ^ sup +> List.length +> string_of_int 
+						     ^ "/" ^ ttf_list +> List.length +> string_of_int 
+						     ^ ")");
+				      print_string "< ";
+				      sup +> List.iter 
+					(function (l,r,fs) -> 
+					   l +> Reader.get_fname_ast +> print_string;
+					   print_string " ";
+					);
+				      print_endline " >";
+				      print_newline ();
+				  end
+			       )
       end		  
 
 

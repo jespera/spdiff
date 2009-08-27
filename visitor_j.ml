@@ -31,7 +31,7 @@ let (@@@) a b = mkC(a, b)
 let (%%) a b = type_a_term a b
 let (!!) a = mkA(a, "N/H")
 
-let id_hash = Hashtbl.create 127
+let id_hash = Hashtbl.create 4097
 
 let id_cnt = ref 0
 
@@ -40,14 +40,17 @@ let reset_cnt () = id_cnt := 0
 let bind_id (id_info, id_name) value =
   Hashtbl.replace id_hash (id_info, id_name) value
 
-let mk_id id_info id_name =
+let current_fun = ref "TOP"
+
+let mk_id (x,y,filename) id_name =
   try 
-    Hashtbl.find id_hash (id_info, id_name)
+    Hashtbl.find id_hash ((x,y), id_name)
   with Not_found ->
-    let uniq_id = id_name ^ "_" ^ !id_cnt +> string_of_int in
+    let uniq_id = id_name ^ "@" ^ !current_fun in
+(*    let uniq_id = id_name ^ "@" ^ !id_cnt +> string_of_int in *)
       begin
 	id_cnt := !id_cnt + 1;
-	bind_id (id_info, id_name) uniq_id;
+	bind_id ((x,y), id_name) uniq_id;
 	uniq_id
       end
       
@@ -70,8 +73,10 @@ let rec trans_expr exp =
 	  "exp" @@ "const" @@ "char" %% s
       | Constant (Float (s, flT)) ->
 	  "exp" @@ "const" @@ "float" %% s
-      | Constant _ ->
-	  "exp" @@ "const" @@ !! "other"
+      | Constant (MultiString str_list) ->
+	  "exp" @@ "const" @@ "multistring" @@@ (
+	    List.map (function s -> "string" %% s) str_list
+	  )
       | FunCall (f, args) ->
 	  let gt_f = trans_expr f in
 	  let gt_args = List.map (fun (e, ii) ->
@@ -485,6 +490,7 @@ and trans_def ({
 		 f_body = body;
 	       }, _) = 
   (*  let (name, ty, (sto, _), body) = unwrap def in(*{{{*) *)
+  current_fun := name;
   let gt_funty = trans_funtype ty in
   let gt_comp  = List.map trans_statement (stmt_elems_of_sequencable body) in
   let gt_body  = "stmt" @@ "comp{}" @@@ gt_comp in

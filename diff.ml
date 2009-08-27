@@ -2209,6 +2209,7 @@ let for_half f ls =
 *)
 
 let traces_ref = ref []
+let envs_ref = Hashtbl.create 117
 
 let print_trace tr =
   print_string ("[Diff] " ^ string_of_int (List.length tr) ^ ": ");
@@ -2240,7 +2241,7 @@ let get_fun_name_gflow f =
 exception Bailout
 exception UNSAT
 
-let cont_match_traces  g cp n = 
+let cont_match_param matcher g cp n = 
   let can_have_follow vp =
     match vp.last_t with
       | None -> true
@@ -2330,13 +2331,19 @@ let cont_match_traces  g cp n =
 	)
     | _ -> raise (Match_failure (string_of_gtree' bp, 1429,0))
   in
-  let matcher = 
-    trans_cp cp 
-      (fun vp x -> 
-	 traces_ref := List.rev (vp.trace) :: !traces_ref; (* recall that indices come in reverse order *)
-	 true) in
-    try matcher init_vp n with UNSAT -> (traces_ref := []; false)
+  let real_matcher = 
+    trans_cp cp matcher
+in
+    try real_matcher init_vp n with UNSAT -> (traces_ref := []; false)
 
+let cont_match_traces g sp n =
+  let matcher vp x = 
+    begin
+      traces_ref := List.rev (vp.trace) :: !traces_ref; (* recall that indices come in reverse order *)
+      true
+    end 
+  in
+    cont_match_param matcher g sp n
 
 let cont_match g sp n =
   traces_ref := [];
@@ -2348,15 +2355,61 @@ let cont_match g sp n =
       
 let get_traces g sp n =
   traces_ref := [];
+  Hashtbl.clear envs_ref;
   if 
     cont_match_traces g sp n
   then (
     let v = !traces_ref in (
-      traces_ref := []; 
-      Some v)
+	traces_ref := []; 
+	Hashtbl.clear envs_ref;
+	Some v)
   )
   else 
     None
+
+
+let get_merged_env g sp n =
+  traces_ref := [];
+  Hashtbl.clear envs_ref;
+  let matcher vp x = 
+    begin
+      List.iter 
+	(function (x,v) -> 
+	   Hashtbl.add envs_ref x v	   
+	)
+	vp.env_t;
+      true
+    end 
+  in
+    if 
+      cont_match_param matcher g sp n
+    then (
+      let v = Hashtbl.copy envs_ref in 
+	traces_ref := []; 
+	Hashtbl.clear envs_ref;
+	Some v)
+    else 
+      None
+
+let get_env_traces g sp n =
+  let seq_env_lists = ref [] in
+    traces_ref := [];
+    let matcher vp x = 
+      begin
+	seq_env_lists := (List.rev vp.trace, vp.env_t) :: !seq_env_lists;
+	true
+      end 
+    in
+      if 
+	cont_match_param matcher g sp n
+      then 
+	begin
+	  traces_ref := []; 
+	  Some !seq_env_lists
+	end
+      else 
+	None
+  
 
 
 
@@ -3982,9 +4035,9 @@ let get_some x = match x with
   | Some x -> x
 
 
-
-
 let merge_abstract_terms subterms_lists unique_subterms =
+  print_endline ("[Diff] TMP : " 
+		   ^ string_of_int !no_occurs);
   let non_dub_subterms_lists =
     List.rev_map rm_dub subterms_lists in
   let abs_count = ref 0 in
@@ -3995,14 +4048,31 @@ let merge_abstract_terms subterms_lists unique_subterms =
     not(infeasible t)
     && non_phony t
     && not(control_true = t)
-    && not(is_head_node t)
-    && not(acc_ts 
-	   +> List.exists (function t' ->
-			     not(t = t')
-			     && eq_lists (pat_extension t) (pat_extension t')
-			     && Gtree.zsize t' > Gtree.zsize t
-			  )
-	  ) in
+    && not(is_head_node t) 
+    && List.for_all 
+      (function t' ->
+	 t = t'
+	  || (
+	    let tsub = subset_list (pat_extension t) (pat_extension t') in
+	    let tsup = subset_list (pat_extension t') (pat_extension t) in
+	      if tsub 
+	      then 
+		if tsup
+		then (* t eq t' *) leq_pair_size t' t
+		else (* t < t' *) true
+	      else
+		(* t' > t or t is unrelated to t' *)
+		not(tsup)
+	  )
+      ) acc_ts
+  in
+    (*
+      && not(List.exists (function t' ->
+      not(t = t')
+      && eq_lists (pat_extension t) (pat_extension t')
+      && Gtree.zsize t' > Gtree.zsize t
+      ) acc_ts
+    *)
   let interesting_t t acc_ts = 
     not(Gtree.no_leaves t)
     && not(infeasible t)
@@ -4086,12 +4156,12 @@ let merge_abstract_terms subterms_lists unique_subterms =
 		       )
 	+> function ps' ->
 	  ps' +>
-	  List.fold_left (fun acc t ->
-			    if interesting_post t ps'
-			    then 
-			      t +++ acc
-			    else acc
-			 ) [] in
+	    List.fold_left (fun acc t ->
+			      if interesting_post t ps'
+			      then 
+				t +++ acc
+			      else acc
+			   ) [] in
 	print_endline "... done";
 	if !Jconfig.print_abs
 	then begin
