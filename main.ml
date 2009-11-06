@@ -248,18 +248,17 @@ let filter_more_abstract abs_terms =
 
 let filter_smaller chgset solutions =
   let keep_sol bp = 
-    (*List.for_all*)
-    (*(function bp' -> *)
-    (*Diff.subpatch_changeset chgset bp' bp &&*)
-    (*(!noncompact || Difftype.csize bp' <= Difftype.csize bp)*)
-    (* ) *)
-    (*solutions in*)
     List.for_all
-      (function bp' ->
-         (Diff.subpatch_changeset chgset bp bp' && bp = bp') ||
-           if Diff.subpatch_changeset chgset bp' bp
-           then (!noncompact || Difftype.csize bp' <= Difftype.csize bp)
-           else true
+      (function bp' -> bp = bp' || 
+        if Diff.subpatch_changeset chgset bp bp' 
+        && Diff.subpatch_changeset chgset bp' bp
+        then 
+          if (!noncompact || Difftype.csize bp' < Difftype.csize bp)
+          then true
+          else (print_endline "@ rejecting @"; 
+                false
+          )
+        else true
       )
       solutions
   in
@@ -278,8 +277,8 @@ let generate_sols chgset_orig simple_patches =
   (*Diff.no_occurs := List.length chgset_orig - !exceptions;*)
   print_endline ("[Main] min sup = " ^ string_of_int !Diff.no_occurs);
   let unwrap bp = match bp with 
-    | None -> raise (Diff.Fail "unable to unwrap")
-    | Some bp -> bp in
+  | None -> raise (Diff.Fail "unable to unwrap")
+  | Some bp -> bp in
   let extend_bp bp_old bp_new = 
     let rec loop bp_old bp_new =
       match bp_old with
@@ -292,20 +291,15 @@ let generate_sols chgset_orig simple_patches =
 	| Some bp_old -> Some (loop bp_old bp_new) in
   let app_pred cur_bp bp = 
     (
-      (*not(Diff.subpatch_changeset chgset_orig bp cur_bp) &&*)
       let nbp = unwrap (extend_bp (Some cur_bp) bp) in
-	(*print_endline "[Main] applying 1:";*)
-	(*print_endline (Diff.string_of_diff nbp);*)
-	if !Diff.relax 
-	then (
-	  let chgset' = Diff.apply_changeset nbp chgset_orig in
-	    (*print_endline "[Main] applying 2:";*)
-	    (*print_endline (Diff.string_of_diff cur_bp);*)
-	  let chgset''= Diff.apply_changeset cur_bp chgset_orig in
-	    not(chgset' = chgset'')
-	) && Diff.safe_part_changeset nbp chgset_orig 
-	else 
-	  Diff.safe_part_changeset nbp chgset_orig 
+	    if !Diff.relax 
+    	then (
+	        let chgset' = Diff.apply_changeset nbp chgset_orig in
+	        let chgset''= Diff.apply_changeset cur_bp chgset_orig in
+	        not(chgset' = chgset'')
+	      ) && Diff.safe_part_changeset nbp chgset_orig 
+	    else
+	      Diff.safe_part_changeset nbp chgset_orig 
     )
   in
     (*  let restrict_bps cur_bp bps =
@@ -316,17 +310,12 @@ let generate_sols chgset_orig simple_patches =
   let next_bps bps cur_bp = match cur_bp with
     | None -> bps (*simple_patches*)
     | Some cur_bp -> (
-	(*print_string "[Main] considering next w.r.t.\n\t";*)
-	(*print_endline (Diff.string_of_diff cur_bp);*)
-	let res = List.filter (function bp ->
-				 try app_pred cur_bp bp with Diff.Nomatch -> false
-			      ) bps
-
-        (* (restrict_bps cur_bp bps) (* this is just too slow to be worth
-         * it*) *) in
-	(*print_endline "[Updates added";*)
-	(*List.iter (function bp -> print_endline ("\t"^Diff.string_of_diff bp)) res;*)
-	  res
+	      (*print_string "[Main] considering next w.r.t.\n\t";*)
+	      (*print_endline (Diff.string_of_diff cur_bp);*)
+	        let res = List.filter (function bp ->
+            try app_pred cur_bp bp with Diff.Nomatch -> false) bps
+          in
+          res
       )
   in
   let add_sol cur_bp sol = 
@@ -335,18 +324,11 @@ let generate_sols chgset_orig simple_patches =
       | Some cur_bp -> (
           if !print_adding
           then (
-            print_string ("[Main] trying solution... (" ^
+            print_endline ("[Main] trying solution... (" ^
                             string_of_int (List.length sol) ^")");
-            flush stdout;
             print_endline (Diff.string_of_diff cur_bp)
           );
-          (*        let res = filter_smaller chgset_orig (filter_redundant (cur_bp ::
-           *        sol)) *)
-          let res = filter_smaller chgset_orig (cur_bp :: sol)
-          in
-            if !print_adding
-            then print_endline ("done (" ^ string_of_int (List.length res) ^ ")");
-            res
+          filter_smaller chgset_orig (cur_bp :: sol)
 	) in
     (*  let isComplete bp = Diff.complete_changeset 
 	chgset_orig (list_of_bp bp) in
@@ -359,8 +341,7 @@ let generate_sols chgset_orig simple_patches =
     let bps' = next_bps bps_pool cur_bp in
       if bps' = []
       then add_sol cur_bp sol
-      else
-	(
+      else (
 	  (*print_endline ("[Main] bps'.length " ^*)
 	  (*string_of_int (List.length bps'));*)
 	  List.fold_left (fun sol bp ->
@@ -373,12 +354,12 @@ let generate_sols chgset_orig simple_patches =
 			       *)
 			      if !prune
 			      then 
-				if List.exists (function bp' -> 
-						  Diff.subpatch_changeset chgset_orig (unwrap nbp) bp'
-					       ) sol
-				then sol
-				else let bps_new_pool = List.filter (fun bp' -> not(bp = bp')) bps_pool in
-				  gen sol bps_new_pool nbp
+              if List.exists (function bp' -> 
+                Diff.subpatch_changeset chgset_orig (unwrap nbp) bp'
+                ) sol
+              then sol
+              else let bps_new_pool = List.filter (fun bp' -> not(bp = bp')) bps_pool in
+                gen sol bps_new_pool nbp
 			      else let bps_new_pool = List.filter (fun bp' -> not(bp = bp')) bps_pool in
 				gen sol bps_new_pool nbp
 			 ) sol bps'
@@ -391,20 +372,29 @@ let generate_sols chgset_orig simple_patches =
     else
       let res = gen [] simple_patches None in
       let res_final = 
-	if !prune
-	then
-	  res +> List.filter
-	    (function bp -> res +> List.for_all
-	       (function bp' ->
-		  (* bp' <= bp || not(bp <= bp') *)
-		  Diff.subpatch_changeset chgset_orig bp' bp
-		  || not(Diff.subpatch_changeset chgset_orig bp bp')
-	       )
-	    )
-	else res in
-	print_endline ("[Main] found " ^
-			 string_of_int (List.length res_final) ^ " solutions");
-	List.map list_of_bp res_final
+	      if !prune
+      	then
+	        res +> List.filter
+	          (function bp -> res +> List.for_all
+	            (function bp' ->
+          		  (* bp' <= bp || not(bp <= bp') *)
+		            (* Diff.subpatch_changeset chgset_orig bp' bp
+		            || *) 
+                if bp = bp' || not(Diff.subpatch_changeset chgset_orig bp bp')
+                then true
+                else begin
+                  print_endline "[Main] final pruning : ";
+                  print_endline (Diff.string_of_diff bp);
+                  print_endline "[Main] because we found a larger patch:";
+                  print_endline (Diff.string_of_diff bp');
+                  false
+                end
+	            )
+	          )
+      	else res 
+      in
+      print_endline ("[Main] found " ^ string_of_int (List.length res_final) ^ " solutions");
+    	List.map list_of_bp res_final
 
 
 (* a solution is a list of TU patches, not a SEQ value *)
@@ -2291,6 +2281,7 @@ let common_patterns_graphs gss =
 	  gss
 	  static_get_pa
 	*)
+  
 	print_string "[Main] finding semantic patterns ";
 	find_seq_patterns_newest (* simulates _ wildcards with all fresh metavariables *)
 	  (* singleton_patterns: all node patterns with 'fresh' metas' *) 
@@ -3579,7 +3570,7 @@ let get_largest_spatchs ttf_list spatches =
 			  else false
 			)
 			else true
-		      else not b2 (* sp strictly larger *)
+		      else not b2 (* sp strictly larger or unrelated!*)
 			(*
 			  if b1
 			  then not b2
@@ -4110,10 +4101,10 @@ let find_merged_from_sets terms_lists =
 		(function t ->
 		   if !Jconfig.verbose 
 		   then (
-		   print_endline "[Main] testing embedded:";
-		   p+>Diff.string_of_gtree'+>print_endline;
-		   print_endline "IN";
-		   t+>Diff.string_of_gtree'+>print_endline;
+		     print_endline "[Main] testing embedded:";
+		     p+>Diff.string_of_gtree'+>print_endline;
+		     print_endline "IN";
+		     t+>Diff.string_of_gtree'+>print_endline;
 		   );
 		   Diff.can_match p t 
 		)
@@ -4228,8 +4219,9 @@ let embedded_subpattern_terms p1 p2 terms =
   terms 
   +> List.for_all
     (function term ->
-       (is_embedded p2 term) 
-       ===> (is_embedded p1 term 
+       implies 
+	 (is_embedded p2 term) 
+	 (is_embedded p1 term 
 	    && is_embedded p1 p2)	 
     )
 
@@ -4275,91 +4267,98 @@ let find_embedded_common () =
 		       relevant_terms 
 		     +> List.length
 		     +> string_of_int);
-    let merged = 
-      find_merged_from_sets relevant_terms
-      +> rm_dups
-      +> function ps -> 
-	ps +> List.filter 
-	  (function p -> 
-	     ps +> List.for_all
-	       (function p' ->
-		  (embedded_subpattern_terms_lists p p' relevant_terms)
-		  ===> (csize p' <= csize p)
-	       )
-	  )
-    in
-      begin
-	print_endline ("[Main] " ^ 
-		       merged
-		       +> List.length
-		       +> string_of_int ^ " common pattern(s) follow...");
-	merged +> List.iter (function p -> 
-				   p
-				   +> Diff.string_of_gtree'
-				   +> print_endline 
-				);
-	print_endline "[Main] looking for common structure in patterns";
-	let embeddings = 
-	  find_embedded_from_sets merged relevant_terms 
-	  +> rm_dups
-	  +> function ps -> 
-	    ps +> List.filter 
-	      (function p -> 
-		 not(no_leaves p) &&
-		 ps +> List.for_all
-		   (function p' ->
-		      not(is_embedded p p') ||
-			csize p' <= csize p
-		   )
-	      )	 
-	in
-	print_endline ("[Main] " ^ 
-		       embeddings
-		       +> List.length
-		       +> string_of_int ^ " common embeddings(s) follow...");
-	embeddings +> List.iter (function p -> 
-				   p
-				   +> Diff.string_of_gtree'
-				   +> print_endline 
-				);
-
-
-  if !tmp_flag
-    then  
-            begin
-	print_endline "[Main] looking for matched terms that changed";
-	let flat_term_pairs = tail_flatten term_pairs in
-	let pattern_term_pairs = 
-	  embeddings 
-	  +> List.fold_left 
-	    (fun acc_pattern_term_pairs p ->
-	       let term_pairs = flat_term_pairs 
-		 +> List.filter
-		 (function (l,r) -> 
-		    not(l = r)
-		    && is_embedded p l
+      let merged = 
+	find_merged_from_sets relevant_terms
+	+> (function x ->
+	      print_endline "[Main] merged terms, now filtering embeddings";
+	      x
+	   )
+	+> rm_dups
+(*
+	+> function ps -> 
+	  ps +> List.filter 
+	    (function p -> 
+	       ps +> List.for_all
+		 (function p' ->
+		    implies 
+		      (embedded_subpattern_terms_lists p p' relevant_terms)
+		      (csize p' <= csize p)
 		 )
-	       in 
-		 (p, term_pairs) :: acc_pattern_term_pairs
-	    ) [] in
-	  print_endline "[Main] performing gpi for each embedded pattern";
-	  pattern_term_pairs 
-	  +> List.iter (function (p, term_pairs) -> 
-			  if term_pairs = []
-			  then begin
-			    print_endline "[Main] skipping pattern:";
-			    p+>Diff.string_of_gtree'+>print_endline;
-			  end
-			  else begin
-			    print_endline "[Main] ###################";
-			    print_endline "[Main] relative to pattern:";
-			    p+>Diff.string_of_gtree'+>print_endline;
-			    print_endline "[Main] ###################";
-			    spec_main_term_pairs term_pairs;
-			  end
-		       )
-            end
-      end
+	    )
+*)
+      in
+	begin
+	  print_endline ("[Main] " ^ 
+			   merged
+			 +> List.length
+			 +> string_of_int ^ " common pattern(s) follow...");
+	  merged +> List.iter (function p -> 
+				 p
+				 +> Diff.string_of_gtree'
+				 +> print_endline 
+			      );
+	  print_endline "[Main] looking for common structure in patterns";
+	  let embeddings = 
+	    find_embedded_from_sets merged relevant_terms 
+	    +> rm_dups
+	    +> function ps -> 
+	      ps +> List.filter 
+		(function p -> 
+		   not(no_leaves p) &&
+		     ps +> List.for_all
+		     (function p' ->
+			not(is_embedded p p') ||
+			  csize p' <= csize p
+		     )
+		)	 
+	  in
+	    print_endline ("[Main] " ^ 
+			     embeddings
+			   +> List.length
+			   +> string_of_int ^ " common embeddings(s) follow...");
+	    embeddings +> List.iter (function p -> 
+				       p
+				       +> Diff.string_of_gtree'
+				       +> print_endline 
+				    );
+
+
+	    if !tmp_flag
+	    then  
+              begin
+		print_endline "[Main] looking for matched terms that changed";
+		let flat_term_pairs = tail_flatten term_pairs in
+		let pattern_term_pairs = 
+		  embeddings 
+		  +> List.fold_left 
+		    (fun acc_pattern_term_pairs p ->
+		       let term_pairs = flat_term_pairs 
+			 +> List.filter
+			 (function (l,r) -> 
+			    not(l = r)
+			    && is_embedded p l
+			 )
+		       in 
+			 (p, term_pairs) :: acc_pattern_term_pairs
+		    ) [] in
+		  print_endline "[Main] performing gpi for each embedded pattern";
+		  pattern_term_pairs 
+		  +> List.iter (function (p, term_pairs) -> 
+				  if term_pairs = []
+				  then begin
+				    print_endline "[Main] skipping pattern:";
+				    p+>Diff.string_of_gtree'+>print_endline;
+				  end
+				  else begin
+				    print_endline "[Main] ###################";
+				    print_endline "[Main] relative to pattern:";
+				    p+>Diff.string_of_gtree'+>print_endline;
+				    print_endline "[Main] ###################";
+				    spec_main_term_pairs term_pairs;
+				  end
+			       )
+              end
+	end
 
       
 

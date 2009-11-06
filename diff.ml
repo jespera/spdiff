@@ -178,7 +178,7 @@ let rec string_of_gtree str_of_t str_of_c gt =
             | A("meta",x0) -> string_of_meta reg 
             | _ -> raise (Fail "string_of_param reg") in
           let n = match view name with
-            | A("name", n) -> n
+            | A("ident", n) -> n
             | A("meta", x0) -> string_of_meta name 
             | _ -> raise (Fail "string_of_param name") in
             r ^ " " ^ string_of_ftype [ft] ^ " " ^ n
@@ -814,6 +814,7 @@ let rec match_term st t =
           ) (match_term s t) sts ts)
     | _ -> raise Nomatch
 
+
 let is_read_only t = match view t with 
   | C("RO", [t']) -> true
   | _ -> false
@@ -1077,7 +1078,6 @@ let rec linearize_tree gt =
 
 let tail_flatten lss =
   lss +> List.fold_left List.rev_append []
-
 
 let get_tree_changes gt1 gt2 =
         let is_up op = match op with UP _ -> true | _ -> false in

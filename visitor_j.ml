@@ -506,7 +506,7 @@ and trans_param p =
   match unwrap (unwrap p) with
     | (reg, name, ft) ->
 	let reg  = mkA("reg", if reg then "register" else "") in
-	let name = mkA("name", match name with Some n -> n | _ -> "") in
+	let name = mkA("ident", match name with Some n -> n ^"@"^ !current_fun| _ -> "") in
 	let ft = trans_type ft in
 	  mkC("param",[reg;name;ft])
 
