@@ -2255,85 +2255,81 @@ let cont_match_param matcher g cp n =
       not(List.mem n vp.skip_t) 
       && not(List.exists (function nh -> get_val nh g = get_val n g ) vp.skip_t)
       && can_have_follow vp 
-	, env %% vp.env_t with Match_failure _ -> false, [] in
-      f, {
-	last_t = Some n; 
-	skip_t = n :: vp.skip_t; 
-	env_t = env'; 
-	trace = n :: vp.trace
-      } in
+      , env %% vp.env_t with Match_failure _ -> false, [] in
+    f, {
+      last_t = Some n; 
+      skip_t = n :: vp.skip_t; 
+      env_t = env'; 
+      trace = n :: vp.trace
+  } in
   let skipped_vp vp n = {
     last_t = vp.last_t;
     skip_t = n :: vp.skip_t; 
     env_t = vp.env_t;
     trace = vp.trace;
-  } in
+    } in
   let check_vp vp n  = 
     let t_val = get_val n g in
-      if Some t_val = (try Some (get_val (valOf vp.last_t) g)
-		       with (Fail _) -> None)
+    if Some t_val = (try Some (get_val (valOf vp.last_t) g) with (Fail _) -> None)
       then FALSE 
       else if List.mem n vp.skip_t
       then (
-	(* print_endline ("[Diff] LOOP on " ^ 
-           string_of_int n); *)
-	LOOP)
-      else if is_error_exit t_val 
-      then raise Bailout
-      else if can_have_follow vp
-      then SKIP
-      else FALSE 
-	(* we are trying to skip when the previous match did not have
-	   (should not have) successors *)
-  in
-  let rec trans_cp cp c = match cp with
+        (* print_endline ("[Diff] LOOP on " ^ 
+        string_of_int n); *)
+        LOOP)
+    else if is_error_exit t_val 
+    then raise Bailout
+    else if can_have_follow vp
+    then SKIP
+    else FALSE 
+    (* we are trying to skip when the previous match did not have
+    (should not have) successors *)
+    in
+    let rec trans_cp cp c = match cp with
     | [] -> c
     | bp :: cp -> trans_bp bp (trans_cp cp c)
   and trans_bp bp c vp n = match view bp with
-    | C("CM", [gt]) ->
-	(try 
-           (* let env = match_term gt (get_val n g) in *)
-           let envs = find_nested_matches gt (get_val n g) in
-             List.exists (function env ->
-			    let f,vp' = matched_vp vp n env in
-			      f && List.for_all 
-				(function (n',_) -> c vp' n') (get_succ n g)
-			 ) envs
-	 with Nomatch -> false)
-    | _ when bp == ddd ->
-	c vp n || (
-          match check_vp vp n with
+  | C("CM", [gt]) -> (try 
+    (* let env = match_term gt (get_val n g) in *)
+    let envs = find_nested_matches gt (get_val n g) in
+    List.exists (function env ->
+      let f,vp' = matched_vp vp n env in
+      f && List.for_all 
+      (function (n',_) -> c vp' n') (get_succ n g)
+      ) envs with Nomatch -> false)
+  | _ when bp == ddd ->
+          c vp n || (
+            match check_vp vp n with
             | FALSE -> raise UNSAT
             | LOOP -> true
             | SKIP -> 
-		let ns = get_next_vp'' g vp n in
-		  ns +> List.exists 
-		    (function n' -> 
-		       not(n = n')
-		    )
-                  && not(ns = []) 
-                  && let vp' = skipped_vp vp n in
-		    List.for_all (function n' ->
-		      try trans_bp ddd c vp' n'
-		      with Bailout -> true
-			   
-		    ) ns  
-		      (*
-			ns +> List.fold_left 
-			(fun acc_f n' -> 
-			try trans_bp ddd c vp' n' || acc_f
-			with Bailout -> acc_f
-			) false
-		      *)
-		      (*		    for_half        (trans_bp ddd c vp') ns *)
+                let ns = get_next_vp'' g vp n in
+                ns +> List.exists 
+                (function n' -> 
+                  not(n = n')
+                  )
+                && not(ns = []) 
+                && let vp' = skipped_vp vp n in
+                List.length (List.filter (function n' ->
+                  try trans_bp ddd c vp' n'
+                  with Bailout -> false
+                ) ns) > 0
+                (*
+                ns +> List.fold_left 
+                (fun acc_f n' -> 
+                  try trans_bp ddd c vp' n' || acc_f
+                  with Bailout -> acc_f
+                ) false
+                *)
+                (*		    for_half        (trans_bp ddd c vp') ns *)
 
-	    | ALWAYSTRUE -> true
-	)
-    | _ -> raise (Match_failure (string_of_gtree' bp, 1429,0))
-  in
-  let real_matcher = 
-    trans_cp cp matcher
-in
+            | ALWAYSTRUE -> true
+          )
+            | _ -> raise (Match_failure (string_of_gtree' bp, 1429,0))
+                in
+                let real_matcher = 
+                  trans_cp cp matcher
+    in
     try real_matcher init_vp n with UNSAT -> (traces_ref := []; false)
 
 let cont_match_traces g sp n =
