@@ -2244,8 +2244,8 @@ exception UNSAT
 let cont_match_param matcher g cp n = 
   let can_have_follow vp =
     match vp.last_t with
-      | None -> true
-      | Some n_last -> not(is_exit_index g n_last)
+    | None -> true
+    | Some n_last -> not(is_exit_index g n_last)
   in
   let init_vp = {skip_t = []; env_t = []; last_t = None; trace = []} in 
   let matched_vp vp n env = 
@@ -3675,8 +3675,10 @@ let get_patterns subterms_lists unique_subterms env term =
 
 let rec useless_abstraction p = is_meta p || 
   match view p with
+  (*
     | C("dlist", [p']) 
     | C("stmt", [p']) 
+  *)
     | C("exprstmt", [p']) 
     | C("exp", [p']) 
     | C("fulltype", [p']) when useless_abstraction p' -> true
@@ -4070,8 +4072,8 @@ let merge_abstract_terms subterms_lists unique_subterms =
       ) acc_ts
     *)
   let interesting_t t acc_ts = 
-    not(Gtree.no_leaves t)
-    && not(infeasible t)
+    (* not(Gtree.no_leaves t)
+    && *) not(infeasible t)
     && non_phony t
     && not(control_true = t)
     && not(is_head_node t)
@@ -4139,9 +4141,10 @@ let merge_abstract_terms subterms_lists unique_subterms =
     )
     +> function ps ->
       print_newline ();
-      print_string ("[Diff] computing interesting patterns from " 
+      print_endline ("[Diff] computing interesting patterns from " 
 		    ^ ps +> List.length +> string_of_int 
 		    ^ " patterns");
+        List.iter (function p -> print_endline (string_of_gtree' p)) ps;
       let ps = 
 	ps
 	+> List.filter (function t -> 

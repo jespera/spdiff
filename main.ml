@@ -253,11 +253,7 @@ let filter_smaller chgset solutions =
         if Diff.subpatch_changeset chgset bp bp' 
         && Diff.subpatch_changeset chgset bp' bp
         then 
-          if (!noncompact || Difftype.csize bp' < Difftype.csize bp)
-          then true
-          else (print_endline "@ rejecting @"; 
-                false
-          )
+          !noncompact || Difftype.csize bp' < Difftype.csize bp
         else true
       )
       solutions
@@ -358,10 +354,12 @@ let generate_sols chgset_orig simple_patches =
                 Diff.subpatch_changeset chgset_orig (unwrap nbp) bp'
                 ) sol
               then sol
-              else let bps_new_pool = List.filter (fun bp' -> not(bp = bp')) bps_pool in
+              else 
+                let bps_new_pool = List.filter (fun bp' -> not(bp = bp')) bps_pool in
                 gen sol bps_new_pool nbp
-			      else let bps_new_pool = List.filter (fun bp' -> not(bp = bp')) bps_pool in
-				gen sol bps_new_pool nbp
+			      else 
+              let bps_new_pool = List.filter (fun bp' -> not(bp = bp')) bps_pool in
+      				gen sol bps_new_pool nbp
 			 ) sol bps'
 	)
   in
