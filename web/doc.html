@@ -315,7 +315,7 @@ int smoz(int y) {
 signed int X0;
 @@
 - return X0;
-+ return X0+X0;
++ return X0 + X0;
 </pre>
 
 			<p>Applying the above diff to any one of the (original) programs will
@@ -393,7 +393,7 @@ signed int X0;
 			<p>The way we encode the found property in a patch is by using
 			"<code>...</code>" (yes: dot dot dot) to denote such paths:</p>
 
-<!-- exec: ../spdiff.opt -specfile examples/specfile -spatch 2> /dev/null | tail -9 | head -4 -->
+<!-- exec: ../spdiff.opt -specfile examples/specfile -spatch 2> /dev/null | tail -4 -->
 <pre class="code">
 -	X0=f(X0);
 +	X0=f(X0,42);
@@ -419,10 +419,10 @@ signed int X0;
 			<!-- exec: ../spdiff.opt -specfile examples/specfile -spatch 2> /dev/null -prune -filter_spatches | tail -5 -->
 <pre class="code">
 -	X0=f(X0);
-+	X0=f(X0,42);
 	...
++	X0=f(X0,42);
 -	return X0;
-+	return X0+X0;
++	return X0 + X0;
 </pre>
 
 
@@ -486,7 +486,7 @@ $ spdiff -specfile specfile
 signed int X0;
 @@
 - return X0;
-+ return X0+X0;
++ return X0 + X0;
 </pre>
 								<p>The resulting generic patch tells us that in
 								<strong>all</strong> functions we can safely modify the
@@ -511,34 +511,35 @@ $ spdiff -specfile specfile -threshold 2 -prune
 @@
 signed int X0;
 @@
-- X0=f(X0)
-+ X0=f(X0,42)
+- X0=f(X0);
++ X0=f(X0,42);
 @@
 signed int X0;
 @@
-- return X0
-+ return X0+X0
+- return X0;
++ return X0 + X0;
 </pre>
 
 								<p>In the example we also specify the <code>-prune</code>
 								parameter. The effect is that <code>spdiff</code> tries not
 								to report several equivalent generic patches.</p>
-
+<!--
 								<p>Had we not used the <code>-prune</code> parameter we would
 								also have the following generic patch returned:</p>
-
+								-->
 								<!-- exec: ../spdiff.opt -specfile examples/specfile -threshold 2 2> /dev/null | tail -24 | head -10 -->
+<!--
 <pre>
-@@
-signed int X0;
-@@
-- return X0;
-+ return X0+X0;
-@@
-signed int X0;
-@@
-- X0=f(X0);
-+ X0=f(X0,42);
+Reading file pair examples/p1.c examples/p1-new.c
+[Main] Constructing all safe parts for 3 term pairs
+[Diff] threshold 2
+[Diff] got all non-abstract tree changes (54)
+[Diff] possible combinations: 5280
+[Main] find_simple_updates_merge return this many updates: 60
+[Main] filtering all safe patches.
+[Main] after filtering we have this many updates: 6
+[Main] generating solutions from 6 inputs
+[Main] min sup = 2
 </pre>
 
 								<p>In the example at hand, it does not matter whether we
@@ -547,8 +548,8 @@ signed int X0;
 								Therefore, the above generic patch is equivalent to the formly
 								shown in the sense that it has the same effect on the functions
 								given.</p>
+				-->
 				</div>
-
 				<div id="spatch">
 								<h3>Semantic Patch Inference</h3>
 								
@@ -562,28 +563,14 @@ signed int X0;
 <pre>
 $spdiff -specfile specfile -spatch
 </pre>
-								<!-- exec: ../spdiff.opt -specfile examples/specfile -spatch 2> /dev/null -prune | tail -25 -->
+								<!-- exec: ../spdiff.opt -specfile examples/specfile -spatch 2> /dev/null -prune | tail -11 -->
 <pre>
 [spatch:]
-	X0=f(X0);
-	...
--	return X0;
-+	return X0+X0;
-[spatch:]
-	X0=X1(X2);
-	...
--	return X0;
-+	return X0+X0;
-[spatch:]
-	X0=X1;
--	return X0;
-+	return X0+X0;
-[spatch:]
 -	X0=f(X0);
-+	X0=f(X0,42);
 	...
++	X0=f(X0,42);
 -	return X0;
-+	return X0+X0;
++	return X0 + X0;
 [spatch:]
 -	X0=f(X0);
 +	X0=f(X0,42);
@@ -600,10 +587,10 @@ $ spdiff -specfile specfile -spatch -prune -filter_spatches
 								<!-- exec: ../spdiff.opt -specfile examples/specfile -spatch 2> /dev/null -prune -filter_spatches | tail -5 -->
 <pre>
 -	X0=f(X0);
-+	X0=f(X0,42);
 	...
++	X0=f(X0,42);
 -	return X0;
-+	return X0+X0;
++	return X0 + X0;
 </pre>
 				</div>
 
@@ -621,46 +608,27 @@ $ spdiff -specfile specfile -spatch -prune -filter_spatches
 <pre>
 $ spdiff -patterns -prune -filter_patterns
 </pre>
-								<!-- exec: ../spdiff.opt -specfile examples/specfile -patterns 2> /dev/null -prune -filter_patterns | tail -39 | head -38 -->
+								<!-- exec: ../spdiff.opt -specfile examples/specfile -patterns 2> /dev/null -prune -filter_patterns | tail -19 -->
 <pre>
-expression X1;
-signed int X0;
-@@
-X0=X1; return X0;
-
 [Main] *Common* patterns found:
-@@
-signed int X0;
-expression X1;
-signed int X0;
-@@
-X0=X1; return X0;
-
-@@
-expression X1;
-signed int X0;
-@@
-X0=X1;
-
-@@
-signed int X0;
-expression X2;
-expression X1;
-signed int X0;
-@@
-X0=X1(X2); ... return X0;
-
-@@
-signed int X0;
-expression X0;
-@@
-signed int X0; ... return X0;
-
-@@
-signed int X0;
-expression X0;
-@@
-signed int X0; ... X0=f(X0);
+[[[
+return X0;
+]]]
+[[[
+X0=f(X0);
+...
+return X0;
+]]]
+[[[
+signed int X1;;
+...
+X1=f(X1);
+]]]
+[[[
+signed int X0;;
+...
+return X0;
+]]]
 </pre>
 
 				</div>
@@ -687,6 +655,8 @@ Usage:
   -threshold [num]        the minimum number of occurrences required
   -noif0_passing          also parse if0 blocks
   -print_abs              print abstract updates for each term pair
+  -relax_safe             consider non-application safe [experimental]
+  -print_inline           print types of identifiers inline
   -print_raw              print the raw list of generated simple updates
   -print_uniq             print the unique solutions before removing smaller ones
   -print_add              print statement when adding a new solution
@@ -697,9 +667,17 @@ Usage:
   -only_changes           only look for patterns in changed functions
   -verbose                print more intermediate results
   -filter_patterns        only produce largest patterns
+  -no_malign              *DON'T* use the edit-dist subpatch relation definition
   -filter_spatches        filter non-largest spatches
   -macro_file [filename]  default macros
   -fun_common             infer one abstraction of all functions given
+  -print_support          whether to also print the concrete matched functions for fun_common
+  -cache                  only print the term pairs to stdout
+  -read_generic           input is given in gtree-format
+  -max_embedding          how deep to look inside terms when discovering nested patterns
+  -tmp                    find embedded PATCHES also
+  -show_support           show the support of each sem. patch inferred
+  -flow_support           threshold required of flow-patterns
   -help                   Display this list of options
   --help                  Display this list of options
 </pre>
