@@ -774,10 +774,6 @@ int do_migrate_pages(struct mm_struct *mm,
 	return -ENOSYS;
 }
 
-static struct page *new_vma_page(struct page *page, unsigned long private, int **x)
-{
-	return NULL;
-}
 #endif
 
 static long do_mbind(unsigned long start, unsigned long len,

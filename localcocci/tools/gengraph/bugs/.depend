@@ -1,0 +1,7 @@
+bugs_parser.cmi: ast_bugs.cmi 
+bugs.cmo: bugs_parser.cmi bugs_lexer.cmo ast_bugs.cmi 
+bugs.cmx: bugs_parser.cmx bugs_lexer.cmx ast_bugs.cmi 
+bugs_lexer.cmo: bugs_parser.cmi 
+bugs_lexer.cmx: bugs_parser.cmx 
+bugs_parser.cmo: ast_bugs.cmi bugs_parser.cmi 
+bugs_parser.cmx: ast_bugs.cmi bugs_parser.cmi 

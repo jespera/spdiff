@@ -1,7 +1,7 @@
-void smoz(int y) {
-	  int z;
-	  z = f(z);
-	  return z;
+int smoz(int y) {
+	  int x;
+	  x = f(x);
+	  return x;
 	}
 
 

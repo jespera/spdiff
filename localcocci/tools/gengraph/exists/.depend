@@ -1,0 +1,7 @@
+exist_parser.cmi: ast_exist.cmi 
+exist_lexer.cmo: exist_parser.cmi 
+exist_lexer.cmx: exist_parser.cmx 
+exist_parser.cmo: ast_exist.cmi exist_parser.cmi 
+exist_parser.cmx: ast_exist.cmi exist_parser.cmi 
+exists.cmo: exist_parser.cmi exist_lexer.cmo ast_exist.cmi 
+exists.cmx: exist_parser.cmx exist_lexer.cmx ast_exist.cmi 

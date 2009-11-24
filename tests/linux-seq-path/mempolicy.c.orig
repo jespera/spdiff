@@ -768,16 +768,6 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
 {
 }
 
-int do_migrate_pages(struct mm_struct *mm,
-	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags)
-{
-	return -ENOSYS;
-}
-
-static struct page *new_vma_page(struct page *page, unsigned long private, int **x)
-{
-	return NULL;
-}
 #endif
 
 static long do_mbind(unsigned long start, unsigned long len,

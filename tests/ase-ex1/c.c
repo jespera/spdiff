@@ -1,6 +1,7 @@
-void bar(int y) {
-	  int a;
-	  a = f(a);
-	  return a;
+int foo2(int p) {
+	  int x;
+	  x = f(x);
+		foo();
+	  return x;
 	}
 

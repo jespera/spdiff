@@ -1,0 +1,6 @@
+@@ 
+expression x;
+@@
+
+- foo();
++ fooo();

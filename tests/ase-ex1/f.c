@@ -1,6 +1,6 @@
-void smoz(int y) {
-	  int z;
-		z = f(z,GFP);
-	  return z+z;
+int smoz(int y) {
+	  int x;
+		x = f(x,GFP);
+	  return x+x;
 	}
 
