@@ -276,7 +276,7 @@ let filter_smaller chgset solutions =
         if Diff.subpatch_changeset chgset bp bp' 
         && Diff.subpatch_changeset chgset bp' bp
         then 
-          !noncompact || Difftype.csize bp' < Difftype.csize bp
+          !noncompact || Difftype.csize bp' <= Difftype.csize bp
         else true
       )
       solutions
