@@ -327,7 +327,9 @@ let generate_sols chgset_orig simple_patches =
 	) bps in
     *)
   let next_bps bps cur_bp = match cur_bp with
-    | None -> bps (*simple_patches*)
+    | None -> List.filter (function bp ->
+        Diff.safe_part_changeset bp chgset_orig
+        ) bps (*simple_patches*)
     | Some cur_bp -> (
 	      (*print_string "[Main] considering next w.r.t.\n\t";*)
 	      (*print_endline (Diff.string_of_diff cur_bp);*)

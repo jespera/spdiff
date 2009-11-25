@@ -547,41 +547,6 @@ let rec shared_gtree t1 t2 =
           (ct1 += ct2) + comp ts1 ts2
       | _, _ -> 0
 
-let rec get_diff_nonshared src tgt =
-  raise (Fail "Dont call me");
-  match src, tgt with
-    | [], _ -> List.map (function e -> ADD e) tgt
-    | _, [] -> List.map (function e -> RM e) src
-    | _, _ -> 
-	let m = lcs src tgt in
-	let slen = List.length src in
-	let tlen = List.length tgt in
-	let rec loop i j =
-	  (*     print_endline ("i,j = " ^ string_of_int i ^ "," ^ string_of_int j); *)
-	  if i > 0 && j > 0 && List.nth src (i - 1) = List.nth tgt (j - 1)
-	    (*if i > 0 && j > 0 && *)
-	    (*embedded (List.nth src (i - 1)) (List.nth tgt (j - 1)) *)
-	  then
-	    loop (i - 1) (j - 1) @ [ID (List.nth src (i - 1))]
-	  else if j > 0 && (i = 0 || m.(i).(j - 1) > m.(i - 1).(j))
-	  then
-	    if List.nth tgt (j - 1) +> non_phony
-	    then
- 	      loop i (j - 1) @ [ADD (List.nth tgt (j - 1))]
-	    else
-	      loop i (j - 1) @ [ID (List.nth tgt (j - 1))]
- 	  else if 
-            i > 0 && (j = 0 || m.(i).(j - 1) <= m.(i - 1).(j))
- 	  then 
-	    if List.nth src (i - 1) +> non_phony
- 	    then 
-	      loop (i - 1) j @ [RM (List.nth src (i - 1))]
-	    else 
-	      loop (i - 1) j @ [ID (List.nth src (i - 1))]
-	  else (assert(i=j && j=0) ;
-		[]) (* here we should have that i = j = 0*)
-	in loop slen  tlen
-
 let rec get_diff_old src tgt =
   match src, tgt with
     | [], _ -> List.map (function e -> ADD e) tgt
@@ -1805,33 +1770,32 @@ and safe_part up (t, t'') =
     false)
 
 and relaxed_safe_part up (t, t'') =
-  try 
     let t' = apply_noenv up t in
       merge3 t t' t''
-  with 
-    | Nomatch -> true 
-    | Merge3 -> false
-
-and occurs_bp bp chgset = true
 
 (* is the basic patch bp safe with respect to the changeset 
  *
  * bp<=C
  * *)
+
 and safe_part_changeset bp chgset = 
-  let safe_f = if !relax 
-      then relaxed_safe_part bp 
-      else function chgset -> 
-        safe_part bp chgset ||
-        not(occurs_bp bp chgset)
-  in
-    (*
-     * List.for_all safe_f chgset
-     *)
-  let len = List.length (List.filter safe_f chgset) in
-  (*print_endline ("patch is safe for " ^ string_of_int len);*)
-  (*print_endline (string_of_diff bp);*)
-    len >= !no_occurs
+  let cnt = ref 0 in
+  if List.for_all (
+    function (t,t') ->
+      try
+        let t'' = apply_noenv bp t in
+        if part_of_edit_dist t t'' t'
+        then (cnt := !cnt + 1; true)
+        else false
+      with Nomatch -> true
+  ) chgset
+  then (
+    !cnt >= !no_occurs
+  ) else false
+
+
+and safe_part_changeset_unsafe bp chgset = 
+  Jconfig.for_some !no_occurs (safe_part bp) chgset
 
 (* the changeset after application of the basic patch bp; if there is a term to
  * which bp does not apply an exception is raised unless we are in relaxed mode
@@ -3299,7 +3263,6 @@ let seq_of_flow f =
 let dfs_diff f1 f2 = 
   let seq1 = seq_of_flow f1 in
   let seq2 = seq_of_flow f2 in
-    (* get_diff_nonshared seq1 seq2 *)
     patience_diff seq1 seq2
     +> normalize_diff
 
@@ -4302,17 +4265,8 @@ let find_simple_updates_merge_changeset changeset =
 	&& changeset +> for_some !no_occurs (safe_part (UP(l,r)))
 	&& not(acc_tus +> List.exists (function tu' -> (UP(l,r)) = tu'))
   in
-  let filter_larger (l,r) parts =
-    parts +> List.filter (function bp -> 
-			    List.for_all (function bp' ->
-					    subpatch_single bp bp' (l,r) 
-					    || not(subpatch_single bp' bp (l,r))
-					      
-					 ) parts
-			 )
-  in
     changeset
-    +> List.rev_map (function (l,r) -> get_tree_changes l r +> rm_dub (* +> filter_larger (l,r) *) )
+    +> List.rev_map (function (l,r) -> get_tree_changes l r +> rm_dub)
     +> (function x -> begin
 	  print_endline ("[Diff] got all non-abstract tree changes ("
 			 ^ x +> List.rev_map List.length +> List.fold_left (+) 0 +> string_of_int

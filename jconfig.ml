@@ -29,6 +29,15 @@ let useless_abs = ref false
 
 let (+>) o f = f o
 
+let for_some n f ls = 
+  let rec loop n ls =
+    n = 0 ||
+    match ls with
+      | x :: xs when f x -> loop (n - 1) xs
+      | _ :: xs -> loop n xs
+      | [] -> false in
+    loop n ls
+
 let counter_tick counter total =
   begin
     ANSITerminal.save_cursor ();
