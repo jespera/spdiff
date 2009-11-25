@@ -87,7 +87,8 @@ let speclist =
       "-max_embedding", Arg.Set_int max_embedded_depth, "  how deep to look inside terms when discovering nested patterns";
       "-tmp",           Arg.Set tmp_flag,        "  find embedded PATCHES also";
       "-show_support",  Arg.Set show_support,    "  show the support of each sem. patch inferred";
-      "-flow_support",  Arg.Set_int flow_support,"  threshold required of flow-patterns"
+      "-flow_support",  Arg.Set_int flow_support,"  threshold required of flow-patterns";
+      "-useless_abs",   Arg.Set Jconfig.useless_abs,"  also include very abstract term-patterns"
     ]
     
 exception Impossible of int
@@ -275,7 +276,7 @@ let filter_smaller chgset solutions =
         if Diff.subpatch_changeset chgset bp bp' 
         && Diff.subpatch_changeset chgset bp' bp
         then 
-          !noncompact || Difftype.csize bp' < Difftype.csize bp
+          !noncompact || Difftype.csize bp' <= Difftype.csize bp
         else true
       )
       solutions

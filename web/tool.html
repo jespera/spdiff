@@ -54,14 +54,15 @@
 
       <h3>Binaries</h3>
 
-      <p>Download the spdiff tool for Linux: <a href=
-      "downloads/spdiff.opt">spdiff.opt</a>.</p>
+			<p>Binaries have been removed because it was troublesome to
+			maintain versions for both 32 and 64 bit architechtures.</p>
 
       <h3 id="sourcecode">Source code</h3>
 
       <p>The source code for <code>spdiff</code> is now
-			available online. Instructions for compiling are missing but will be added after the upcoming Coccinelle Users Day.</p>
-			<p>Source code: <a href="downloads/spdiff-0.1.tar.gz">spdiff-0.1</a>.
+			available online. Instructions for compiling are below : <a
+				href="tool.html#install">Install</a>.</p>
+			<p>Source code: <a href="downloads/spdiff-0.1.1.tar.gz">spdiff-0.1.1</a>.
       </p>
     </div>
 
@@ -91,7 +92,13 @@
     <div id="install">
       <h2>Installation</h2>
 
-      <p>Simply put the binary somewhere in your search path.</p>
+			<p>Extract the source-code archive somewhere. Enter the
+			<code>spdiff</code> directory and type <code>make depend</code>
+				followed by <code>make opt</code>.</p>
+
+			<p>You should now have a <code>spdiff.opt</code> executable in
+			the <code>spdiff</code> directory. To install, simply put the
+			binary somewhere in your search path.</p>
 
       <p>You can read about how to run the tool in the manual:
       <a href="doc.html#manual">manual</a>.</p>

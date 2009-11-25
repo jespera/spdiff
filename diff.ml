@@ -140,7 +140,9 @@ let string_of_meta p = match view p with
   | C _ -> raise (Fail "not meta")
 
 let not_compound gt = match view gt with
-  | C("comp{}", _) | A("comp{}", _) -> false
+  | C("comp{}", _) | A("comp{}", _) 
+  | C("onedecl", _) 
+  | C("onedecl_ini", _) -> false
   | _ -> true
 
 let non_phony p = match view p with
@@ -213,7 +215,7 @@ let rec string_of_gtree str_of_t str_of_c gt =
       | C("btype", [{node=C("itype", _)} as c])   -> string_of_itype c
       | C("btype", [{node=A("itype", _)} as a])   -> string_of_itype a
       | C("btype", [{node=A("ftype", ft)}]) -> ft
-      | C("pointer", [ft]) -> "*" ^ string_of_ftype [ft]
+      | C("pointer", [ft]) -> string_of_ftype [ft] ^ " * "
       | C("array", [cexpopt; ft]) ->
           string_of_ftype [ft] ^ " " ^
             (match view cexpopt with
@@ -295,7 +297,7 @@ let rec string_of_gtree str_of_t str_of_c gt =
         +> List.map loop 
         +> String.concat ", " 
     | C ("onedecl", [v;ft;sto]) ->
-        loop ft ^ " " ^ loop v ^ ";" (* storage and inline ignored *)
+        loop ft ^ " " ^ loop v(* storage and inline ignored *)
     | C ("onedecl_ini", [var_gt; ini_exp; ftype; stor]) ->
         loop ftype ^ " "
         ^ loop var_gt ^ " = " 
@@ -882,7 +884,7 @@ let count_ht = TT.create 591
 let prepruned_ht = TT.create 591
 
 
-let occursht = PT.create 591
+(* let occursht = PT.create 591 *)
 
 let find_match pat t =
   let cm = can_match pat in
@@ -890,21 +892,25 @@ let find_match pat t =
     cm t || match view t with
       | A _ -> false
       | C(ct, ts) -> List.exists (fun t' -> loop t') ts
-  in 
+  in
+    loop t
+   (* 
     try 
       if
 	PT.find occursht (pat,t) 
       then true
       else (
-	(*	print_endline ("pattern1: " ^ string_of_gtree' pat);
-		print_endline ("pattern2: " ^ string_of_gtree' t); *)
+		print_endline ("pattern: " ^ string_of_gtree' pat);
+    print_endline ("not occurring in ");
+		print_endline ("term: " ^ string_of_gtree' t); 
+    print_newline ();
 	false)
 
     with Not_found -> 
       let res = loop t in
 	(PT.add occursht (pat,t) res; 
 	 res)
-
+*)
 let is_header head_str = 
   head_str.[0] = 'h' &&
   head_str.[1] = 'e' &&
@@ -1806,16 +1812,25 @@ and relaxed_safe_part up (t, t'') =
     | Nomatch -> true 
     | Merge3 -> false
 
+and occurs_bp bp chgset = true
+
 (* is the basic patch bp safe with respect to the changeset 
  *
  * bp<=C
  * *)
 and safe_part_changeset bp chgset = 
-  let safe_f = if !relax then relaxed_safe_part bp else safe_part bp in
+  let safe_f = if !relax 
+      then relaxed_safe_part bp 
+      else function chgset -> 
+        safe_part bp chgset ||
+        not(occurs_bp bp chgset)
+  in
     (*
      * List.for_all safe_f chgset
      *)
   let len = List.length (List.filter safe_f chgset) in
+  (*print_endline ("patch is safe for " ^ string_of_int len);*)
+  (*print_endline (string_of_diff bp);*)
     len >= !no_occurs
 
 (* the changeset after application of the basic patch bp; if there is a term to
@@ -3697,13 +3712,14 @@ let get_patterns subterms_lists unique_subterms env term =
 
 let rec useless_abstraction p = is_meta p || 
   match view p with
-  (*
     | C("dlist", [p']) 
     | C("stmt", [p']) 
-  *)
+        when !Jconfig.useless_abs && 
+              useless_abstraction p' -> true
     | C("exprstmt", [p']) 
     | C("exp", [p']) 
-    | C("fulltype", [p']) when useless_abstraction p' -> true
+    | C("fulltype", [p']) 
+        when useless_abstraction p' -> true
     | C("onedecl",[p_var;p_type;p_storage]) ->
 	[p_var; p_type] +> List.for_all useless_abstraction 
     | A("stobis", _) | A("inline",_) -> true

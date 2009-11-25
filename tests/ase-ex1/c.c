@@ -1,7 +1,7 @@
 int foo2(int p) {
-	  int x;
-	  x = f(x);
+	  int y;
+	  y = f(y);
 		foo();
-	  return x;
+	  return y;
 	}
 
