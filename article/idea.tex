@@ -1,0 +1,81 @@
+\documentclass{article}
+
+% often used definitions
+\input{defs}
+
+
+\title{\prg{spdiff} revisited}
+
+\begin{document}
+\maketitle
+
+\section{Recap}
+
+% Something about the definitions we had.
+Here's a short recap of the definitions.
+
+\paragraph{Part-of}
+
+We have a notion of when a semantic patch, $\pt$ is ``part of'' with
+respect to a pair of terms representing an old and a new version of a
+program, $(t,t')$:
+
+\[\forall \pt,t,t':
+\partof{\pt}{(t,t')} \iff \exists t'':
+\apply{\pt}{t}=t'' \wedge \edist{t}{t''} + \edist{t''}{t'} = \edist{t}{t'}
+\]
+
+The intuition is that $\pt$ should somehow perform part of the
+transformation of $t$ into $t'$. (Confusingly, I sometimes also called
+this safety.)
+
+We can also extend this definition to work for entire changesets by
+(overloading the ``part-of'' notation from before)
+
+\[\forall \pt, C:
+\partof{\pt}{C} \iff \forall(t,t') \in C:\partof{\pt}{(t,t')}
+\]
+
+\paragraph{Sub-patch}
+
+We also defined a notion of when one semantic patch, $\pt'$ subsumes
+another, $\pt$. We then say that $\pt$
+is a subpatch of $\pt'$:
+
+\[\forall \pt,\pt':
+\partof{\pt}{\pt'} \iff \forall t,t' : 
+\partof{\pt'}{(t,t')} \wedge
+\apply{\pt'}{t} = t'' \wedge
+\partof{\pt}{(t,t'')}
+\]
+
+An issue with the above 
+
+\section{Issues}
+
+% Something about the issues with the previous solution.
+
+The main issue I think is related to the threshold notion. Here's a
+list of issues that I've thought of so far:
+
+\begin{enumerate}
+\item How can one select a threshold? The current approach is
+  something like, trying to run \prg{spdiff} with threshold $n$ and if
+  the results look strange, rerun \prg{spdiff} with a different
+  threshold. If the results look to detailed, rerun with higher
+  threshold and if the results does not include the changes one
+  thought, rerun with a lower threshold in the hope that it will now
+  be allowed to be included. In both cases In both cases it seems to
+  me that one already has some idea of who the resulting semantic
+  patch should look which begs the question: why not just write the
+  semantic patch by hand then?
+\item When using a relatively lower threshold, one can get two
+  semantic patches which are not in 
+\end{enumerate}
+
+\section{Suggestion}
+
+% The great new idea!
+
+
+\end{document}
