@@ -3715,18 +3715,23 @@ let get_missed_rhs cand_spatches gss =
       ) [] cand_spatches
 
 
-let find_common_patterns () =
-  (*  malign := true; *)
-  Diff.malign_mode := !malign;
-  file_pairs := Reader.read_spec !mfile; (* gets names to process in file_pairs *)
-  let term_pairs = List.rev (
-    List.fold_left (fun acc_pairs (lfile, rfile) ->
-		      Reader.read_filepair_cfg lfile rfile @ acc_pairs
-		   ) [] !file_pairs)
+let get_cfg_changeset () =
+    List.rev (
+      List.fold_left (fun acc_pairs (lfile, rfile) ->
+			Reader.read_filepair_cfg lfile rfile @ acc_pairs
+		     ) [] !file_pairs)
     +> List.filter (function ((gt_lhs,f_lhs), (gt_rhs, f_rhs)) -> 
 		      not(!only_changes) 
 		      || not(gt_lhs = gt_rhs)
-		   ) in
+		   ) 
+
+let find_common_patterns () =
+  (*  malign := true; *)
+  Diff.malign_mode := !malign; (* maling might be very slow *)
+  file_pairs := Reader.read_spec !mfile; (* gets names to process in file_pairs *)
+  (* term_pairs is the changeset used as input *)
+  let term_pairs = get_cfg_changeset () 
+  in
     print_endline ("[Main] read " ^ string_of_int (List.length term_pairs) ^ " files");
     let gss = lhs_flows_of_term_pairs term_pairs in
     let gpats'' = common_patterns_graphs gss in
