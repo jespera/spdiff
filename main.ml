@@ -2180,19 +2180,6 @@ let infer_meta_variables graphs sem_patterns =
 
 let common_patterns_graphs gss =
   (* detect whether a threshold was given *)
-
-  (*  let loc_pred = 
-      if !threshold = 0
-      then (
-      threshold := List.length gss;
-      List.for_all)
-      else begin
-  (*      threshold := int_of_float (
-      ((float (List.length gss)) /. 100.0) *. 
-      (float !threshold)); *)
-      for_some !threshold
-      end in
-  *)
   if !threshold = 0
   then threshold := List.length gss;
   print_endline ("[Main] threshold is " ^ string_of_int !threshold ^
@@ -2230,10 +2217,6 @@ let common_patterns_graphs gss =
 	  ) &&
 	  ((* print_endline "pretest DONE"; *)
 	   List.exists (function i ->
-(*			  print_string ": ";
-			  g#nodes#find i
-			  +> Diff.string_of_gtree' +> print_endline;
-*)
 			  if cont_match g sp i
 			  then ((*print_endline "SAT";*) true)
 			  else ((* print_endline "NONSAT"; *) false)) nodes2) in
@@ -2275,36 +2258,6 @@ let common_patterns_graphs gss =
 	*)
 	Diff.merge_abstract_terms subterms_lists unique_subterms
       in
-	(*
-	  let static_get_pa ps =
-	  node_patterns_pool
-	  +> List.filter (function (p,e) ->
-	  not(List.mem p ps)
-	  )
-	(*
-	  let new_get_pa = 
-	  function env ->
-	  Diff.abstract_all_terms subterms_lists unique_subterms env 
-	  +> List.filter (function (p,e) -> 
-	  not(infeasible p) 
-	  && Diff.non_phony p
-	  && not(Diff.control_true = p)
-	  && not(Diff.is_head_node p)
-	  )
-	*)
-	  
-	  in
-	*)
-
-	(* let get_pa = get_common_node_patterns gss in *)
-	(*
-	  find_seq_patterns_new unique_subterms 
-	  is_subpattern 
-	  is_frequent_sp_some 
-	  gss
-	  static_get_pa
-	*)
-  
 	print_string "[Main] finding semantic patterns ";
 	find_seq_patterns_newest (* simulates _ wildcards with all fresh metavariables *)
 	  (* singleton_patterns: all node patterns with 'fresh' metas' *) 
