@@ -57,11 +57,16 @@ let tmp_flag = ref false
 let show_support = ref false
 let flow_support = ref 0
 
+(* the 'focus_function' allows us to specify a function name which any
+   found pattern should match *)
+let focus_function = ref ""
+
 let speclist =
   Arg.align
     [
-            "-specfile",      Arg.Set_string mfile,    "[filename]  name of specification file (defaults to \"specfile\") ";
-            "-threshold",     Arg.Set_int threshold,   "[num]   the minimum number of occurrences required";
+      "-focus_function",Arg.Set_string focus_function, "[STRING]  name of function to focus on";
+      "-specfile",      Arg.Set_string mfile,    "[filename]  name of specification file (defaults to \"specfile\") ";
+      "-threshold",     Arg.Set_int threshold,   "[num]   the minimum number of occurrences required";
       "-noif0_passing", Arg.Clear Flag_parsing_c.if0_passing, 
       "  also parse if0 blocks";
       "-print_abs",     Arg.Set Jconfig.print_abs,  "  print abstract updates for each term pair";
@@ -113,11 +118,11 @@ let (+++) x xs = if List.mem x xs then xs else x :: xs
 
 let for_some n f ls = 
   let rec loop n ls =
-    n = 0 ||
+(*    n = 0 || *)
     match ls with
       | x :: xs when f x -> loop (n - 1) xs
       | _ :: xs -> loop n xs
-      | [] -> false in
+      | [] -> n <= 0 in
     loop n ls
 
 let file_pairs = ref []
@@ -1700,9 +1705,9 @@ let contained_subseq seq1 seq2 =
 
 let find_seq_patterns_newest 
     singleton_patterns
-    valid =
+    valid = 
   if not(!flow_support = 0)
-  then begin
+    then begin
     print_endline ("[Main] setting new threshold : " 
 		   ^ string_of_int !flow_support);
     threshold := !flow_support;
@@ -1729,12 +1734,13 @@ let find_seq_patterns_newest
            else 
              let new_cur = cur @@@ p in
 	       v_print_endline "?";
+	       print_endline ("[Main] testing validity of\n" ^ string_of_pattern new_cur);
                if valid new_cur 
-               then (v_print_endline "@"; new_cur :: acc_next)
+               then (print_endline "[Main] OK"; new_cur :: acc_next)
                else 
 		 begin
 		   v_print_endline "!";
-                   v_print_endline "invalid";
+                   print_endline "[Main] invalid";
 		   if !Jconfig.verbose then
 		     begin 
 		       List.iter (function t -> 
@@ -2175,10 +2181,26 @@ let infer_meta_variables graphs sem_patterns =
 	  :: acc_patterns
     ) []
   
+      
+let get_fun_name_gflow f =
+  let head_node = 
+    f#nodes#tolist 
+    +> List.find (function (i,n) -> match view n with
+		    | C("head:def", [{Hashcons.node=C("def",_)}]) -> true
+		    | _ -> false) in
+    match view (snd head_node) with
+      | C("head:def",[{Hashcons.node=C("def",name::_)}]) -> 
+	  (match view name with
+	     | A("fname",name_str) -> name_str
+	     | _ -> raise (Diff.Fail "impossible match get_fun_name_gflow")
+	  )
+      | _ -> raise (Diff.Fail "get_fun_name?")
   
 
 
 let common_patterns_graphs gss =
+  let matches_focus_function = ref false
+  in
   (* detect whether a threshold was given *)
   if !threshold = 0
   then threshold := List.length gss;
@@ -2202,8 +2224,8 @@ let common_patterns_graphs gss =
       +> tail_flatten 
       +> Diff.rm_dub in
     let (|-) g sp = 
-      (* pre-test whether the nodes of the pattern are at all
-	 in the graph *)
+	(* pre-test whether the nodes of the pattern are at all
+	   in the graph *)
       let nodes2 = nodes_of_graph2 g in
 	sp +> List.for_all 
 	  (function p_gt ->
@@ -2215,25 +2237,43 @@ let common_patterns_graphs gss =
 		   (g#nodes#find i)
 	      )
 	  ) &&
-	  ((* print_endline "pretest DONE"; *)
-	   List.exists (function i ->
-			  if cont_match g sp i
-			  then ((*print_endline "SAT";*) true)
-			  else ((* print_endline "NONSAT"; *) false)) nodes2) in
-    let (||-) gss sp = gss 
+	  ( print_endline "pretest DONE"; 
+	    List.exists (function i ->
+			   if cont_match g sp i
+			   then 
+			     let g_name = get_fun_name_gflow g
+			     in
+			       begin
+				 print_endline ("Pattern tested:\n" ^ string_of_pattern sp);
+				 print_endline ("OK fun: " ^ g_name);
+				 if((not (!focus_function = "")) 
+				    && !focus_function = g_name)
+				 then matches_focus_function := true
+				 else begin
+				   if(!focus_function != "")
+				   then print_endline ("ff = " ^ !focus_function 
+						       ^ " but g_name " ^ g_name)
+				 end;
+			     (*print_endline "SAT";*) true
+			   end
+			   else ((* print_endline "NONSAT"; *) false)) nodes2) in
+    let (||-) gss sp = 
+      matches_focus_function := false;
+      gss 
       +> for_some !threshold 
       (function fs -> 
 	 fs +> List.exists 
 	   (function f -> 
 	      v_print_string "|- ";
-	      if !Jconfig.verbose then f +> nodes_of_graph2 +> List.length +> string_of_int +> print_endline;
+	      "no. nodes: " +> print_endline;
+	      f +> nodes_of_graph2 +> List.length +> string_of_int +> print_endline;
 	      let r = f |- sp in
-		v_print_endline ("done |- " ^ 
+		print_endline ("done |- " ^ 
 				   if r then " OK" else " FAIL"
 				);
 		r
 	   )
-      ) in
+      ) && (!focus_function = "" || !matches_focus_function)in
     let rec check_no_duplicates ls = match ls with
       | [] -> ((* print_endline "no dups"; *) true)
       | x :: xs when x == ddd -> check_no_duplicates xs
@@ -2291,20 +2331,6 @@ let common_patterns_graphs gss =
 		  filter_shorter_sub gss (is_subpattern gss) pss 
 		end
 		else pss)
-      
-let get_fun_name_gflow f =
-  let head_node = 
-    f#nodes#tolist 
-    +> List.find (function (i,n) -> match view n with
-		    | C("head:def", [{Hashcons.node=C("def",_)}]) -> true
-		    | _ -> false) in
-    match view (snd head_node) with
-      | C("head:def",[{Hashcons.node=C("def",name::_)}]) -> 
-	  (match view name with
-	     | A("fname",name_str) -> name_str
-	     | _ -> raise (Diff.Fail "impossible match get_fun_name_gflow")
-	  )
-      | _ -> raise (Diff.Fail "get_fun_name?")
 	  
 
 let get_arcs g i =
@@ -4460,7 +4486,9 @@ let main () =
   Diff.patterns      := !patterns;
   Diff.abs_subterms  := !max_level;
 
-  print_endline "[Main] experimental version";
+  print_endline "[Main] experimental version using 'exists' semantics for \"...\"";
+  if(!focus_function != "")
+  then print_endline ("[Main] focus function : '" ^ !focus_function  ^ "'");
 
   if !Config.std_h <> "" then
     (print_endline ("[Main] have std.h file: " ^ !Config.std_h);
