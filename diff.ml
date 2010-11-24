@@ -1995,9 +1995,12 @@ let (=>) (k,v) env = bind env (k,v)
 let get_val n g = g#nodes#find n
 let get_succ n g = 
   match (g#successors n)#tolist with
-    | [] -> (
-	raise Nomatch
-      )
+    | [] -> []
+(*
+	(
+	  raise Nomatch
+	)
+*)
     | ns -> ns
 
 let get_next_vp'' g vp n = 
@@ -2292,46 +2295,101 @@ let cont_match_param matcher g cp n =
   and trans_bp bp c vp n = match view bp with
   | C("CM", [gt]) -> (try 
     (* let env = match_term gt (get_val n g) in *)
-    let envs = find_nested_matches gt (get_val n g) in
+    let envs = 
+      try begin
+	print_endline ("trying to match " ^ string_of_gtree' gt);
+	print_endline ("at node : " ^ string_of_int n);
+	let res = find_nested_matches gt (get_val n g)
+	in
+	  begin
+	    print_endline ("there were : " ^ string_of_int (List.length res) ^ " matched");
+	    res
+	  end
+      end
+      with Nomatch -> begin
+	print_endline "nomatch in find_nested";
+	[]
+      end
+    in
     List.exists (function env ->
-      let f,vp' = matched_vp vp n env in
-      f && List.for_all 
-      (function (n',_) -> c vp' n') (get_succ n g)
-      ) envs with Nomatch -> false)
+      let f,vp' = try matched_vp vp n env 
+      with Nomatch -> begin
+	print_endline "matched_vp raising Nomatch";
+	raise Nomatch
+      end
+      in
+	if f
+	then
+	if(
+	  try List.exists (*for_all*) (function (n',_) -> 
+			     try 
+			       begin
+				 print_endline ("testing node: " ^ string_of_int n' ^ " from " ^ string_of_int n);
+				 c vp' n'
+			       end
+			     with Nomatch -> begin
+			     print_endline ("nomatch @ c vp' " ^ string_of_int n');
+			     raise Nomatch
+			     end) (try get_succ n g with Nomatch -> (print_string ("nomatch @ get_succ " ^ string_of_int n); raise Nomatch))
+	  with Nomatch -> begin
+	    print_endline ("nomatch at list.exists " ^ string_of_int n);
+	    raise Nomatch
+	  end
+	)
+	then
+	  begin
+	    true
+	  end
+	else
+	  begin
+	    print_endline ("continuation failing at " ^ string_of_int n);
+	    false
+	  end
+	else
+	  begin
+	    print_endline ("current failing at " ^ string_of_int n);
+	    false
+	  end) envs with Nomatch -> 
+      begin
+	print_endline ("nomatch at : " ^ string_of_int n ^ " in tree : " ^ string_of_gtree' (get_val n g)
+			 ^ " with " ^ string_of_gtree' gt
+		      );
+	false
+      end)
   | _ when bp == ddd ->
           c vp n || (
             match check_vp vp n with
             | FALSE -> raise UNSAT
-            | LOOP -> true
+            | LOOP -> 
+		begin 
+		  print_endline ("loop @ " ^ string_of_int n);
+		  true
+		end
             | SKIP -> 
-                let ns = get_next_vp'' g vp n in
-                ns +> List.exists 
-                (function n' -> 
-                  not(n = n')
-                  )
-                && not(ns = []) 
-                && let vp' = skipped_vp vp n in
-                List.length (List.filter (function n' ->
-                  try trans_bp ddd c vp' n'
-                  with Bailout -> false
-                ) ns) > 0
-                (*
-                ns +> List.fold_left 
-                (fun acc_f n' -> 
-                  try trans_bp ddd c vp' n' || acc_f
-                  with Bailout -> acc_f
-                ) false
-                *)
-                (*		    for_half        (trans_bp ddd c vp') ns *)
-
-            | ALWAYSTRUE -> true
+		(* ns is a list of successor node indices to n *)
+                let ns = get_next_vp'' g vp n +> List.filter (function n' -> not(n = n'))  (* remove current from succs *)
+		in
+                  not(ns = [])  (* there should be some successors *)
+                  && let vp' = skipped_vp vp n (* store the node we just skipped *)
+		  in
+(*		    List.for_all  (* all continuations should satisfy the "...-continuation" (and none bail out) *) *)
+		    List.exists  (* some continuations should satisfy the "...-continuation" (and none bail out) *) 
+		      (function n' ->
+			 try trans_bp ddd c vp' n'
+			 with Bailout -> false
+		      ) ns
+            | ALWAYSTRUE -> 
+		begin
+		  print_endline ("alwaystrue @ " ^ string_of_int n);
+		  true
+		end
           )
-            | _ -> raise (Match_failure (string_of_gtree' bp, 1429,0))
-                in
-                let real_matcher = 
-                  trans_cp cp matcher
+  | _ -> raise (Match_failure (string_of_gtree' bp, 1429,0))
     in
-    try real_matcher init_vp n with UNSAT -> (traces_ref := []; false)
+    let real_matcher = 
+      trans_cp cp matcher
+    in
+      try real_matcher init_vp n with UNSAT -> (traces_ref := []; false)
 
 let cont_match_traces g sp n =
   let matcher vp x = 

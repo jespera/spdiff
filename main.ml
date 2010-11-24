@@ -4460,6 +4460,8 @@ let main () =
   Diff.patterns      := !patterns;
   Diff.abs_subterms  := !max_level;
 
+  print_endline "[Main] experimental version";
+
   if !Config.std_h <> "" then
     (print_endline ("[Main] have std.h file: " ^ !Config.std_h);
      Parse_c.init_defs !Config.std_h
