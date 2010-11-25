@@ -2297,17 +2297,13 @@ let cont_match_param matcher g cp n =
     (* let env = match_term gt (get_val n g) in *)
     let envs = 
       try begin
-	print_endline ("trying to match " ^ string_of_gtree' gt);
-	print_endline ("at node : " ^ string_of_int n);
 	let res = find_nested_matches gt (get_val n g)
 	in
 	  begin
-	    print_endline ("there were : " ^ string_of_int (List.length res) ^ " matched");
 	    res
 	  end
       end
       with Nomatch -> begin
-	print_endline "nomatch in find_nested";
 	[]
       end
     in
@@ -2324,15 +2320,12 @@ let cont_match_param matcher g cp n =
 	  try List.exists (*for_all*) (function (n',_) -> 
 			     try 
 			       begin
-				 print_endline ("testing node: " ^ string_of_int n' ^ " from " ^ string_of_int n);
 				 c vp' n'
 			       end
 			     with Nomatch -> begin
-			     print_endline ("nomatch @ c vp' " ^ string_of_int n');
 			     raise Nomatch
-			     end) (try get_succ n g with Nomatch -> (print_string ("nomatch @ get_succ " ^ string_of_int n); raise Nomatch))
+			     end) (get_succ n g)
 	  with Nomatch -> begin
-	    print_endline ("nomatch at list.exists " ^ string_of_int n);
 	    raise Nomatch
 	  end
 	)
@@ -2342,18 +2335,13 @@ let cont_match_param matcher g cp n =
 	  end
 	else
 	  begin
-	    print_endline ("continuation failing at " ^ string_of_int n);
 	    false
 	  end
 	else
 	  begin
-	    print_endline ("current failing at " ^ string_of_int n);
 	    false
 	  end) envs with Nomatch -> 
       begin
-	print_endline ("nomatch at : " ^ string_of_int n ^ " in tree : " ^ string_of_gtree' (get_val n g)
-			 ^ " with " ^ string_of_gtree' gt
-		      );
 	false
       end)
   | _ when bp == ddd ->
@@ -2362,7 +2350,6 @@ let cont_match_param matcher g cp n =
             | FALSE -> raise UNSAT
             | LOOP -> 
 		begin 
-		  print_endline ("loop @ " ^ string_of_int n);
 		  true
 		end
             | SKIP -> 
@@ -2380,7 +2367,6 @@ let cont_match_param matcher g cp n =
 		      ) ns
             | ALWAYSTRUE -> 
 		begin
-		  print_endline ("alwaystrue @ " ^ string_of_int n);
 		  true
 		end
           )
@@ -2639,164 +2625,11 @@ let rec prefix_all lis lists =
     | elem :: lis -> (prefix elem lists) @ prefix_all lis lists(*}}}*)
 	
 let rec gen_perms lists =
-  (*
-   *print_endline "gen_perms sizes: ";
-   *List.iter (fun ec ->
-   * print_string "<";
-   * print_string (string_of_int (List.length ec));
-   * print_string "> ";
-   * ) lists;
-   *)
-  (*print_newline ();*)
-  (* FIXME: figure out why this assertion was put here in the first place *)
-  (*assert(not(List.exists ((=) []) lists));*)
-  (*debug_msg "perms of ";*)
-  (*List.iter (fun l -> List.iter (fun e -> debug_msg ((string_of_gtree*)
-  (*str_of_ctype str_of_catom e) ^ " ")) l; debug_msg "%%") lists;*)
   match lists with(*{{{*)
     | [] -> (debug_msg "."; [[]])
     | lis :: lists -> (debug_msg ","; prefix_all lis (gen_perms lists))(*}}}*)
 
 
-(*
-  let rec abs_term_size terms_changed is_fixed should_abs up =
-  let rec loop build_mode env t = match t with
-  | A (ct, at) -> 
-  if is_fixed t
-  then 
-  if terms_changed t
-  then [t], env
-  else 
-  let metas, renv = get_build_mode env t in
-  t :: metas, renv
-  else 
-  if not(should_abs t)
-  then [t], env
-  else 
-(* now we have an atomic term that we should abstract and thus we will
-  * not also return the concrete term as a possibility; the problem is
-  * that then we may abstract atoms which should not have been because
-  * they were actually changed -- for those atoms that change, we
-  * therefore return both the concrete term and an abstracted one
-*)
-  if terms_changed t
-  then
-(*[t], env*)
-  let metas, renv = get_metas build_mode env t in
-  t :: metas, renv
-  else 
-  get_metas build_mode env t (*}}}*)
-  | C (ct, []) -> raise (Fail "whhaaattt")
-  | C (ct, ts) ->
-  debug_msg ("CC: " ^ string_of_gtree str_of_ctype str_of_catom t);(*{{{*)
-  if !abs_subterms <= gsize t
-  then [t], env
-  else
-  let metas, env = 
-  if not(is_fixed t) && (if build_mode then should_abs t else true)
-  then
-  get_metas build_mode env t 
-  else 
-(* the term is fixed, but it did not change "by itself" so we should
-  * actually abstract it
-*)
-  if terms_changed t
-  then
-  [], env 
-  else 
-  get_metas build_mode env t
-  in
-  let ts_lists, env_ts = List.fold_left
-  (fun (ts_lists_acc, acc_env) tn ->
-(* each abs_tns is a list of possible abstractions for the term tn
-  * and env_n is the new environment (for build_mode)
-*)
-  let abs_tns, env_n = 
-(*if not(is_fixed tn)*)
-(*then*)
-  loop build_mode acc_env tn 
-(*else*)
-(*[tn], acc_env*)
-  in
-  let abs_tns = if abs_tns = [] then [tn] else abs_tns in
-  abs_tns :: ts_lists_acc, env_n
-  ) ([], env) (List.rev ts) in
-(* note how we reverse the list ts given to the fold_left function above
-  * to ensure that subterms are visited in left-to-right order and
-  * inserted in left-to-right order
-*)
-(* ts_lists is a list of lists of possible abstractions of each 
-  * term in ts we now wish to generate a new list of lists such 
-  * that each list in this new list contains one element from 
-  * each of the old lists in the same order
-*)
-(*print_string "input size to gen_perms: ";*)
-(*print_endline (string_of_int (List.length ts_lists));*)
-(*List.iter (fun l ->*)
-(*print_string ("<" ^ string_of_int (List.length l) ^ "> ");*)
-(*if List.length l > 128 then raise (Fail "not going to work")*)
-(*List.iter (fun gt -> print_endline (string_of_gtree' gt)) l;*)
-(*flush stdout;*)
-(* ) ts_lists;*)
-(*print_newline ();*)
-  let perms = gen_perms ts_lists in
-(* given the perms we now construct the complete term C(ct,arg) *)
-  let rs = List.rev (List.fold_left (fun acc_t args -> 
-  C(ct, args) :: acc_t) [] perms) in
-(* finally, we return the version of t where sub-terms have been
-  * abstracted as well as the possible metas that could replace t
-*)
-  metas @ rs, env_ts in(*}}}*)
-  match up with 
-  | UP(lhs, rhs) -> 
-(* first build up all possible lhs's along with the environment(*{{{*)
-  * that gives bindings for all abstracted variables in lhs's
-*)
-  reset_meta ();
-(*print_endline ("loop :: \n" ^ string_of_diff up);*)
-  let abs_lhss, lhs_env = loop true [] lhs in
-(*List.iter (fun (m,t) -> print_string*)
-(*("[" ^ m ^ "~>" ^ string_of_gtree' t ^ "] ")) lhs_env;*)
-(*print_newline ();*)
-(*print_endline ("lhss : " ^ string_of_int (List.length abs_lhss));*)
-(*print_endline "lhss = ";*)
-(*List.iter (fun d -> print_endline (string_of_gtree' d)) abs_lhss;*)
-  assert(not(abs_lhss = []));
-(* now we check that the only solution is not "X0" so that we will end
-  * up transforming everything into whatever rhs
-*)
-  let abs_lhss = (match abs_lhss with
-  | [A ("meta", _) ] -> (debug_msg 
-  ("contextless lhs: " ^ string_of_diff up); [lhs])
-  | _ -> abs_lhss)
-(* now use the environment to abstract the rhs term
-*) in
-  let abs_rhss, rhs_env = loop false lhs_env rhs in
-(*print_endline ("rhss : " ^ string_of_int (List.length abs_rhss));*)
-(*print_endline "rhss = ";*)
-(*List.iter (fun d -> print_endline (string_of_gtree' d)) abs_rhss;*)
-(*List.iter (fun (m,t) -> print_string*)
-(*("[" ^ m ^ "~>" ^ string_of_gtree' t ^ "] ")) rhs_env;*)
-(*print_newline ();*)
-(* if the below assertion fails, there is something wrong with the
-  * environments generated
-*)
-(*assert(lhs_env = rhs_env);*)
-(* we now wish to combine each abs_lhs with a compatible abs_rhs
-*)
-(* if the rhs had no possible abstractions then we return simply the
-  * original rhs; this can not happen for lhs's as the "bind" mode is
-  * "on" unless the fixed_list dissallows all abstractions
-*)
-  let abs_rhss = if abs_rhss = [] then [rhs] else abs_rhss in
-  let lres = List.fold_left (fun pairs lhs ->
-  make_compat_pairs lhs abs_rhss pairs
-  ) [] abs_lhss
-  in
-  lres, lhs_env (* = rhs_env *)(*}}}*)
-  | _ -> raise (Fail "non supported update given to abs_term")
-
-*)
 
 let renumber_metas t metas =
   match view t with
@@ -2859,14 +2692,6 @@ let rec abs_term_imp terms_changed is_fixed up =
   let cur_depth = ref !abs_depth in
   let should_abs t = 
      !cur_depth >= 0 
-    (* if !cur_depth >= 0 *)
-    (* (\* then (print_endline ("[Diff] allowed at depth: " ^ string_of_int !cur_depth); true) *\) *)
-    (* (\* else (print_endline ("[Diff] not allowed at depth " ^ string_of_int !cur_depth); false) *\) *)
-    (* then (print_endline ("[Diff] allowing " ^ string_of_gtree' t); true) *)
-    (* else ( *)
-    (*   print_endline ("[Diff] current depth " ^ string_of_int !cur_depth); *)
-    (*   print_endline (string_of_gtree' t); *)
-    (*   false) *)
   in
   let rec loop build_mode env t = 
     match view t with
@@ -2890,7 +2715,6 @@ let rec abs_term_imp terms_changed is_fixed up =
           print_endline ("[Diff] not abstracting atom: " ^ string_of_gtree' t);
           [t], env)
     | C (ct, []) -> 
-	(* raise (Fail ("whhaaattt: "^ct^"")) *)
 	(* this case has been reached we could have an empty file;
 	 * this can happen, you know! we return simply an atom
 	 *)
@@ -3107,58 +2931,6 @@ let print_additions d =
 
 let unabstracted_sol gt1 gt2 = 
   get_ctf_diffs_safe [] gt1 gt2
-    (*print_endline "\n== get_ctf_diffs succeeded ==";*)
-    (*List.iter print_additions dgts;*)
-    (*print_endline "== those were the additions ==";*)
-    (*print_endline "<< hierarchy >>";*)
-    (*print_endline (string_of_subtree (make_subpatch_tree dgts gt1 gt2));*)
-    (* get the list of those diffs that are complete *)
-    (*let cgts = List.filter (fun d -> complete_patch gt1 gt2 [d]) dgts in*)
-    (* take out those that are complete in them selves *)
-    (*let dgts = List.filter (fun d -> not(List.mem d cgts)) dgts in*)
-    (*print_endline "dgts::::::";*)
-    (*List.iter (fun d -> print_endline (string_of_diff d)) dgts;*)
-    (*print_newline ();*)
-    (*if dgts = []*)
-    (* there were only complete updates; thus we should simply return the smallest
-     * one of those; there does not seem to be any good reason to return any
-     * others
-     *)
-    (*then*)
-    (*try [[List.hd cgts]] with (Failure "hd") -> []*)
-    (*else*)
-    (* since we now have to look at the smaller updates, we can rest assured
-     * that if the constructed patches update the smallest of the complete one
-     * correctly, they will also update the entire program correctly; this means
-     * in turn that we look at smaller terms and can expect faster running time;
-     * furthermore, and this is the important part, the collect function returns
-     * the gt1,gt2 pair if a constructed patch was not complete and that would
-     * imply that if NONE of the constructed patches were complete, which could
-     * be caused by only having wrong/incomplete updates inferred, we would
-     * return the entire gt1,gt2 pair as the result. In other words we ensure
-     * gt1 and gt2 correspond to the smallest possible terms (which is safe as
-     * said just before)
-     *)
-    (*let UP(gt1, gt2) = List.hd cgts in*)
-    (*let parted = partition dgts in*)
-    (*print_endline "parted::::::";*)
-    (*List.iter print_diffs parted;*)
-    (*let all_perms = gen_perms parted in*)
-    (*print_endline "all_perms 1 :::::";*)
-    (*List.iter print_diffs all_perms;*)
-    (*print_newline ();*)
-    (*let all_perms = List.map sort all_perms in*)
-    (*print_endline "all_perms 2 :::::";*)
-    (*List.iter print_diffs all_perms;*)
-    (*print_newline ();*)
-    (*let all_perms = List.map (fun d -> collect gt1 gt2 d) all_perms in*)
-    (*print_endline "collected :::::";*)
-    (*List.iter print_diffs all_perms;*)
-    (*print_newline ();*)
-    (*let all_perms = rm_dub all_perms in*)
-    (*print_endline ">>>>>>>>>>>>> now we have:";*)
-    (*print_sols all_perms;*)
-    (*all_perms*)
 
 let make_subterms_update up =
   match up with
@@ -3263,10 +3035,6 @@ let make_fixed_list_old updates =
   let empty_db = DBM.makeEmpty () in
   let subterm_db = List.fold_left DBM.add_itemset empty_db subterms_list in
   let db_size = DBM.sizeOf subterm_db in
-    (*print_string  "There are ";*)
-    (*print_string  (string_of_int db_size);*)
-    (*print_endline " itemsets";*)
-    (*print_endline "With sizes:";*)
     DBM.fold_itemset subterm_db 
       (fun () is -> print_string ("[" ^ string_of_int
 				     (List.length is) ^"]")) ();
