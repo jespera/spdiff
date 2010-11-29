@@ -3534,7 +3534,10 @@ let rec contains_infeasible p =
     | C(_,ts) -> ts +> List.exists contains_infeasible
     | _ -> false
 
-let infeasible p = contains_infeasible p || useless_abstraction p
+let infeasible p = 
+  contains_infeasible p 
+    || useless_abstraction p 
+    || is_nested_meta p
 
 let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
   let c_parts = 
