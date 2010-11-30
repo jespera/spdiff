@@ -3355,14 +3355,16 @@ let extend_env env_given env_init =
 
 let pat_e_ht = TT.create 591
 
+(* memoize the extension of a node-pattern *)
 let node_pat_extension unique_subterms p =
   try
     TT.find pat_e_ht p
   with Not_found ->
     let res = unique_subterms +> List.filter (function t -> can_match p t)
-    in begin
-	TT.replace pat_e_ht p res;
-	res
+    in 
+      begin
+        TT.replace pat_e_ht p res;
+        res
       end
 
 let node_pat_eq unique_subterms (p,env) (p',env') = 
@@ -3862,147 +3864,132 @@ let get_some x = match x with
   | None -> raise (Fail "get_some applied to none")
   | Some x -> x
 
-
+(***
+ * Given lists of subterms [subterms_lists] and a list of unique subterms
+ * [unique_subters] this function produces a list of patterns (terms with
+ * metavariable) such that for each pattern pat:
+ *   length 
+ *   [subterm_list | subterm_list ∈ subterms_lists,
+ *                   ∃t∈subterm_list:p≼t] 
+ *   >= threshold
+ *)
 let merge_abstract_terms subterms_lists unique_subterms =
-  print_endline ("[Diff] TMP : " 
-		   ^ string_of_int !no_occurs);
+  (* There should be no duplicate subterms in each subterms_list *)
   let non_dub_subterms_lists =
     List.rev_map rm_dub subterms_lists in
+
   let abs_count = ref 0 in
   let abs_total = ref 0 in
+
+  (* Function to compute extension of node-pattern; uses Hashtable for
+   * memoization *)
   let pat_extension p = 
     node_pat_extension unique_subterms p in
-  let interesting_post t acc_ts =
+
+  (* Predicate to determine whether we will return a node-pattern. Takes the
+   * current node-pattern plus the accumulated node-patterns. *)
+  let interesting_post t acc_ts = 
+    (* filter out obvious bad ones; e.g. too abstract ... *)
+    not(infeasible t) && non_phony t && not(control_true = t) && not(is_head_node t) 
+    (* also: *)
+    && List.for_all (function t' -> t = t' || (
+        let tsub = subset_list (pat_extension t) (pat_extension t') in
+        let tsup = subset_list (pat_extension t') (pat_extension t) in
+	      if tsub 
+	      then (* ⟦t⟧ = ⟦t'⟧ or ⟦t⟧ ⊂ ⟦t'⟧ *)
+          if tsup
+		      then (* t eq t' => only if t has larger concrete,meta size then include it *) 
+            leq_pair_size t' t
+		      else (* t < t' : i.e. pattern matches strictly fewer terms, so it
+          might be interesting *) 
+            true
+        else 
+          (* t' > t or t is unrelated to t'; we only want to include t if it
+           * is unrelated to t' *)
+		      not(tsup)
+        )) acc_ts
+  in
+  (* simple filter used under construction of potential set of node-patterns *)
+  let interesting_t t acc_ts = 
     not(infeasible t)
     && non_phony t
     && not(control_true = t)
-    && not(is_head_node t) 
-    && List.for_all 
-      (function t' ->
-	 t = t'
-	  || (
-	    let tsub = subset_list (pat_extension t) (pat_extension t') in
-	    let tsup = subset_list (pat_extension t') (pat_extension t) in
-	      if tsub 
-	      then 
-		if tsup
-		then (* t eq t' *) leq_pair_size t' t
-		else (* t < t' *) true
-	      else
-		(* t' > t or t is unrelated to t' *)
-		not(tsup)
-	  )
-      ) acc_ts
-  in
-    (*
-      && not(List.exists (function t' ->
-      not(t = t')
-      && eq_lists (pat_extension t) (pat_extension t')
-      && Gtree.zsize t' > Gtree.zsize t
-      ) acc_ts
-    *)
-  let interesting_t t acc_ts = 
-    (* not(Gtree.no_leaves t)
-    && *) not(infeasible t)
-    && non_phony t
-    && not(control_true = t)
     && not(is_head_node t)
-    && not(acc_ts 
-	   +> List.exists (function t' -> t = t'
-	       (*
-		 eq_lists (pat_extension t) (pat_extension t')
-		 && Gtree.zsize t' > Gtree.zsize t
-	       *)
-			  )
-	  ) in
+    && not(acc_ts +> List.exists (function t' -> t = t')) 
+  in
     non_dub_subterms_lists
-    +> List.rev_map rm_dub
     +> List.fold_left 
-      (fun acc_ts ts_list ->
-	 match acc_ts with
-	   | None -> ts_list +> some
-	   | Some ts -> 
-	       begin
-		 ts
-		 +> List.fold_left 
-		   (fun acc_ts t_merged -> 
-		      ts_list +> List.fold_left 
-			(fun acc_ts t ->
-			   let t', env = merge_terms t t_merged in
-			   let p = renumber_metas_gtree t' in
-			     if interesting_t p acc_ts
-			     then 
-			       p +++ acc_ts
-			     else acc_ts
-			)
-			acc_ts
-		   ) (List.rev_append ts ts_list)
-		 +> some
-	       end 
+      (fun acc_ts ts_list -> match acc_ts with
+        | None -> ts_list +> some
+        | Some ts -> 
+            begin
+              ts +> List.fold_left 
+                (fun acc_ts t_merged -> 
+		                  ts_list +> List.fold_left 
+                        (fun acc_ts t ->
+                          let t', env = merge_terms t t_merged in
+                          let p = renumber_metas_gtree t' in
+                          if interesting_t p acc_ts
+                          then p +++ acc_ts
+                          else acc_ts
+                        ) acc_ts
+		            ) (List.rev_append ts ts_list)
+              +> some
+            end 
       ) 
       None
     +> get_some
-    +> (function x -> begin
-	  print_string ("[Diff] found " ^ x +> List.length +> string_of_int
-			^ " patterns; fixing occurrences... ");
-	  abs_total := List.length x;
-	  x
-	end)
+    +> (function x -> 
+          begin
+            print_string ("[Diff] found " ^ x +> List.length +> string_of_int ^ " patterns; fixing occurrences... ");
+	          abs_total := List.length x;
+            x
+          end
+       )
     +> List.filter (
-      function p ->
-	ANSITerminal.save_cursor ();
-	ANSITerminal.print_string 
-	  [ANSITerminal.on_default](
-	    !abs_count +> string_of_int ^"/"^
-	      !abs_total +> string_of_int);
-	ANSITerminal.restore_cursor();
-	flush stdout;
-	abs_count := !abs_count + 1;
-
-	let real_occurs = non_dub_subterms_lists
-	  +> List.fold_left
-	  (fun acc_n ts ->
-
-	     if ts +> List.exists (can_match p)
-	     then acc_n + 1
-	     else acc_n
-	  ) 0 in
-	  real_occurs >= !no_occurs
-    )
+        function p ->
+          ANSITerminal.save_cursor ();
+	        ANSITerminal.print_string [ANSITerminal.on_default] 
+            (!abs_count +> string_of_int ^"/"^ !abs_total +> string_of_int);
+	        ANSITerminal.restore_cursor();
+        	flush stdout;
+        	abs_count := !abs_count + 1;
+        	let real_occurs = 
+            non_dub_subterms_lists
+            +> List.fold_left 
+                (fun acc_n ts ->
+                  if ts +> List.exists (can_match p)
+                  then acc_n + 1
+	                else acc_n
+	              ) 0 
+          in
+	          real_occurs >= !no_occurs
+       )
     +> function ps ->
       print_newline ();
       print_endline ("[Diff] computing interesting patterns from " 
 		    ^ ps +> List.length +> string_of_int 
 		    ^ " patterns");
-        List.iter (function p -> print_endline (string_of_gtree' p)) ps;
-      let ps = 
-	ps
-	+> List.filter (function t -> 
-			  not(infeasible t)
-			  && non_phony t
-			  && not(control_true = t)
-			  && not(is_head_node t)
-		       )
-	+> function ps' ->
-	  ps' +>
-	    List.fold_left (fun acc t ->
-			      if interesting_post t ps'
-			      then 
-				t +++ acc
-			      else acc
-			   ) [] in
-	print_endline "... done";
-	if !Jconfig.print_abs
-	then begin
-	  ps
-	  +> List.iter (function p ->
-			  p +> string_of_gtree' +> print_endline
-		       );
-	  ps
-	end
-	else ps
-
-	
+      List.iter (function p -> print_endline (string_of_gtree' p)) ps;
+      let ps = ps
+	      +> List.filter (function t -> not(infeasible t) && non_phony t && not(control_true = t) && not(is_head_node t))
+	      +> function ps' ->
+              ps' +> List.fold_left 
+                (fun acc t -> if interesting_post t ps'
+			                        then 
+				                        t +++ acc
+			                        else acc
+			          ) [] 
+      in
+	      print_endline "... done";
+	      if !Jconfig.print_abs
+	      then 
+          begin
+            ps +> List.iter 
+              (function p -> p +> string_of_gtree' +> print_endline);
+            ps
+          end
+      	else ps	
 
 
 
