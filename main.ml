@@ -2197,124 +2197,125 @@ let get_fun_name_gflow f =
       | _ -> raise (Diff.Fail "get_fun_name?")
   
 
+(* we have a focus_fun iff !focus_function != "" *)
+let haveFocusFun () =
+  String.compare !focus_function "" != 0
+
+let sameName other_fun =
+  String.compare !focus_function other_fun = 0
 
 let common_patterns_graphs gss =
-  let matches_focus_function = ref false
-  in
+  let matches_focus_function = ref false in
   (* detect whether a threshold was given *)
   if !threshold = 0
   then threshold := List.length gss;
-  print_endline ("[Main] threshold is " ^ string_of_int !threshold ^
-		   " of " ^ gss +> List.length +> string_of_int);
+  print_endline ("[Main] threshold is " 
+                 ^ string_of_int !threshold ^ " of " 
+                 ^ gss +> List.length +> string_of_int);
   Diff.no_occurs := !threshold;
   print_endline "[Main] finding lists of subterms";
-  let subterms_lists = gss
-    +> List.rev_map (function 
-		       | [f] -> 
-			   concrete_of_graph f
-			   +> List.filter (function n -> 
-					     not(Diff.is_head_node n)
-					     && Diff.non_phony n
-					  )
-		       | _ -> raise (Impossible 1)
-		    )
+  let subterms_lists =
+      gss
+      +> List.rev_map (function 
+            | [f] -> concrete_of_graph f +> List.filter 
+                        (function n -> not(Diff.is_head_node n) && Diff.non_phony n)
+            | _ -> raise (Impossible 1))
   in
     print_endline "[Main] finding list of unique subterms";
     let unique_subterms = subterms_lists 
       +> tail_flatten 
       +> Diff.rm_dub in
     let (|-) g sp = 
-	(* pre-test whether the nodes of the pattern are at all
-	   in the graph *)
+      (* pre-test whether the nodes of the pattern are at all in the graph *)
       let nodes2 = nodes_of_graph2 g in
-	sp +> List.for_all 
-	  (function p_gt ->
-	     p_gt = ddd 
-	      || nodes2 +> List.exists 
-	      (function i -> 
-		 Diff.can_match 
-		   (extract_pat p_gt)
-		   (g#nodes#find i)
-	      )
-	  ) &&
-	  ( print_endline "pretest DONE"; 
-	    List.exists (function i ->
+    	sp +> List.for_all 
+	            (function p_gt ->
+	                p_gt = ddd || nodes2 +> List.exists (function i -> 
+		                                        Diff.can_match (extract_pat p_gt) (g#nodes#find i))
+	            ) &&
+	    (List.exists (function i ->
 			   if cont_match g sp i
 			   then 
+           (* the pattern matched the graph, also check if was the focus_fun *)
 			     let g_name = get_fun_name_gflow g
-			     in
-			       begin
-				 print_endline ("Pattern tested:\n" ^ string_of_pattern sp);
-				 print_endline ("OK fun: " ^ g_name);
-				 if((not (!focus_function = "")) 
-				    && !focus_function = g_name)
-				 then matches_focus_function := true
-				 else begin
-				   if(!focus_function != "")
-				   then print_endline ("ff = " ^ !focus_function 
-						       ^ " but g_name " ^ g_name)
-				 end;
-			     (*print_endline "SAT";*) true
-			   end
-			   else ((* print_endline "NONSAT"; *) false)) nodes2) in
+			     in begin
+             if(haveFocusFun () && sameName g_name)
+             then matches_focus_function := true;
+             true
+           end
+			   else ((* print_endline "NONSAT"; *) false)) 
+      nodes2) in
+    (* define the function ||- to check whether a pattern matches a set of sets of
+     * functions
+     *)
     let (||-) gss sp = 
       matches_focus_function := false;
-      gss 
-      +> for_some !threshold 
-      (function fs -> 
-	 fs +> List.exists 
-	   (function f -> 
-	      v_print_string "|- ";
-	      "no. nodes: " +> print_endline;
-	      f +> nodes_of_graph2 +> List.length +> string_of_int +> print_endline;
-	      let r = f |- sp in
-		print_endline ("done |- " ^ 
-				   if r then " OK" else " FAIL"
-				);
-		r
-	   )
-      ) && (!focus_function = "" || !matches_focus_function)in
+      (* check whether the pattern matches at least threshold graphs *)
+      gss +> for_some !threshold 
+             (function fs -> fs +> List.exists 
+	                (function f -> v_print_string "|- ";
+	                               "no. nodes: " +> print_endline;
+	                               f +> nodes_of_graph2 +> List.length +> string_of_int +> print_endline;
+	                               let r = f |- sp in
+		                             print_endline ("done |- " ^ if r then " OK" else " FAIL");
+		                             r)) 
+      (* also: if ff != "" then we must have matched the ff *)
+      && ((not (haveFocusFun ())) || !matches_focus_function) in
     let rec check_no_duplicates ls = match ls with
       | [] -> ((* print_endline "no dups"; *) true)
       | x :: xs when x == ddd -> check_no_duplicates xs
       | x :: xs -> not(List.mem x xs) && check_no_duplicates xs in
+    (* function that defines when a pattern is frequent wrt. a set of graphs *)
     let is_frequent_sp_some gss sp = 
+      (* the pattern must not contain duplicate single-line patterns *)
       check_no_duplicates sp 
-      && (if !Jconfig.verbose 
-	  then (
-	    print_endline "no duplicates";
-	    sp +> List.iter (function t ->
-			       t +> Diff.string_of_gtree' +> print_string;
-			       print_string " ";
-			    );
-	    print_newline());
-	  gss ||- sp) 
-    in
+      (* the pattern must match threshold graphs at least *)
+      && gss ||- sp in
     let is_subpattern gss sp1 sp2 = subpattern_some gss sp1 sp2 in
       print_endline "[Main] finding list of common patterns";
+      let node_patterns_pool_initial = Diff.merge_abstract_terms subterms_lists unique_subterms in
       let node_patterns_pool = 
-	(*
-	  Diff.abstract_all_terms subterms_lists unique_subterms []
-	*)
-	Diff.merge_abstract_terms subterms_lists unique_subterms
+        (* filter out the node-patterns do not match in the focus function (if
+         * one is selected) *)
+        if haveFocusFun ()
+        then begin
+          print_endline ("[Main] refining node_patterns_pool <" 
+                          ^ string_of_int (String.length !focus_function) ^ ">");
+          let subterms_focus_fun =
+              try 
+                let [focus_fun] = 
+                  List.find (function 
+                    | [g] -> get_fun_name_gflow g = !focus_function
+                    | _ -> raise (Impossible 120)
+                  ) gss
+                in
+                  concrete_of_graph focus_fun 
+                  +> List.filter (function n -> not(Diff.is_head_node n) && Diff.non_phony n)
+              with 
+                | Not_found -> []
+                | Match_failure _ -> raise (Impossible 119)
+          in
+          (* get subterms from focus_function *)
+            List.filter 
+              (function npat -> List.exists 
+                (function term -> Diff.can_match npat term)
+                subterms_focus_fun
+              )
+              node_patterns_pool_initial
+        end
+        else node_patterns_pool_initial 
       in
 	print_string "[Main] finding semantic patterns ";
 	find_seq_patterns_newest (* simulates _ wildcards with all fresh metavariables *)
 	  (* singleton_patterns: all node patterns with 'fresh' metas' *) 
-	  (node_patterns_pool
-	   +> List.fold_left (
-             fun acc p ->
-	       if
-		 not(infeasible p) 
-		 && Diff.non_phony p
-		 && not(Diff.control_true = p)
-		 && not(Diff.is_head_node p)
-	       then
-		 mkC("CM",[p]) :: acc
-	       else 
-		 acc
-	   ) []
-	   +> renumber_fresh_metas_pattern)
+	  (node_patterns_pool 
+      +> List.fold_left 
+        (fun acc p ->
+	       if not(infeasible p) && Diff.non_phony p && not(Diff.control_true = p) && not(Diff.is_head_node p)
+	       then mkC("CM",[p]) :: acc
+	       else acc
+	      ) []
+	    +> renumber_fresh_metas_pattern)
 	  (* valid: check that sempat is frequent *)
 	  (is_frequent_sp_some gss)
 	+> infer_meta_variables (tail_flatten gss)

@@ -3968,8 +3968,7 @@ let merge_abstract_terms subterms_lists unique_subterms =
     +> function ps ->
       print_newline ();
       print_endline ("[Diff] computing interesting patterns from " 
-		    ^ ps +> List.length +> string_of_int 
-		    ^ " patterns");
+		                  ^ ps +> List.length +> string_of_int ^ " patterns");
       List.iter (function p -> print_endline (string_of_gtree' p)) ps;
       let ps = ps
 	      +> List.filter (function t -> not(infeasible t) && non_phony t && not(control_true = t) && not(is_head_node t))
