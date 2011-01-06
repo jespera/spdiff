@@ -3133,57 +3133,60 @@ let insert_chunk flow pending_term chunk =
 
 
 let perform_pending pending_term = 
+  print_endline ("perform pending: " ^ Diff.string_of_gtree' pending_term);
   let get_env orig_cp emb =
     let ctx = 
-      match List.find (function p -> match view p with 
-			 | C("=",[ctx])  
-			 | C("-",[ctx]) -> true
-			 | _ -> false) emb +> view with
-	| C("=",[p]) | C("-",[p])-> p
-	| _ -> raise (Impossible 16)
+      match List.find 
+        (function p -> 
+          match view p with 
+			    | C("=",[ctx])  
+			    | C("-",[ctx]) -> true
+			    | _ -> false) emb +> view 
+      with
+	    | C("=",[p]) | C("-",[p])-> p
+	    | _ -> raise (Impossible 16)
     in
       try 
-	begin 
-	  Diff.match_term (extract_pat ctx) orig_cp 
-	end
+	      begin 
+	        Diff.match_term (extract_pat ctx) orig_cp 
+	      end
       with Diff.Nomatch -> 
-	begin
-	  print_endline "[Main] Nomatch between:";
-	  Diff.string_of_gtree' orig_cp +> print_endline;
-	  Diff.string_of_gtree' ctx +> print_endline;
-	  print_endline "[Main] emb...";
-	  emb +> List.iter 
-	    (function gt -> gt +> Diff.string_of_gtree' +> print_endline);
-	  raise Diff.Nomatch
-	end
+	      begin
+	        print_endline "[Main] Nomatch between:";
+	        Diff.string_of_gtree' orig_cp +> print_endline;
+	        Diff.string_of_gtree' ctx +> print_endline;
+	        print_endline "[Main] emb...";
+	        emb +> List.iter 
+	          (function gt -> gt +> Diff.string_of_gtree' +> print_endline);
+	        raise Diff.Nomatch
+	      end
   in
-  let unfold_embedded orig embs = 
-    let env = get_env orig embs in
-      List.fold_right 
-	(fun emiop res_ts -> 
-	   match view emiop with
-	     | C("=", [p]) -> (orig :: res_ts) (* should be able to assert(Diff.rev_sub env p = orig *)
-	     | C("-", [p]) -> (res_ts) (* should be able to assert(Diff.rev_sub env p = orig *)
-	     | C("+", [p]) -> (
-		 let interm = Diff.sub env p in
-		   interm :: res_ts)
-	     | _ -> raise (Impossible 17)
-
-	) embs []
-  in
-  let rec loop t = match view t with
-    | C("pending", orig_cp :: embedded) -> 
-	unfold_embedded orig_cp embedded
-    | C(ty, ts) -> 
-	let ts' = ts 
-	  +> List.rev_map loop 
-	  +> List.rev
-	  +> List.flatten
-	in [mkC(ty, ts')]
-    | _ -> [t] in
-    match loop pending_term with
-      | [t'] -> t'
-      | _ -> raise (Diff.Fail "perform pending error")
+    let unfold_embedded orig embs = 
+      let env = get_env orig embs 
+      in
+        List.fold_right (fun emiop res_ts -> 
+          match view emiop with
+          | C("=", [p]) -> (orig :: res_ts) (* should be able to assert(Diff.rev_sub env p = orig *)
+          | C("-", [p]) -> (res_ts) (* should be able to assert(Diff.rev_sub env p = orig *)
+          | C("+", [p]) -> (let interm = Diff.sub env p 
+                            in interm :: res_ts)
+          | _ -> raise (Impossible 17)
+        ) embs []
+    in
+      let rec loop t = 
+        match view t with
+        | C("pending", orig_cp :: embedded) -> unfold_embedded orig_cp embedded
+        | C(ty, ts) -> 
+            let ts' = ts +> List.rev_map loop 
+	                       +> List.rev
+	                       +> List.flatten
+	          in 
+              [mkC(ty, ts')]
+        | _ -> [t] 
+      in
+        match loop pending_term with
+        | [t'] -> t'
+        | _ -> raise (Diff.Fail "perform pending error")
 	  
 
 (* this function applies a semantic patch to a term given a flow representing the term; the idea is to do the following
@@ -3205,32 +3208,34 @@ let perform_pending pending_term =
    transformations mentioned in the inserted chunks
 *)
 	  
-let apply_spatch spatch (term,flow) = 
-  let pattern = List.fold_right (fun iop acc_pattern -> match iop with
-				   | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
-				   | Difftype.ADD _ -> acc_pattern
-				   | _ -> raise (Impossible 16)
-				) spatch [] in
-  let traces = get_pattern_traces flow pattern in
-  let stripped_spatch = spatch +> List.filter 
-    (function iop -> match iop with
-       | Difftype.ID p when p ==  ddd -> false
-       | _ -> true) in
-  let init_annotated = 
-    stripped_spatch +> List.map (function iop -> match iop with
-				   | Difftype.ID p -> Difftype.ID (p, empty_annotation)
-				   | Difftype.RM p -> Difftype.RM (p, empty_annotation)
-				   | Difftype.ADD p -> Difftype.ADD (p, empty_annotation)
-				   | _ -> raise (Impossible 17)) in
-    
-  let annotated_spatches = List.map (annotate_spatch init_annotated) traces in
-  let chunkified_spatches = annotated_spatches +> List.rev_map Diff.chunks_of_diff in
-  let pending_term = List.fold_left 
-    (fun acc_pending_term chunk_set -> 
-       chunk_set +> List.fold_left (insert_chunk flow) acc_pending_term
-    ) term chunkified_spatches in
-    perform_pending pending_term
-
+(*
+ *let apply_spatch spatch (term,flow) = 
+ *  let pattern = List.fold_right (fun iop acc_pattern -> match iop with
+ *           | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
+ *           | Difftype.ADD _ -> acc_pattern
+ *           | _ -> raise (Impossible 16)
+ *        ) spatch [] in
+ *  let traces = get_pattern_traces flow pattern in
+ *  let stripped_spatch = spatch +> List.filter 
+ *    (function iop -> match iop with
+ *       | Difftype.ID p when p ==  ddd -> false
+ *       | _ -> true) in
+ *  let init_annotated = 
+ *    stripped_spatch +> List.map (function iop -> match iop with
+ *           | Difftype.ID p -> Difftype.ID (p, empty_annotation)
+ *           | Difftype.RM p -> Difftype.RM (p, empty_annotation)
+ *           | Difftype.ADD p -> Difftype.ADD (p, empty_annotation)
+ *           | _ -> raise (Impossible 17)) in
+ *    
+ *  let annotated_spatches = List.map (annotate_spatch init_annotated) traces in
+ *  let chunkified_spatches = annotated_spatches +> List.rev_map Diff.chunks_of_diff in
+ *  let pending_term = List.fold_left 
+ *    (fun acc_pending_term chunk_set -> 
+ *       chunk_set +> List.fold_left (insert_chunk flow) acc_pending_term
+ *    ) term chunkified_spatches in
+ *    perform_pending pending_term
+ *
+ *)
 let apply_spatch_fixed spatch (term, flow) =
   let get_pattern_env_traces g sp =
     g#nodes#tolist 
