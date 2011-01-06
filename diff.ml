@@ -3726,7 +3726,7 @@ let rec merge_patterns p1 p2 =
       | _, _ -> None
 
 
-(* based on the assumption that in a diff, we always block
+(* based on the assumption that in a diff, we always group
  * removals/additions the following function splits a diff into chunks
  * each being of the form:
  * 
@@ -3735,8 +3735,8 @@ let rec merge_patterns p1 p2 =
  * that is: each chunk contains a context node (the -p,p) and some
  * additions.
  * 
- * One should take note that given a diff, there can be more than one
- * way to split it according to the chunk-def given. 
+ * BFW: One should take note that given a diff, there can be more than one way
+ * to split a 'diff' according to the chunk-def given. 
  *)
 
 let chunks_of_diff diff =
@@ -3744,12 +3744,16 @@ let chunks_of_diff diff =
     | [] -> List.rev ((List.rev chunk) :: acc_chunks)
     | i :: diff' -> (match i with
 		       | ADD t -> loop acc_chunks (i :: chunk) diff'
+           | ID (t,_) when t == skip -> 
+               loop ((List.rev chunk) :: acc_chunks) [] diff'
 		       | ID t | RM t -> _loop acc_chunks (i :: chunk) diff'
 		    ) 
   and _loop acc_chunks chunk diff = match diff with
     | [] -> loop acc_chunks chunk []
     | i :: diff' -> (match i with
 		       | ADD _ -> _loop acc_chunks (i :: chunk) diff'
+           | ID (t,_) when t == skip -> 
+               loop ((List.rev chunk) :: acc_chunks) [] diff'
 		       | _ -> loop ((List.rev chunk) :: acc_chunks) [] diff
 		    ) in
     loop [] [] diff

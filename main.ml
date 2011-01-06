@@ -2614,16 +2614,15 @@ let get_fun_in_term sname term =
     | None -> raise (Diff.Fail ("function " ^ sname  ^ " not found"))
     | Some f -> f
 
-(* this function takes a CFG for a function def and a node within that
-   flow and returns the path from the root to the node (both nodes
-   included); a path is a list of node-indices excluding "phony" nodes
-*)
-
 let is_exit_node t = match view t with
   | C("head:dowhiletail", _)
   | A("head:seqend",_) -> true
   | _ -> false
 
+(* this 'get_path' function takes a CFG for a function def and a nodei within
+ * that flow and all paths from the root to the node (both nodes
+ * included); a path is a list of node-indices excluding "phony" nodes
+*)
 let get_path g n = 
   let path = ref [] in
   let f xi path' = 
@@ -3100,40 +3099,31 @@ let pending_of_chunk chunk subterm =
 *)
 
 let insert_chunk flow pending_term chunk = 
-  (*
-    print_endline "[Main] insert_chunk:";
-    print_endline (chunk
-    +> List.map (function iop -> match iop with
-    | Difftype.ID  (p, _) -> Difftype.ID p
-    | Difftype.RM  (p, _) -> Difftype.RM p
-    | Difftype.ADD (p, _) -> Difftype.ADD p)  
-    +> List.map Diff.string_of_diff
-    +> String.concat "\n");
-    print_endline "[End]";
-    print_endline "[Main] into term: ";
-    pending_term +> Diff.string_of_gtree' +> print_endline;
-  *) 
-  let ctx_point_nodes = match get_context_point chunk with
+  (* all the nodes where the 'context' of the chunk matched in the CFG *)
+  let ctx_point_nodes = 
+    match get_context_point chunk with
     | Difftype.ID(p,is) | Difftype.RM(p,is) -> is
-    | _ -> raise (Diff.Fail "insert_chunk get_context_point") in
-    (* the 'f' function is responsible to checkin chunk compatibility *)
-  let f t = 
-    match view t with
+    | _ -> raise (Diff.Fail "insert_chunk get_context_point") 
+  in
+    (* the 'f' function is responsible for checking chunk compatibility *)
+    let f t = 
+      match view t with
       | C("pending", _) -> t
-      | _ -> pending_of_chunk chunk t in
-  let paths = List.rev_map (get_path flow) ctx_point_nodes in
-    paths +>
-      List.fold_left (fun acc_t path -> 
-			try 
-			  locate_subterm flow pending_term path f 
-			with LocateSubterm -> 
-			  begin
-			    acc_t
-			  end) pending_term
+      | _ -> pending_of_chunk chunk t 
+    in
+      let paths = List.rev_map (get_path flow) ctx_point_nodes 
+      in
+        paths +> List.fold_left 
+          (fun acc_t path -> 
+			      try locate_subterm flow pending_term path f 
+			      with LocateSubterm -> 
+			        begin
+			          acc_t
+			      end) pending_term
 
 
 let perform_pending pending_term = 
-  print_endline ("perform pending: " ^ Diff.string_of_gtree' pending_term);
+  (*print_endline ("perform pending: " ^ Diff.string_of_gtree' pending_term);*)
   let get_env orig_cp emb =
     let ctx = 
       match List.find 
@@ -3247,7 +3237,6 @@ let apply_spatch_fixed spatch (term, flow) =
 		   ) [] in
     (* use env to replace metavars with the corresponding subterms *)
   let instantiate spatch env = 
-    (* annotate elements with the nodei matched *)
     let f spatch = match spatch with
       | Difftype.ID  (t, ann) -> Difftype.ID  (Diff.sub env t, ann)
       | Difftype.RM  (t, ann) -> Difftype.RM  (Diff.sub env t, ann)
@@ -3256,6 +3245,7 @@ let apply_spatch_fixed spatch (term, flow) =
     in
       List.map f spatch 
   in
+    (* annotate elements of spatch with the nodei matched *)
     let annotate_spatch_seq sp node_seq = 
       let map2 skipf f ls1 ls2 = 
         let rec loop ls1 ls2 = 
@@ -3270,6 +3260,7 @@ let apply_spatch_fixed spatch (term, flow) =
         let skip_add p = 
           match p with 
           | Difftype.ADD _ -> true 
+          | Difftype.ID (t,_) -> t == ddd
           | _ -> false 
         in
           map2 skip_add add_annotation_iop sp node_seq 
@@ -3282,13 +3273,15 @@ let apply_spatch_fixed spatch (term, flow) =
           | _ -> raise (Impossible 1042)
         ) spatch [] 
       in
+        (* strip '...' from the spatch TODO: why?*)
         let stripped_spatch = spatch +> List.filter 
            (function iop -> 
              match iop with
              | Difftype.ID p when p ==  ddd -> false
              | _ -> true) 
         in
-          let init_annotated = stripped_spatch +> List.map 
+          (* put empty operation annotations on all elements of spatch *)
+          let init_annotated = spatch +> List.map 
             (function iop -> 
               match iop with
               | Difftype.ID p -> Difftype.ID (p, empty_annotation)
@@ -3296,15 +3289,35 @@ let apply_spatch_fixed spatch (term, flow) =
               | Difftype.ADD p -> Difftype.ADD (p, empty_annotation)
               | _ -> raise (Impossible 17)) 
           in
+            (* an env_trace is list of entries each containin a path (list of
+             * nodes) in the CFG plus bindings for metavariables used on the
+             * path to make the pattern match.
+             *)
             let env_traces = get_pattern_env_traces flow pattern 
             in
               perform_pending (List.fold_left 
                 (fun acc_pending_term seq_env_list ->
                   List.fold_left (fun acc_pending_term (seq, env) ->
-                    let sp' = instantiate init_annotated env in  (* TODO *)
-                    let spa = annotate_spatch_seq sp' seq in      (* TODO *)
+                    let sp' = instantiate init_annotated env in 
+                    let spa = annotate_spatch_seq sp' seq in      
                     let chunks = Diff.chunks_of_diff spa in
+                    begin
+                      (*
+                       *print_endline "chunks to apply:";
+                       *chunks +>
+                       *List.iter (fun chunk -> 
+                       *  print_endline "[begin]";
+                       *  print_endline (chunk
+                       *  +> List.map (function 
+                       *    | Difftype.ID (p,_)
+                       *    | Difftype.RM (p,_)
+                       *    | Difftype.ADD(p,_) -> Diff.string_of_gtree' p)
+                       *  +> String.concat "\n");
+                       *  print_endline "[end]";
+                       * );
+                       *)
                     List.fold_left (insert_chunk flow) acc_pending_term chunks
+                    end
                   )
                   acc_pending_term
                   seq_env_list
@@ -3379,19 +3392,19 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
 				 rhs_def_term)
     ) in
     (* check safety of result *)
-    print_string "safety check for: ";
-    spatch +> List.map Diff.string_of_diff +> String.concat " " +> print_endline;
+    (*print_string "safety check for: ";*)
+    (*spatch +> List.map Diff.string_of_diff +> String.concat " " +> print_endline;*)
     if matched_flows = []
     then None (* no match means, the patch is safe also: EXPERIMENTAL *)
     else Some ( 
       List.exists (function (left,middle,right) -> 
-		     print_endline ("t1\t" ^ Diff.string_of_gtree' left);
-		     print_endline ("t2\t" ^ Diff.string_of_gtree' middle);
-		     print_endline ("t3\t" ^ Diff.string_of_gtree' right);
+				 (*print_endline ("t1\t" ^ Diff.string_of_gtree' left);*)
+				 (*print_endline ("t2\t" ^ Diff.string_of_gtree' middle);*)
+				 (*print_endline ("t3\t" ^ Diff.string_of_gtree' right);*)
 		     if Diff.part_of_edit_dist left middle right
 		       (* if Diff.msa_cost left middle right *)
-		     then (print_endline "ok"; true)
-		     else (print_endline "unsafe"; false)
+		     then ((*print_endline "ok";*) true)
+		     else ((*print_endline "unsafe";*) false)
 		  ) patched_lhss
     )
 
