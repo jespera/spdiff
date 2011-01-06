@@ -3940,8 +3940,10 @@ let find_common_patterns () =
 		  +> List.iter (function diff ->
 				  print_endline "[spatch:]";
 				  print_endline (diff
-						 +> List.map Diff.string_of_spdiff
-						 +> String.concat "\n");
+						 +> (* List.map Diff.string_of_spdiff*)
+             Diff.string_of_spdiff_full
+						 (*+> String.concat "\n"*)
+          );
 				  if !show_support
 				  then begin
 				    let sup = ttf_list +> List.filter 

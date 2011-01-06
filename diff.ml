@@ -118,6 +118,8 @@ let v_print_newline () = v_print_endline ""
 (* non-duplicating cons *)
 let (+++) x xs = if List.mem x xs then xs else x :: xs
 
+
+
 (* convenience for application *)
 let (+>) o f = f o
 
@@ -431,16 +433,37 @@ let rec string_of_spdiff d =
   let make_string_header gt = collect_metas gt in
     match d with
       | SEQ(p1,p2) -> "SEQ:  " ^ string_of_spdiff p1 ^ " ; " ^ string_of_spdiff p2
-      | ID s when s == skip -> "\t..."
-      | ID s -> "\t" ^ extract_pat s +> string_of_gtree'
+      | ID s when s == skip -> "  ..."
+      | ID s -> "  " ^ extract_pat s +> string_of_gtree'
       | UP(s,s') -> 
 	  "@@\n" ^ String.concat "\n" (make_string_header s) ^
 	    "\n@@\n" ^
 	    "- " ^ (string_of_gtree' s) ^ 
 	    "\n" ^
 	    "+ " ^ (string_of_gtree' s')
-      | ADD s -> "+\t" ^ s +> string_of_gtree'
-      | RM s -> "-\t" ^ extract_pat s +> string_of_gtree'
+      | ADD s -> "+ " ^ s +> string_of_gtree'
+      | RM s -> "- " ^ extract_pat s +> string_of_gtree'
+
+let string_of_spdiff_header sp =
+  let meta_vars = List.fold_left 
+    (fun acc_meta d -> 
+      match d with 
+      | ID s 
+      | RM s
+      | ADD s -> List.fold_left 
+          (fun acc_ms meta -> meta +++ acc_ms) 
+          acc_meta
+          (collect_metas s)
+      | _ -> acc_meta
+    ) [] sp
+  in
+    "@@\n" ^ String.concat "\n" meta_vars ^ "\n" ^
+    "@@"
+
+let string_of_spdiff_full sp =
+  string_of_spdiff_header sp ^ "\n" ^
+  String.concat "\n" (List.map string_of_spdiff sp)
+
 
 (* a solution is a list of updates, diff list and the idea is that it will
  * transform an original gt into the updated gt' *)
