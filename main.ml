@@ -3658,7 +3658,8 @@ let get_chunks patterns =
 			      (* does the context-point match anything in at least some pattern *)
 			      not(Diff.get_change_matches patterns context_point = [])
 			  | _ -> raise (Impossible 6)
-		       ) in
+		       )
+  +> rm_dups in
 	print_endline "[Main] good chunks";
 	good_chunks  
 	+> List.iter (function diff -> 
