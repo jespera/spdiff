@@ -3236,10 +3236,10 @@ let apply_spatch_fixed spatch (term, flow) =
     g#nodes#tolist 
     +> List.filter (function (i,gt) -> Diff.non_phony gt && not(Diff.is_control_node gt))
     +> List.fold_left (fun acc_trs (i,gt) -> 
-			 match Diff.get_env_traces g sp i with
-			   | None -> acc_trs
-			   | Some trs -> trs :: acc_trs
-		      ) [] in
+			  match Diff.get_env_traces g sp i with
+			     | None -> acc_trs
+			    | Some trs -> trs :: acc_trs
+		   ) [] in
     (* use env to replace metavars with the corresponding subterms *)
   let instantiate spatch env = 
     (* annotate elements with the nodei matched *)
@@ -3249,53 +3249,64 @@ let apply_spatch_fixed spatch (term, flow) =
       | Difftype.ADD (t, ann) -> Difftype.ADD (Diff.sub env t, ann)
       | _ -> raise (Impossible 1990)
     in
-      List.map f spatch in
-  let annotate_spatch_seq sp node_seq = 
-    let map2 skipf f ls1 ls2 = 
-      let rec loop ls1 ls2 = match ls1, ls2 with
-	| [], [] -> []
-	| e1 :: ls1', _ when skipf e1 -> e1 :: loop ls1' ls2
-	| e1 :: ls1, e2 :: ls2 -> f e1 e2 :: loop ls1 ls2 
-	| _, _ -> raise (Invalid_argument "annotate_spatch_seq")
+      List.map f spatch 
+  in
+    let annotate_spatch_seq sp node_seq = 
+      let map2 skipf f ls1 ls2 = 
+        let rec loop ls1 ls2 = 
+          match ls1, ls2 with
+          | [], [] -> []
+          | e1 :: ls1', _ when skipf e1 -> e1 :: loop ls1' ls2
+          | e1 :: ls1, e2 :: ls2 -> f e1 e2 :: loop ls1 ls2 
+          | _, _ -> raise (Invalid_argument "annotate_spatch_seq")
+        in
+          loop ls1 ls2 
       in
-	loop ls1 ls2 in
-    let skip_add p = match p with
-	Difftype.ADD _ -> true | _ -> false in
-      map2 skip_add add_annotation_iop sp node_seq in
-  let pattern = List.fold_right (fun iop acc_pattern -> match iop with
-				   | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
-				   | Difftype.ADD _ -> acc_pattern
-				   | _ -> raise (Impossible 1042)
-				) spatch [] in
-  let stripped_spatch = spatch +> List.filter 
-    (function iop -> match iop with
-       | Difftype.ID p when p ==  ddd -> false
-       | _ -> true) in
-  let init_annotated = 
-    stripped_spatch +> List.map 
-      (function iop -> match iop with
-	 | Difftype.ID p -> Difftype.ID (p, empty_annotation)
-	 | Difftype.RM p -> Difftype.RM (p, empty_annotation)
-	 | Difftype.ADD p -> Difftype.ADD (p, empty_annotation)
-	 | _ -> raise (Impossible 17)) in
-
-  let env_traces = get_pattern_env_traces flow pattern in
-    perform_pending 
-      (List.fold_left 
-	 (fun acc_pending_term seq_env_list ->
-	    List.fold_left 
-	      (fun acc_pending_term (seq, env) ->
-		 let sp' = instantiate init_annotated env in  (* TODO *)
-		 let spa = annotate_spatch_seq sp' seq in      (* TODO *)
-		 let chunks = Diff.chunks_of_diff spa in
-		   List.fold_left (insert_chunk flow) acc_pending_term chunks
-	      )
-	      acc_pending_term
-	      seq_env_list
-	 )
-	 term
-	 env_traces
-      )
+        let skip_add p = 
+          match p with 
+          | Difftype.ADD _ -> true 
+          | _ -> false 
+        in
+          map2 skip_add add_annotation_iop sp node_seq 
+    in
+      let pattern = List.fold_right 
+        (fun iop acc_pattern -> 
+          match iop with
+          | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
+          | Difftype.ADD _ -> acc_pattern
+          | _ -> raise (Impossible 1042)
+        ) spatch [] 
+      in
+        let stripped_spatch = spatch +> List.filter 
+           (function iop -> 
+             match iop with
+             | Difftype.ID p when p ==  ddd -> false
+             | _ -> true) 
+        in
+          let init_annotated = stripped_spatch +> List.map 
+            (function iop -> 
+              match iop with
+              | Difftype.ID p -> Difftype.ID (p, empty_annotation)
+              | Difftype.RM p -> Difftype.RM (p, empty_annotation)
+              | Difftype.ADD p -> Difftype.ADD (p, empty_annotation)
+              | _ -> raise (Impossible 17)) 
+          in
+            let env_traces = get_pattern_env_traces flow pattern 
+            in
+              perform_pending (List.fold_left 
+                (fun acc_pending_term seq_env_list ->
+                  List.fold_left (fun acc_pending_term (seq, env) ->
+                    let sp' = instantiate init_annotated env in  (* TODO *)
+                    let spa = annotate_spatch_seq sp' seq in      (* TODO *)
+                    let chunks = Diff.chunks_of_diff spa in
+                    List.fold_left (insert_chunk flow) acc_pending_term chunks
+                  )
+                  acc_pending_term
+                  seq_env_list
+                )
+                term
+                env_traces
+              )
       
 (*
 
@@ -3356,25 +3367,26 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
        only one lhs' because we assume that spatch-application is
        deterministic; cf. no overlapping semantic patterns in each
        function flow *)
-  let patched_lhss = funs +> List.map (function (fname, flow, lhs_def_term, rhs_def_term) ->
-					 (lhs_def_term, 
-					  apply_spatch_fixed spatch (lhs_def_term, flow), 
-					  rhs_def_term)
-				      ) in
+  let patched_lhss = funs +> List.map 
+    (fun (fname, flow, lhs_def_term, rhs_def_term) ->
+				(lhs_def_term, 
+				 apply_spatch_fixed spatch (lhs_def_term, flow), 
+				 rhs_def_term)
+    ) in
     (* check safety of result *)
-    v_print_string "safety check: ";
-    spatch +> List.map Diff.string_of_diff +> String.concat " " +> v_print_endline;
+    print_string "safety check for: ";
+    spatch +> List.map Diff.string_of_diff +> String.concat " " +> print_endline;
     if matched_flows = []
     then None (* no match means, the patch is safe also: EXPERIMENTAL *)
     else Some ( 
       List.exists (function (left,middle,right) -> 
-		     v_print_endline ("t1\t" ^ Diff.string_of_gtree' left);
-		     v_print_endline ("t2\t" ^ Diff.string_of_gtree' middle);
-		     v_print_endline ("t3\t" ^ Diff.string_of_gtree' right);
+		     print_endline ("t1\t" ^ Diff.string_of_gtree' left);
+		     print_endline ("t2\t" ^ Diff.string_of_gtree' middle);
+		     print_endline ("t3\t" ^ Diff.string_of_gtree' right);
 		     if Diff.part_of_edit_dist left middle right
 		       (* if Diff.msa_cost left middle right *)
-		     then (v_print_endline "ok"; true)
-		     else (v_print_endline "unsafe"; false)
+		     then (print_endline "ok"; true)
+		     else (print_endline "unsafe"; false)
 		  ) patched_lhss
     )
 
