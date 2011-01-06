@@ -2198,11 +2198,18 @@ let get_fun_name_gflow f =
   
 
 (* we have a focus_fun iff !focus_function != "" *)
-let haveFocusFun () =
-  String.compare !focus_function "" != 0
+let haveFocusFun () = String.compare !focus_function "" != 0
 
 let sameName other_fun =
-  String.compare !focus_function other_fun = 0
+  if String.compare !focus_function other_fun = 0
+  then begin
+    print_endline ("ff: " ^ !focus_function ^ " == " ^ other_fun);
+    true
+  end
+  else begin
+    print_endline ("ff: " ^ !focus_function ^ " != " ^ other_fun);
+    false
+  end    
 
 let common_patterns_graphs gss =
   let matches_focus_function = ref false in
@@ -2279,8 +2286,7 @@ let common_patterns_graphs gss =
          * one is selected) *)
         if haveFocusFun ()
         then begin
-          print_endline ("[Main] refining node_patterns_pool <" 
-                          ^ string_of_int (String.length !focus_function) ^ ">");
+          print_endline ("[Main] refining node_patterns_pool");
           let subterms_focus_fun =
               try 
                 let [focus_fun] = 
@@ -3373,30 +3379,30 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
     )
 
 (* decide whether sp1 <= ttf_list *)
-let is_spatch_safe_ttf_list sp ttf_list =
-  v_print_endline "[Main] considering safety of:";
-  let count = ref 0 in
+  let is_spatch_safe_ttf_list sp ttf_list =
+    v_print_endline "[Main] considering safety of:";
+    let count = ref 0 in
     begin
       sp +>
-	List.iter (function p -> 
-  		     Diff.string_of_diff p +> v_print_endline
-  		  );
-      (*
-	let count = ref 0 in
-	let max_ttf = List.length ttf_list in
-      *)
-    List.iter
-      (* using for_all is related to the above EXPERIMENTAL change *)
-      (function ttf -> 
-	 match is_spatch_safe_one ttf sp with
-	   | None -> ()
-	   | Some t -> begin
-	       if t
-	       then count := !count + 1
-	       else ()
-	     end
-      ) ttf_list ;
-    (!count >= !threshold)
+      List.iter (function p -> 
+        Diff.string_of_diff p +> v_print_endline);
+        (*
+  let count = ref 0 in
+  let max_ttf = List.length ttf_list in
+  *)
+      List.iter
+        (* using for_all is related to the above EXPERIMENTAL change *)
+        (function ttf -> 
+          match is_spatch_safe_one ttf sp with
+          | None -> ()
+          | Some t -> 
+              begin
+                if t
+                then count := !count + 1
+                else ()
+              end
+        ) ttf_list ;
+        (!count >= !threshold)
     end
 
 let apply_spatch_ttf spatch (lhs_term, rhs_term, flows) =
@@ -3777,21 +3783,48 @@ let find_common_patterns () =
 	  let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flow),(rhs_gt,_)) -> 
 						       (lhs_gt, rhs_gt, [lhs_flow])
 						    ) in
+    let ttf_focus_fun = 
+      if haveFocusFun ()
+      then 
+        try 
+          Some (List.find 
+            (function lhs_gt, rhs_gt, [lhs_flow] -> 
+              Reader.get_fname_ast lhs_gt +> sameName) ttf_list)
+        with Not_found -> None
+      else None
+    in
 	  let is_transformation_sp sp = 
 	    sp +> List.exists (function p ->
 				 match p with
 				   | Difftype.ID _ -> false
 				   | _ -> true) in
-	  let is_safe_part sp =
-	    let spa = List.map 
-	      (function p -> 
-		 match p with
-		   | Difftype.PENDING_RM p' -> Difftype.RM p'
-		   | Difftype.PENDING_ID p' -> Difftype.ID p'
-		   | _ -> p
-	      ) sp in
-	      not(is_transformation_sp spa)
-	      || is_spatch_safe_ttf_list spa ttf_list in
+    let safe_for_ff sp =
+      match ttf_focus_fun with
+      | None -> true
+      | Some ttf -> (match is_spatch_safe_one ttf sp with
+        | None -> true
+        | Some b -> b
+      ) in
+    let is_safe_part sp =
+      let spa = List.map 
+      (function p -> 
+        match p with
+        | Difftype.PENDING_RM p' -> Difftype.RM p'
+        | Difftype.PENDING_ID p' -> Difftype.ID p'
+        | _ -> p
+      ) sp in
+      not(is_transformation_sp spa)
+        || (
+          (match ttf_focus_fun with
+            | None -> true
+            | Some ttf -> 
+                (match is_spatch_safe_one ttf spa with
+                  | None -> true
+                  | Some b -> b
+                )
+          )
+          && is_spatch_safe_ttf_list spa ttf_list 
+        ) in
 	    
 	  let sp_candidates = construct_spatches_new chunks is_safe_part gpats'  in
 	  let trans_patches' = sp_candidates +> List.filter is_transformation_sp in
@@ -3836,7 +3869,7 @@ let find_common_patterns () =
 		     ANSITerminal.restore_cursor();
 		     flush stdout;
 		     res_count := !res_count + 1;
-		     if is_spatch_safe_ttf_list sp ttf_list
+		     if safe_for_ff sp && is_spatch_safe_ttf_list sp ttf_list
 		     then sp :: acc_sps
 		     else begin
 		       if !Jconfig.print_abs
