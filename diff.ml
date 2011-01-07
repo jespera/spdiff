@@ -2268,6 +2268,8 @@ let get_fun_name_gflow f =
 exception Bailout
 exception UNSAT
 
+(* magic matcher function for semantic pattern (cp) on a node (n) in a CFG (g)
+ *)
 let cont_match_param matcher g cp n = 
   let can_have_follow vp =
     match vp.last_t with
@@ -2296,109 +2298,111 @@ let cont_match_param matcher g cp n =
     trace = vp.trace;
     } in
   let check_vp vp n  = 
-    let t_val = get_val n g in
-    if Some t_val = (try Some (get_val (valOf vp.last_t) g) with (Fail _) -> None)
+    let t_val = get_val n g 
+    in
+      if Some t_val = 
+        (try Some (get_val (valOf vp.last_t) g) with (Fail _) -> None)
       then FALSE 
       else if List.mem n vp.skip_t
       then (
-        (* print_endline ("[Diff] LOOP on " ^ 
-        string_of_int n); *)
+        (*print_endline ("[Diff] LOOP on " ^ string_of_int n);*)
         LOOP)
-    else if is_error_exit t_val 
-    then raise Bailout
-    else if can_have_follow vp
-    then SKIP
-    else FALSE 
+      else if is_error_exit t_val 
+      then raise Bailout
+      else if can_have_follow vp
+      then SKIP
+      else FALSE 
     (* we are trying to skip when the previous match did not have
     (should not have) successors *)
-    in
-    let rec trans_cp cp c = match cp with
+  in
+  let rec trans_cp cp c = match cp with
     | [] -> c
     | bp :: cp -> trans_bp bp (trans_cp cp c)
   and trans_bp bp c vp n = match view bp with
-  | C("CM", [gt]) -> (try 
+  | C("CM", [gt]) -> (
+    try 
     (* let env = match_term gt (get_val n g) in *)
     let envs = 
-      try begin
-	let res = find_nested_matches gt (get_val n g)
-	in
-	  begin
-	    res
-	  end
-      end
-      with Nomatch -> begin
-	[]
-      end
+      try 
+        let res = find_nested_matches gt (get_val n g)
+        in
+        begin
+          res
+        end     
+      with Nomatch -> []
     in
-    List.exists (function env ->
-      let f,vp' = try matched_vp vp n env 
-      with Nomatch -> begin
-	print_endline "matched_vp raising Nomatch";
-	raise Nomatch
-      end
-      in
-	if f
-	then
-	if(
-	  try List.exists (*for_all*) (function (n',_) -> 
-			     try 
-			       begin
-				 c vp' n'
-			       end
-			     with Nomatch -> begin
-			     raise Nomatch
-			     end) (get_succ n g)
-	  with Nomatch -> begin
-	    raise Nomatch
-	  end
-	)
-	then
-	  begin
-	    true
-	  end
-	else
-	  begin
-	    false
-	  end
-	else
-	  begin
-	    false
-	  end) envs with Nomatch -> 
-      begin
-	false
-      end)
+      List.exists 
+      (function env ->
+          let f,vp' = 
+            try matched_vp vp n env 
+            with Nomatch -> begin
+              print_endline "matched_vp raising Nomatch";
+              raise Nomatch
+            end
+          in
+            if f
+            then
+              begin
+                (*print_endline (">>> match: " ^ string_of_int n ^ " : " ^ string_of_gtree' gt);*)
+                try 
+                  List.exists (*for_all*) 
+                  (function (n',_) -> 
+                    try c vp' n'
+                    with Nomatch -> raise Nomatch) 
+                  (get_succ n g)
+                with Nomatch -> raise Nomatch
+              end
+            else false) 
+      envs 
+    with Nomatch -> false)
   | _ when bp == ddd ->
-          c vp n || (
-            match check_vp vp n with
-            | FALSE -> raise UNSAT
-            | LOOP -> 
-		begin 
-		  true
-		end
-            | SKIP -> 
-		(* ns is a list of successor node indices to n *)
-                let ns = get_next_vp'' g vp n +> List.filter (function n' -> not(n = n'))  (* remove current from succs *)
-		in
-                  not(ns = [])  (* there should be some successors *)
-                  && let vp' = skipped_vp vp n (* store the node we just skipped *)
-		  in
-(*		    List.for_all  (* all continuations should satisfy the "...-continuation" (and none bail out) *) *)
-		    List.exists  (* some continuations should satisfy the "...-continuation" (and none bail out) *) 
-		      (function n' ->
-			 try trans_bp ddd c vp' n'
-			 with Bailout -> false
-		      ) ns
-            | ALWAYSTRUE -> 
-		begin
-		  true
-		end
-          )
-  | _ -> raise (Match_failure (string_of_gtree' bp, 1429,0))
+      c vp n || (
+        match check_vp vp n with
+        | FALSE -> raise UNSAT
+        | LOOP -> 
+            begin
+              (* we've reached a loop; we should continue with the remaining
+               * pattern (as represented by the current continuation) but
+               * _follow_ a path that leads back to where we came
+               *)
+              
+              let ns = 
+                get_next_vp'' g vp n 
+                +> List.filter 
+                   (function n' -> not(n = n' || List.mem n' vp.skip_t))  
+                (* remove current and previous from succs *)
+              in
+                not(ns = []) &&
+                let vp' = skipped_vp vp n
+                in
+                  List.exists (function n' -> 
+                    try trans_bp ddd c vp' n' with Bailout -> false
+                  ) ns
+            end
+        | SKIP -> 
+            (* ns is a list of successor node indices to n *)
+            let ns = get_next_vp'' g vp n +> List.filter (function n' -> not(n = n'))  (* remove current from succs *)
+      in
+      not(ns = [])  (* there should be some successors *)
+      && let vp' = skipped_vp vp n (* store the node we just skipped *)
+            in
+            (*		    List.for_all  (* _all_ continuations should satisfy the "...-continuation" (and none bail out) *) *)
+            List.exists  (* _at least some_ continuations should satisfy the "...-continuation" (and none bail out) *) 
+            (function n' ->
+              try trans_bp ddd c vp' n'
+              with Bailout -> false
+      ) ns
+        | ALWAYSTRUE -> 
+            begin
+              true
+            end
+            )
+        | _ -> raise (Match_failure (string_of_gtree' bp, 1429,0))
+      in
+      let real_matcher = 
+        trans_cp cp matcher
     in
-    let real_matcher = 
-      trans_cp cp matcher
-    in
-      try real_matcher init_vp n with UNSAT -> (traces_ref := []; false)
+    try real_matcher init_vp n with UNSAT -> (traces_ref := []; false)
 
 let cont_match_traces g sp n =
   let matcher vp x = 
@@ -2456,23 +2460,25 @@ let get_merged_env g sp n =
       None
 
 let get_env_traces g sp n =
-  let seq_env_lists = ref [] in
-    traces_ref := [];
-    let matcher vp x = 
-      begin
-	seq_env_lists := (List.rev vp.trace, vp.env_t) :: !seq_env_lists;
-	true
-      end 
-    in
-      if 
-	cont_match_param matcher g sp n
-      then 
-	begin
-	  traces_ref := []; 
-	  Some !seq_env_lists
-	end
-      else 
-	None
+  let seq_env_lists = ref [] 
+  in
+    begin
+      traces_ref := [];
+      let matcher vp x = 
+        begin
+	        seq_env_lists := (List.rev vp.trace, vp.env_t) :: !seq_env_lists;
+	        true
+        end 
+      in
+        if cont_match_param matcher g sp n
+        then 
+          begin
+	          traces_ref := []; 
+	          Some !seq_env_lists
+	        end
+        else 
+	        None
+    end
   
 
 

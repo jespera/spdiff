@@ -3123,7 +3123,7 @@ let insert_chunk flow pending_term chunk =
 
 
 let perform_pending pending_term = 
-  (*print_endline ("perform pending: " ^ Diff.string_of_gtree' pending_term);*)
+  print_endline ("perform pending: " ^ Diff.string_of_gtree' pending_term);
   let get_env orig_cp emb =
     let ctx = 
       match List.find 
@@ -3227,13 +3227,31 @@ let perform_pending pending_term =
  *
  *)
 let apply_spatch_fixed spatch (term, flow) =
+  (*print_endline "apply spatch";*)
   let get_pattern_env_traces g sp =
     g#nodes#tolist 
     +> List.filter (function (i,gt) -> Diff.non_phony gt && not(Diff.is_control_node gt))
-    +> List.fold_left (fun acc_trs (i,gt) -> 
+    +> fun igts -> begin
+      (*print_endline "igts: ";*)
+      (*List.iter (fun (i,gt) -> *)
+        (*print_endline (" " ^ string_of_int i ^ " " ^ Diff.string_of_gtree' gt)*)
+      (* ) igts;*)
+      igts
+    end
+    +> List.fold_left (fun acc_trs (i,gt) ->
+      begin 
+        (*print_endline ("Matching node: " ^ string_of_int i);*)
 			  match Diff.get_env_traces g sp i with
-			     | None -> acc_trs
-			    | Some trs -> trs :: acc_trs
+        | None -> ((*print_endline "nothing";*) acc_trs)
+			  | Some trs -> begin
+            (*print_endline ("something |"^trs +> List.length +> string_of_int*)
+            (*^"|"); *)
+            (*List.iter (fun (il, env) -> *)
+              (*il +> List.map string_of_int +> String.concat " " +> print_endline*)
+            (* ) trs;*)
+            trs :: acc_trs
+          end
+      end
 		   ) [] in
     (* use env to replace metavars with the corresponding subterms *)
   let instantiate spatch env = 
@@ -3273,7 +3291,6 @@ let apply_spatch_fixed spatch (term, flow) =
           | _ -> raise (Impossible 1042)
         ) spatch [] 
       in
-        (* strip '...' from the spatch TODO: why?*)
         let stripped_spatch = spatch +> List.filter 
            (function iop -> 
              match iop with
@@ -3295,36 +3312,43 @@ let apply_spatch_fixed spatch (term, flow) =
              *)
             let env_traces = get_pattern_env_traces flow pattern 
             in
-              perform_pending (List.fold_left 
-                (fun acc_pending_term seq_env_list ->
-                  List.fold_left (fun acc_pending_term (seq, env) ->
-                    let sp' = instantiate init_annotated env in 
-                    let spa = annotate_spatch_seq sp' seq in      
-                    let chunks = Diff.chunks_of_diff spa in
-                    begin
-                      (*
-                       *print_endline "chunks to apply:";
-                       *chunks +>
-                       *List.iter (fun chunk -> 
-                       *  print_endline "[begin]";
-                       *  print_endline (chunk
-                       *  +> List.map (function 
-                       *    | Difftype.ID (p,_)
-                       *    | Difftype.RM (p,_)
-                       *    | Difftype.ADD(p,_) -> Diff.string_of_gtree' p)
-                       *  +> String.concat "\n");
-                       *  print_endline "[end]";
-                       * );
-                       *)
-                    List.fold_left (insert_chunk flow) acc_pending_term chunks
-                    end
+              begin
+                (*print_endline *)
+                (*("#no env_traces: " ^ string_of_int (List.length*)
+                (*env_traces));*)
+                (*List.iter (fun path_env_list ->*)
+                  (*print_endline ("Length of path_env_list " ^*)
+                  (*string_of_int (List.length path_env_list))*)
+                (* ) env_traces;*)
+                perform_pending (List.fold_left 
+                  (fun acc_pending_term seq_env_list ->
+                    List.fold_left (fun acc_pending_term (seq, env) ->
+                      let sp' = instantiate init_annotated env in 
+                      let spa = annotate_spatch_seq sp' seq in      
+                      let chunks = Diff.chunks_of_diff spa in
+                      begin
+                        (*print_endline "chunks to apply:";*)
+                        (*chunks +>*)
+                        (*List.iter (fun chunk -> *)
+                          (*print_endline "[begin]";*)
+                          (*print_endline (chunk*)
+                          (*+> List.map (function *)
+                            (*| Difftype.ID (p,_)*)
+                            (*| Difftype.RM (p,_)*)
+                            (*| Difftype.ADD(p,_) -> Diff.string_of_gtree' p)*)
+                          (*+> String.concat "\n");*)
+                          (*print_endline "[end]";*)
+                         (* );*)
+                      List.fold_left (insert_chunk flow) acc_pending_term chunks
+                      end
+                    )
+                    acc_pending_term
+                    seq_env_list
                   )
-                  acc_pending_term
-                  seq_env_list
+                  term
+                  env_traces
                 )
-                term
-                env_traces
-              )
+              end
       
 (*
 
@@ -3392,19 +3416,19 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
 				 rhs_def_term)
     ) in
     (* check safety of result *)
-    (*print_string "safety check for: ";*)
-    (*spatch +> List.map Diff.string_of_diff +> String.concat " " +> print_endline;*)
+    print_string "safety check for: ";
+    spatch +> List.map Diff.string_of_diff +> String.concat " " +> print_endline;
     if matched_flows = []
     then None (* no match means, the patch is safe also: EXPERIMENTAL *)
     else Some ( 
       List.exists (function (left,middle,right) -> 
-				 (*print_endline ("t1\t" ^ Diff.string_of_gtree' left);*)
-				 (*print_endline ("t2\t" ^ Diff.string_of_gtree' middle);*)
-				 (*print_endline ("t3\t" ^ Diff.string_of_gtree' right);*)
+         print_endline ("t1\t" ^ Diff.string_of_gtree' left);
+         print_endline ("t2\t" ^ Diff.string_of_gtree' middle);
+         print_endline ("t3\t" ^ Diff.string_of_gtree' right);
 		     if Diff.part_of_edit_dist left middle right
 		       (* if Diff.msa_cost left middle right *)
-		     then ((*print_endline "ok";*) true)
-		     else ((*print_endline "unsafe";*) false)
+		     then (print_endline "ok"; true)
+		     else (print_endline "unsafe"; false)
 		  ) patched_lhss
     )
 
