@@ -2261,10 +2261,10 @@ let common_patterns_graphs gss =
       gss +> for_some !threshold 
              (function fs -> fs +> List.exists 
 	                (function f -> v_print_string "|- ";
-	                               "no. nodes: " +> print_endline;
-	                               f +> nodes_of_graph2 +> List.length +> string_of_int +> print_endline;
+																 (*"no. nodes: " +> print_endline;*)
+																 (*f +> nodes_of_graph2 +> List.length +> string_of_int +> print_endline;*)
 	                               let r = f |- sp in
-		                             print_endline ("done |- " ^ if r then " OK" else " FAIL");
+																 (*print_endline ("done |- " ^ if r then " OK" else " FAIL");*)
 		                             r)) 
       (* also: if ff != "" then we must have matched the ff *)
       && ((not (haveFocusFun ())) || !matches_focus_function) in
@@ -3123,7 +3123,7 @@ let insert_chunk flow pending_term chunk =
 
 
 let perform_pending pending_term = 
-  print_endline ("perform pending: " ^ Diff.string_of_gtree' pending_term);
+  (*print_endline ("perform pending: " ^ Diff.string_of_gtree' pending_term);*)
   let get_env orig_cp emb =
     let ctx = 
       match List.find 
@@ -3416,19 +3416,19 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
 				 rhs_def_term)
     ) in
     (* check safety of result *)
-    print_string "safety check for: ";
-    spatch +> List.map Diff.string_of_diff +> String.concat " " +> print_endline;
+    (*print_string "safety check for: ";*)
+    (*spatch +> List.map Diff.string_of_diff +> String.concat " " +> print_endline;*)
     if matched_flows = []
     then None (* no match means, the patch is safe also: EXPERIMENTAL *)
     else Some ( 
       List.exists (function (left,middle,right) -> 
-         print_endline ("t1\t" ^ Diff.string_of_gtree' left);
-         print_endline ("t2\t" ^ Diff.string_of_gtree' middle);
-         print_endline ("t3\t" ^ Diff.string_of_gtree' right);
+         (*print_endline ("t1\t" ^ Diff.string_of_gtree' left);*)
+         (*print_endline ("t2\t" ^ Diff.string_of_gtree' middle);*)
+         (*print_endline ("t3\t" ^ Diff.string_of_gtree' right);*)
 		     if Diff.part_of_edit_dist left middle right
 		       (* if Diff.msa_cost left middle right *)
-		     then (print_endline "ok"; true)
-		     else (print_endline "unsafe"; false)
+		     then ((*print_endline "ok";*) true)
+		     else ((*print_endline "unsafe";*) false)
 		  ) patched_lhss
     )
 
@@ -3714,6 +3714,7 @@ let get_chunks patterns =
 			  | _ -> raise (Impossible 6)
 		       )
   +> rm_dups in
+      (*
 	print_endline "[Main] good chunks";
 	good_chunks  
 	+> List.iter (function diff -> 
@@ -3722,7 +3723,8 @@ let get_chunks patterns =
 				       +> List.map Diff.string_of_diff
 				       +> String.concat "\n");
 			print_endline "[End]"
-                     );
+                     ); 
+                     *)
 	print_endline "[Main] exploding the chunks";
 	let returned_chunks = good_chunks 
 	  +> List.rev_map use_chunk

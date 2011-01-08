@@ -3824,7 +3824,7 @@ let chunks_of_diff_spatterns spatterns diff =
     then acc_chunks
     else chunk :: acc_chunks
   in
-    print_endline ("[Diff] Length of diff : " ^ string_of_int (List.length diff));
+    (*print_endline ("[Diff] Length of diff : " ^ string_of_int (List.length diff));*)
     let rec loop acc_chunks chunk diff = match diff with
       | [] -> 
 	  v_print_endline ("[Diff] found " ^ string_of_int (List.length acc_chunks + 1) ^ " chunks so far");
