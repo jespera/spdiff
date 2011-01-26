@@ -2268,8 +2268,17 @@ let get_fun_name_gflow f =
 exception Bailout
 exception UNSAT
 
-(* magic matcher function for semantic pattern (cp) on a node (n) in a CFG (g)
- *)
+(*
+   * Given a graph g, semantic pattern sp, and node of graph n, this function
+   * tries to figure out whether the pattern matches starting at the node given.
+   * if the node matches, the function returns a 'trace' of how the node
+   * matched. (wrapping in the option type)
+   * A trace is a list of pairs. The first component of the pair is a list of
+   * nodes corresponding to where each node pattern in the given semantic
+   * pattern matched the graph. The second component of the pair is the
+   * environment used to make the node patterns match along the 'path' matched.
+   *)
+
 let cont_match_param matcher g cp n = 
   let can_have_follow vp =
     match vp.last_t with
@@ -2359,24 +2368,45 @@ let cont_match_param matcher g cp n =
       c vp n || (
         match check_vp vp n with
         | FALSE -> raise UNSAT
+        | SKIP 
         | LOOP -> 
             begin
               (* we've reached a loop; we should continue with the remaining
                * pattern (as represented by the current continuation) but
-               * _follow_ a path that leads back to where we came
+               * not _follow_ a path that leads back to where we came
                *)
-              
+              v_print_endline "L";    
               let ns = 
                 get_next_vp'' g vp n 
                 +> List.filter 
-                   (function n' -> not(n = n' || List.mem n' vp.skip_t))  
+                   (function n' -> 
+                       let r = not(n = n' || List.mem n' vp.skip_t) in
+                       if r
+                       then begin
+                         v_print_endline("[" ^ string_of_int n ^ "->" ^ string_of_int n' ^ "]");
+                         r
+                       end
+                       else begin
+                         v_print_endline("<" ^ string_of_int n ^ "->" ^ string_of_int n' ^ ">");
+                         r
+                       end
+                   )  
                 (* remove current and previous from succs *)
               in
                 not(ns = []) &&
                 let vp' = skipped_vp vp n
                 in
                   List.exists (function n' -> 
-                    try trans_bp ddd c vp' n' with Bailout -> false
+                      let r = try trans_bp ddd c vp' n' with Bailout -> false in
+                      begin
+                        if r
+                        then v_print_endline ("true: " ^ string_of_int n ^ "->" ^ string_of_int n')
+                        else begin
+                          v_print_endline ("false: "^ string_of_int n ^ "->" ^ string_of_int n');
+                          v_print_endline ("skipped: " ^ String.concat " " (List.map string_of_int (n :: vp'.skip_t)));
+                        end;
+                        r
+                      end
                   ) ns
             end
         | SKIP -> 
@@ -2394,6 +2424,7 @@ let cont_match_param matcher g cp n =
       ) ns
         | ALWAYSTRUE -> 
             begin
+              print_endline ("TOP: " ^ string_of_int n);
               true
             end
             )

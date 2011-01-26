@@ -56,6 +56,7 @@ let max_embedded_depth = ref 2 (* this allows us to find similarities in functio
 let tmp_flag = ref false
 let show_support = ref false
 let flow_support = ref 0
+let print_chunks = ref false
 
 (* the 'focus_function' allows us to specify a function name which any
    found pattern should match *)
@@ -93,7 +94,8 @@ let speclist =
       "-tmp",           Arg.Set tmp_flag,        "  find embedded PATCHES also";
       "-show_support",  Arg.Set show_support,    "  show the support of each sem. patch inferred";
       "-flow_support",  Arg.Set_int flow_support,"  threshold required of flow-patterns";
-      "-useless_abs",   Arg.Set Jconfig.useless_abs,"  also include very abstract term-patterns"
+      "-useless_abs",   Arg.Set Jconfig.useless_abs,"  also include very abstract term-patterns";
+      "-print_chunks",  Arg.Set print_chunks,    "  print the chunks used to grow semantic patches"
     ]
     
 exception Impossible of int
@@ -1734,13 +1736,13 @@ let find_seq_patterns_newest
            else 
              let new_cur = cur @@@ p in
 	       v_print_endline "?";
-	       print_endline ("[Main] testing validity of\n" ^ string_of_pattern new_cur);
+	       v_print_endline ("[Main] testing validity of\n" ^ string_of_pattern new_cur);
                if valid new_cur 
-               then (print_endline "[Main] OK"; new_cur :: acc_next)
+               then (v_print_endline "[Main] OK"; new_cur :: acc_next)
                else 
 		 begin
 		   v_print_endline "!";
-                   print_endline "[Main] invalid";
+                   v_print_endline "[Main] invalid";
 		   if !Jconfig.verbose then
 		     begin 
 		       List.iter (function t -> 
@@ -2203,13 +2205,21 @@ let haveFocusFun () = String.compare !focus_function "" != 0
 let sameName other_fun =
   if String.compare !focus_function other_fun = 0
   then begin
-    print_endline ("ff: " ^ !focus_function ^ " == " ^ other_fun);
+    v_print_endline ("ff: " ^ !focus_function ^ " == " ^ other_fun);
     true
   end
   else begin
-    print_endline ("ff: " ^ !focus_function ^ " != " ^ other_fun);
+    v_print_endline ("ff: " ^ !focus_function ^ " != " ^ other_fun);
     false
   end    
+
+let get_focus_function gss =
+  List.hd (
+  List.find (function 
+    | [g] -> get_fun_name_gflow g = !focus_function
+    | _ -> raise (Impossible 120)
+  ) gss
+  )
 
 let common_patterns_graphs gss =
   let matches_focus_function = ref false in
@@ -2257,14 +2267,22 @@ let common_patterns_graphs gss =
      *)
     let (||-) gss sp = 
       matches_focus_function := false;
+      (* if we have a focus_function, first check if the pattern matches the
+       * focus_function
+       *)
+      (not(haveFocusFun()) ||
+       get_focus_function gss |- sp
+      )
+      &&
       (* check whether the pattern matches at least threshold graphs *)
       gss +> for_some !threshold 
              (function fs -> fs +> List.exists 
-	                (function f -> v_print_string "|- ";
+	                (function f -> 
+                    (*flush_string ("." ^ Diff.get_fun_name_gflow f );*)
 																 (*"no. nodes: " +> print_endline;*)
 																 (*f +> nodes_of_graph2 +> List.length +> string_of_int +> print_endline;*)
 	                               let r = f |- sp in
-																 (*print_endline ("done |- " ^ if r then " OK" else " FAIL");*)
+                                 (*flush_string ";";*)
 		                             r)) 
       (* also: if ff != "" then we must have matched the ff *)
       && ((not (haveFocusFun ())) || !matches_focus_function) in
@@ -2286,7 +2304,7 @@ let common_patterns_graphs gss =
          * one is selected) *)
         if haveFocusFun ()
         then begin
-          print_endline ("[Main] refining node_patterns_pool");
+          print_endline ("[Main] refining node_patterns_pool according to focus function");
           let subterms_focus_fun =
               try 
                 let [focus_fun] = 
@@ -2861,9 +2879,7 @@ let locate_subterm g orig_subterm orig_path f =
   at_breaking_handler := false;
   let extract_label t = 
     match view t with 
-      | C("stmt", [
-	    {Hashcons.node=A("goto", lab)}
-	  ]) -> Some lab
+      | C("stmt", [{Hashcons.node=A("goto", lab)}]) -> Some lab
       | _ -> None
   in
   let pathht = Hashtbl.create 101 in
@@ -2871,104 +2887,102 @@ let locate_subterm g orig_subterm orig_path f =
     try 
       Hashtbl.find pathht n
     with Not_found ->
-      let res = Diff.get_val n g in
-	(
-	  Hashtbl.add pathht n res;
-	  res
-	) in
+      let res = Diff.get_val n g 
+      in
+	      (Hashtbl.add pathht n res; res) 
+  in
     v_print_string "[Main] looking in ";
     v_print_endline (Diff.verbose_string_of_gtree orig_subterm);
     v_print_string "[Main] path ";
     v_print_endline (orig_path +> List.map string_of_int +> String.concat " ");
     if not(List.length orig_path = 0) 
     then begin
-      let last = List.nth orig_path (List.length orig_path - 1) in
-	v_print_string "[Main] looking for:";
-	v_print_endline (get_val last +> Diff.verbose_string_of_gtree);
-    end;
-    
-    let is_typed e = match view e with
-      | C("TYPEDEXP", _) -> true
-      | _ -> false in
-    let rec (===) t1 t2 = match view t1, view t2 with
-      | C("pending", ot :: _ ), _ -> ot === t2
-      | C("stmt",[s]), (C("dlist", _) | C("mdecl", _)) ->  s === t2
-      | C("exp",[te;e]), C("exp", [e']) when is_typed te -> e === e'
-      | C(ty1,ts1), C(ty2,ts2) when ty1 = ty2 ->
-	  (try 
-	     List.for_all2 (===) ts1 ts2
-	   with Invalid_argument e -> (
-	     print_endline "ts1";
-	     ts1 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
-	     print_endline "ts2";
-	     ts2 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
-	     raise (Invalid_argument e))
-	  )
-      | _ -> t1 = t2 in
+      let last = List.nth orig_path (List.length orig_path - 1) 
+      in
+	      v_print_string "[Main] looking for:";
+	      v_print_endline (get_val last +> Diff.verbose_string_of_gtree);
+      end;
+        let is_typed e = 
+          match view e with
+          | C("TYPEDEXP", _) -> true
+          | _ -> false in
+        let rec (===) t1 t2 = 
+          match view t1, view t2 with
+          | C("pending", ot :: _ ), _ -> ot === t2
+          | C("stmt",[s]), (C("dlist", _) | C("mdecl", _)) ->  s === t2
+          | C("exp",[te;e]), C("exp", [e']) when is_typed te -> e === e'
+          | C(ty1,ts1), C(ty2,ts2) when ty1 = ty2 ->
+	            (try 
+	              List.for_all2 (===) ts1 ts2
+	            with Invalid_argument e -> 
+                (print_endline "ts1";
+	               ts1 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
+	               print_endline "ts2";
+	               ts2 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
+	               raise (Invalid_argument e))
+	            )
+          | _ -> t1 = t2 in
       (* this function is used to check whether we are at a context point *)
-    let is_at_context node_term pending_subterm = 
-      match view pending_subterm with
-	| C("pending", orig_cp :: chunk_op) -> orig_cp === node_term
-	| _ -> pending_subterm === node_term in
-    let get_next_node_val path = match path with
-      | [] -> None
-      | n :: _ -> Some (get_val n) in
-    let rec loop subterm path =
-      match path with
-	| [] -> begin
-	    (* we should actually *NEVER* reach this point because of
-	       the next pattern-match *)
-	    print_endline ("[Main] reached end of path at subterm: "
-			   ^ subterm +> Diff.string_of_gtree');
-	    print_string ("Orig path: \t ");
-	    orig_path +> List.iter (function i -> 
-				      print_string (" " ^ string_of_int i);
-				   );
-	    print_newline ();
-	    print_endline ("Last node value " ^
-			     orig_path +> List.rev +> List.hd
-			   +> get_val
-			   +> Diff.string_of_gtree'
-			  );  
-	    print_endline ("In function: " ^
-			     g +> get_fun_name_gflow);
-	    raise (Diff.Fail "At end of path!")
-	  end
-	| [n] -> 
-	    let node_term = get_val n in
-	      if is_at_context node_term subterm
-	      then f subterm
-		(* subterm/node_term -- can the subterm can have more
-		   info than the node-term ? they should be
-		   identical! *)
-	      else 
-		begin
-		  print_endline ("Node term:\t" ^
-				   node_term +> Diff.string_of_gtree');
-		  print_endline ("Subterm:\t" ^
-				   subterm +> Diff.string_of_gtree');
-		  print_string ("Orig path: \t ");
-		  orig_path +> List.iter (function i -> 
-					    print_string (" " ^ string_of_int i);
-					 );
-		  print_newline ();
-		  print_string ("Current path: \t ");
-		  path +> List.iter (function i -> 
-				       print_string (" " ^ string_of_int i);
-				    );
-		  print_newline ();
-		  print_endline ("In function: " ^
-				   get_fun_name_gflow g);
-		  (* Should we bail out at this place or raise
-		     "LocateSubterm" to indicate that the search should
-		     continue but that we did not find the node term at
-		     this point?  *)
-		  raise LocateSubterm
-		    (*
-		      raise (Diff.Fail "unable to locate subterm")
-		    *)
-		end
-	| n' :: path -> 
+        let is_at_context node_term pending_subterm = 
+          match view pending_subterm with
+	        | C("pending", orig_cp :: chunk_op) -> orig_cp === node_term
+	        | _ -> pending_subterm === node_term in
+        let get_next_node_val path = 
+          match path with
+          | [] -> None
+          | n :: _ -> Some (get_val n) in
+        let rec loop subterm path =
+          match path with
+	        | [] -> begin
+            (* we should actually *NEVER* reach this point because of
+             * the next pattern-match *)
+	            print_endline ("[Main] reached end of path at subterm: "
+			                      ^ subterm +> Diff.string_of_gtree');
+	            print_string ("Orig path: \t ");
+	            orig_path +> List.iter 
+                (function i -> print_string (" " ^ string_of_int i););
+	            print_newline ();
+	            print_endline ("Last node value " ^ orig_path +> 
+                             List.rev +> List.hd +> get_val +> 
+                             Diff.string_of_gtree');  
+	            print_endline ("In function: " ^ g +> get_fun_name_gflow);
+	            raise (Diff.Fail "At end of path!")
+	          end
+	        | [n] -> 
+	          let node_term = get_val n 
+            in
+	            if is_at_context node_term subterm
+	            then f subterm
+                (* subterm/node_term -- can the subterm have more
+                info than the node-term ? they should be
+                identical! *)
+	            else 
+		            begin
+                  (*
+		              print_endline ("Node term:\t" ^ 
+                                node_term +> Diff.string_of_gtree');
+		              print_endline ("Subterm:\t" ^ subterm +> Diff.string_of_gtree');
+		              print_string ("Orig path: \t");
+                  orig_path +> List.iter (function i -> 
+					          print_string (string_of_int i ^ " ");
+					        );
+		              print_newline ();
+		              print_string ("Current path:\t");
+		              path +> List.iter (function i -> 
+				            print_string (string_of_int i ^ " ");
+				          );
+		              print_newline ();
+		              print_endline ("In function:\t" ^
+				                        get_fun_name_gflow g);
+                  *)
+                  (* Should we bail out at this place or raise
+                     "LocateSubterm" to indicate that the search should
+                     continue but that we did not find the node term at
+                     this point?  *)
+		              raise LocateSubterm
+		              (* raise (Diff.Fail "unable to locate subterm") *)
+		            end
+	        | n' :: path -> 
 	    let t = get_val n' 
 	    in
 	      if subterm === t
@@ -3434,6 +3448,7 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
 
 (* decide whether sp1 <= ttf_list *)
   let is_spatch_safe_ttf_list sp ttf_list =
+    let nogoodfunctions = ref [] in
     v_print_endline "[Main] considering safety of:";
     let count = ref 0 in
     begin
@@ -3453,10 +3468,21 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
               begin
                 if t
                 then count := !count + 1
-                else ()
+                else begin
+                  match ttf with 
+                  | l,_,_ -> nogoodfunctions := Reader.get_fname_ast l :: !nogoodfunctions
+                end
               end
         ) ttf_list ;
-        (!count >= !threshold)
+        if not (!count >= !threshold)
+        then begin
+          print_endline "non-safe patch: ";
+			    print_endline (String.concat "\n" (List.map Diff.string_of_spdiff sp));
+          print_endline ("sp only safe for " ^ string_of_int !count ^ " functions");
+          print_endline ("functions: " ^ String.concat " " !nogoodfunctions);
+          false
+        end
+        else true 
     end
 
 let apply_spatch_ttf spatch (lhs_term, rhs_term, flows) =
@@ -3740,7 +3766,19 @@ let get_chunks patterns =
 		       print_endline "[End]"
                     ) returned_chunks;
 	  *)
-	  returned_chunks
+    begin
+      if !print_chunks
+      then
+        returned_chunks
+        +> List.iter (function diff -> 
+            print_endline "[Chunk]";
+            print_endline (diff 
+                     +> List.map Diff.string_of_diff
+                     +> String.concat "\n");
+            print_endline "[End]"
+                           );
+	    returned_chunks
+    end
 
 (* function to find more abstractins in RHS of spatches *)
 let get_missed_rhs cand_spatches gss =
