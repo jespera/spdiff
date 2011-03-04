@@ -851,7 +851,7 @@ let abstractness p =
 let infeasible p = Diff.infeasible p
 
 let (=>) = Diff.(=>)
-let cont_match = Diff.cont_match
+let cont_match = Diff.cont_match_new
 
 
 let exists_cont_match g p = nodes_of_graph g +> List.exists (cont_match g p) 
@@ -3476,10 +3476,10 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
         ) ttf_list ;
         if not (!count >= !threshold)
         then begin
-          print_endline "non-safe patch: ";
-			    print_endline (String.concat "\n" (List.map Diff.string_of_spdiff sp));
-          print_endline ("sp only safe for " ^ string_of_int !count ^ " functions");
-          print_endline ("functions: " ^ String.concat " " !nogoodfunctions);
+          (*print_endline "non-safe patch: ";*)
+					(*print_endline (String.concat "\n" (List.map Diff.string_of_spdiff sp));*)
+          (*print_endline ("sp only safe for " ^ string_of_int !count ^ " functions");*)
+          (*print_endline ("functions: " ^ String.concat " " !nogoodfunctions);*)
           false
         end
         else true 
@@ -3807,8 +3807,7 @@ let get_missed_rhs cand_spatches gss =
     in
       loop acc_term in
   let find_rhs_one env patch_term = match patch_term with
-    | Difftype.ADD t -> 
-	Difftype.ADD (Hashtbl.fold f env t)
+    | Difftype.ADD t -> Difftype.ADD (Hashtbl.fold f env t)
     | _ -> patch_term in
   let find_rhs_sp env spatch =
     List.map (find_rhs_one env) spatch

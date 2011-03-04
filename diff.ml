@@ -2268,6 +2268,152 @@ let get_fun_name_gflow f =
 exception Bailout
 exception UNSAT
 
+exception Fatal_error
+
+type dfs_action = 
+  | STOP
+  | NOT_FOUND
+
+let dfs_iter_with_path xi f g = 
+  let already = Hashtbl.create 101 in
+  let rec aux_dfs path xi = 
+    if Hashtbl.mem already xi then ()
+    else begin
+      Hashtbl.add already xi true;
+      match f xi path with
+      | STOP-> ()
+      | NOT_FOUND ->
+        let succ = g#successors xi in
+        let succ' = succ#tolist +> List.map fst in
+        succ' +> List.iter (fun yi -> 
+            aux_dfs (xi::path) yi
+        );
+      end
+  in
+  aux_dfs [] xi
+  
+    
+
+
+let get_match pattern gt = 
+  match view pattern with
+  | C("CM", [pat]) -> begin
+        match find_nested_matches pat gt with
+        | [env] -> env
+        | _ -> raise Fatal_error
+    end
+  | _ -> raise Fatal_error
+
+(* Find the first matches of node_p starting from 
+ * from_n in g. On each path to node_p there can 
+ * be no occurrences of node_p or (get_val from_n)
+ *)
+let get_succ_nodes env node_p from_n g =
+  let from_node = get_val from_n g in
+  let res_nodes = ref [] in
+  let f xi node_path =
+    let xi_val = get_val xi g in
+    if xi_val = from_node && node_path != []
+    then STOP (* we encountered the from_node *)
+    else 
+      try
+        let env' = get_match node_p xi_val in
+        begin
+          try
+            let env'' = merge_envs env env' in
+            res_nodes := xi :: !res_nodes;
+            STOP
+          with _ -> NOT_FOUND
+        end
+      with Fatal_error | Nomatch -> 
+        NOT_FOUND
+  in begin 
+    dfs_iter_with_path from_n f g;
+    !res_nodes
+  end
+
+
+let cont_match_new_internal (g : gflow) cp n =
+  let rec loop cp n = 
+    match cp with
+    | [] -> raise Fatal_error
+    | [np] -> 
+        begin
+          match view np with
+          | C("CM", [gt]) -> (* check that gt matches n and return a singleton
+          list with a single pair of (n, env) *)
+            let envs = 
+              try find_nested_matches gt (get_val n g)
+              with Nomatch -> [] in
+            (* there should actually only be one match because of a
+             * simplification that we never use a nesting_depth > 1
+             *)
+            begin match envs with
+            | [env] -> [([n], env)]
+            | _ -> raise Fatal_error
+            end
+          | _ -> raise Fatal_error
+        end
+    | np1 :: nddd :: np2 :: rest 
+      when view nddd == view ddd ->
+        begin
+          (* check that npv1 matches n *)
+          let env1 = get_match np1 (get_val n g) in
+          (* find all nodes matching npv2 reachable from n;
+           * this can be implemented by dfs_search from n *)
+          (* for each node : compute witnesses *)
+          let nodes2 = get_succ_nodes env1 np2 n g in
+          (* for each succ-node: combine with match of npv1 *)
+          List.fold_left
+          (fun acc_ws succ_node -> 
+            (* traces_succ : (matched_nodes * env) list *)
+            let traces_succ = loop (np2 :: rest) succ_node in
+            (* for each trace: try to merge with current env1 and prefix n *)
+            List.fold_left (fun acc_traces (match_nodes, env') ->
+              try 
+                let env'' = merge_envs env1 env' in
+                (n :: match_nodes, env'') :: acc_traces
+              with Nomatch -> acc_traces 
+            ) acc_ws traces_succ
+          ) [] nodes2
+        end
+    | _ -> 
+        begin
+          raise Fatal_error
+        end
+  in
+    loop cp n
+
+let cont_match_new g sp n =
+    try 
+      match cont_match_new_internal g sp n with
+      | [] -> false
+      | r -> 
+          begin
+            (*print_endline "matched ";*)
+            (*r *)
+            (*+> List.map (fun (nodes, env) -> *)
+              (*nodes *)
+              (*+> List.map string_of_int*)
+              (*+> String.concat " "*)
+            (*)*)
+            (*+> String.concat "\n"*)
+            (*+> print_endline;*)
+            (*print_endline "@";*)
+            true
+          end
+    with Fatal_error | Nomatch -> 
+      begin
+        false
+      end
+
+let cont_match_traces_new g sp n =
+  try 
+    match cont_match_new_internal g sp n with
+    | [] -> None
+    | r  -> Some r
+  with Fatal_error | Nomatch -> None
+
 (*
    * Given a graph g, semantic pattern sp, and node of graph n, this function
    * tries to figure out whether the pattern matches starting at the node given.
@@ -2433,7 +2579,10 @@ let cont_match_param matcher g cp n =
       let real_matcher = 
         trans_cp cp matcher
     in
-    try real_matcher init_vp n with UNSAT -> (traces_ref := []; false)
+    begin
+      (*print_endline ("## " ^ String.concat " " (List.map string_of_gtree' cp));*)
+      try real_matcher init_vp n with UNSAT -> (traces_ref := []; false)
+    end
 
 let cont_match_traces g sp n =
   let matcher vp x = 
@@ -2444,72 +2593,143 @@ let cont_match_traces g sp n =
   in
     cont_match_param matcher g sp n
 
-let cont_match g sp n =
+let matching_ht = Hashtbl.create 319
+
+let cont_match (g : gflow) sp n =
   traces_ref := [];
-  let result = cont_match_traces g sp n
+  let result =
+    try 
+      let res = Hashtbl.find matching_ht (g,sp,n)
+      in begin
+        (*print_string "Cache HIT : ";*)
+        (*sp +> List.map string_of_gtree' +> String.concat " " *)
+        (*+> print_endline;*)
+        res
+      end
+    with Not_found ->
+      let res = cont_match_traces g sp n
+      in begin
+        (*print_string "Cache miss : ";*)
+        (*sp +> List.map string_of_gtree' +> String.concat " " *)
+        (*+> print_endline;*)
+        Hashtbl.replace matching_ht (g,sp,n) res;
+        res
+      end
   in begin
       traces_ref := [];
       result
     end
-      
-let get_traces g sp n =
-  traces_ref := [];
-  Hashtbl.clear envs_ref;
-  if 
-    cont_match_traces g sp n
-  then (
-    let v = !traces_ref in (
-	traces_ref := []; 
-	Hashtbl.clear envs_ref;
-	Some v)
-  )
-  else 
-    None
 
+let check_matches g sp n =
+  try 
+    let res = Hashtbl.find matching_ht (g,sp,n)
+    in
+      begin
+        Some res
+      end
+  with Not_found -> begin
+    (*print_string "Cache miss : ";*)
+    (*sp +> List.map string_of_gtree' +> String.concat " "*)
+    (*+> print_endline;*)
+    let res = cont_match_traces g sp n
+    in
+    if res
+    then begin
+      Hashtbl.replace matching_ht (g,sp,n) res;
+      Some true
+    end
+    else
+      None
+  end
+
+let get_traces_old g sp n =
+    (* check whether we know whether sp matches g at all *)
+    match check_matches g sp n with
+    | Some true -> begin
+      traces_ref := [];
+      Hashtbl.clear envs_ref;
+      if cont_match_traces g sp n
+      then (
+        let v = !traces_ref in (
+        traces_ref := []; 
+        Hashtbl.clear envs_ref;
+        Some v)
+      )
+      else 
+        None
+      end
+    | _ -> None 
+
+let uncurry f = fun (x,y) -> f x y
+
+let get_traces g sp n =
+  match cont_match_traces_new g sp n with
+  | Some tr -> Some (List.rev_map fst tr)
+  | None -> None
 
 let get_merged_env g sp n =
-  traces_ref := [];
-  Hashtbl.clear envs_ref;
-  let matcher vp x = 
-    begin
-      List.iter 
-	(function (x,v) -> 
-	   Hashtbl.add envs_ref x v	   
-	)
-	vp.env_t;
-      true
-    end 
-  in
-    if 
-      cont_match_param matcher g sp n
-    then (
-      let v = Hashtbl.copy envs_ref in 
-	traces_ref := []; 
-	Hashtbl.clear envs_ref;
-	Some v)
-    else 
-      None
+  match cont_match_traces_new g sp n with
+  | Some tr -> 
+      let ht = Hashtbl.create 117 in
+      begin
+        List.iter (fun (_, env) -> 
+          List.iter (Hashtbl.add ht +> uncurry) env
+        ) tr;
+        Some ht
+      end
+  | None -> None
 
-let get_env_traces g sp n =
-  let seq_env_lists = ref [] 
-  in
-    begin
-      traces_ref := [];
-      let matcher vp x = 
-        begin
-	        seq_env_lists := (List.rev vp.trace, vp.env_t) :: !seq_env_lists;
-	        true
-        end 
-      in
-        if cont_match_param matcher g sp n
-        then 
-          begin
-	          traces_ref := []; 
-	          Some !seq_env_lists
-	        end
-        else 
-	        None
+
+let get_merged_env_old g sp n =
+  match check_matches g sp n with
+  | Some true -> begin
+    traces_ref := [];
+    Hashtbl.clear envs_ref;
+    let matcher vp x = 
+      begin
+        List.iter (function (x,v) -> 
+          Hashtbl.add envs_ref x v	   
+        ) vp.env_t;
+        true
+      end 
+    in
+      if cont_match_param matcher g sp n
+      then (
+        let v = Hashtbl.copy envs_ref in 
+        traces_ref := []; 
+        Hashtbl.clear envs_ref;
+        Some v)
+      else 
+        None
     end
+  | _ -> None
+
+let get_env_traces = cont_match_traces_new
+
+let get_env_traces_old g sp n =
+  match check_matches g sp n with
+  | Some true -> begin
+    let seq_env_lists = ref [] 
+    in
+      begin
+        traces_ref := [];
+        let matcher vp x = 
+          begin
+            seq_env_lists := (List.rev vp.trace, vp.env_t) :: !seq_env_lists;
+            true
+          end 
+        in
+          if cont_match_param matcher g sp n
+          then 
+            begin
+              traces_ref := []; 
+              Some !seq_env_lists
+            end
+          else 
+            None
+      end
+    end
+  | _ -> None
   
 
 
