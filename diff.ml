@@ -4019,6 +4019,8 @@ let rec merge_patterns p1 p2 =
  * to split a 'diff' according to the chunk-def given. 
  *)
 
+let all_adds diff = List.for_all (function ADD _ -> true | _ -> false) diff
+
 let chunks_of_diff diff =
   let rec loop acc_chunks chunk diff = match diff with
     | [] -> List.rev ((List.rev chunk) :: acc_chunks)
@@ -4120,6 +4122,7 @@ let chunks_of_diff_spatterns spatterns diff =
 		      ) in
       loop [] [] diff
       +> List.filter (function chunk -> not(chunk = []))
+      +> List.filter (fun c -> not(all_adds c))
 
 let merge_terms t1 t2 =
   let rec loop env t1 t2 = 
