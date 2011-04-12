@@ -757,7 +757,7 @@ let merge_update env (m, t) =
       if v = t
       then env
       else raise Nomatch
-  with _ -> (m,t) :: env
+  with Not_found -> (m,t) :: env
 
 (* take two environments; for each binding of m that is in both env1 and env2,
  * the binding must be equal; for variables that are in only one env, we simply
