@@ -2179,8 +2179,10 @@ let infer_meta_variables graphs sem_patterns =
 (*	print_endline ("[Main] inferring (" ^ !meta_count +> string_of_int ^ ") for :");
 	spattern +> List.map Diff.string_of_gtree' +> String.concat " " +> print_endline;
 *)	let sigma = infer_bindings spattern graphs in
-	  (construct_pattern sigma spattern)
-	  :: acc_patterns
+    let new_pattern = (construct_pattern sigma spattern) in
+    if for_some !threshold (fun g -> exists_cont_match g new_pattern) graphs
+    then new_pattern :: acc_patterns
+    else acc_patterns
     ) []
   
       
