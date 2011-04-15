@@ -3142,7 +3142,6 @@ let insert_chunk flow pending_term chunk =
 
 
 let perform_pending pending_term = 
-  (*print_endline ("perform pending: " ^ Diff.string_of_gtree' pending_term);*)
   let get_env orig_cp emb =
     let ctx = 
       match List.find 
@@ -3155,10 +3154,7 @@ let perform_pending pending_term =
       | C("=",[p]) | C("-",[p])-> p
       | _ -> raise (Impossible 16)
     in
-    try 
-      begin 
-	Diff.match_term (extract_pat ctx) orig_cp 
-      end
+    try Diff.match_term (extract_pat ctx) orig_cp 
     with Diff.Nomatch -> 
       begin
 	print_endline "[Main] Nomatch between:";
@@ -3198,7 +3194,9 @@ let perform_pending pending_term =
   | _ -> raise (Diff.Fail "perform pending error")
 	
 
-(* this function applies a semantic patch to a term given a flow representing the term; the idea is to do the following
+(* this function applies a semantic patch to a term given a flow
+   representing the term; the idea is to do the following
+
    - extract the pattern from the spatch
    - match the pattern with the flow and collect the traces
 
@@ -3217,34 +3215,6 @@ let perform_pending pending_term =
    transformations mentioned in the inserted chunks
  *)
 	
-(*
- *let apply_spatch spatch (term,flow) = 
- *  let pattern = List.fold_right (fun iop acc_pattern -> match iop with
- *           | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
- *           | Difftype.ADD _ -> acc_pattern
- *           | _ -> raise (Impossible 16)
- *        ) spatch [] in
- *  let traces = get_pattern_traces flow pattern in
- *  let stripped_spatch = spatch +> List.filter 
- *    (function iop -> match iop with
- *       | Difftype.ID p when p ==  ddd -> false
- *       | _ -> true) in
- *  let init_annotated = 
- *    stripped_spatch +> List.map (function iop -> match iop with
- *           | Difftype.ID p -> Difftype.ID (p, empty_annotation)
- *           | Difftype.RM p -> Difftype.RM (p, empty_annotation)
- *           | Difftype.ADD p -> Difftype.ADD (p, empty_annotation)
- *           | _ -> raise (Impossible 17)) in
- *    
- *  let annotated_spatches = List.map (annotate_spatch init_annotated) traces in
- *  let chunkified_spatches = annotated_spatches +> List.rev_map Diff.chunks_of_diff in
- *  let pending_term = List.fold_left 
- *    (fun acc_pending_term chunk_set -> 
- *       chunk_set +> List.fold_left (insert_chunk flow) acc_pending_term
- *    ) term chunkified_spatches in
- *    perform_pending pending_term
- *
- *)
 let apply_spatch_fixed spatch (term, flow) =
   let get_pattern_env_traces g sp =
     g#nodes#tolist 
@@ -3307,9 +3277,15 @@ let apply_spatch_fixed spatch (term, flow) =
         | Difftype.ADD p -> Difftype.ADD (p, empty_annotation)
         | _ -> raise (Impossible 17)) 
   in
-  (* an env_trace is list of entries each containin a path (list of
-   * nodes) in the CFG plus bindings for metavariables used on the
-   * path to make the pattern match.
+  (* An env_trace is list of entries each containin a path (list of
+     nodes) in the CFG plus bindings for metavariables used on the
+     path to make the pattern match. An env_trace is a witness for how
+     a pattern matched a graph. 
+
+     Thus, 'env_traceS' is a list of _all_ the ways a pattern could
+     match a graph. The pattern may match starting from several
+     different nodes of the graph
+
    *)
   let env_traces = get_pattern_env_traces flow pattern 
   in
