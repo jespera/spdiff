@@ -492,17 +492,23 @@ let read_filepair_defs old_file new_file =
   print_endline 
     ("Reading file pair " ^
        old_file ^ " " ^ new_file);
-  read_src_tgt_def old_file new_file
+  try
+    read_src_tgt_def old_file new_file
+  with _ -> []
 
 let read_filepair_top old_file new_file =
   print_endline 
     ("Reading file pair " ^
        old_file ^ " " ^ new_file);
-  read_src_tgt_top old_file new_file
+  try
+    read_src_tgt_top old_file new_file
+  with _ -> []
 
 
 let read_filepair_cfg old_file new_file =
   print_endline 
     ("Reading file pair " ^
        old_file ^ " " ^ new_file);
-  read_src_tgt_cfg old_file new_file
+  try
+    read_src_tgt_cfg old_file new_file
+  with _ -> []
