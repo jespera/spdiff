@@ -3806,14 +3806,14 @@ let rec useless_abstraction p = is_meta p ||
 (* let infeasible p = is_meta p || abstractness p > !default_abstractness  *)
 
 let rec is_nested_meta gt = is_meta gt || match view gt with
-  | C(_,[e]) -> is_nested_meta e
+  | C(_,es) -> List.for_all is_meta es (* is_nested_meta e *)
   | _ -> false
 
 let rec contains_infeasible p = 
   match view p with
     | C("binary_arith", op :: _) 
     | C("binary_logi",  op :: _) when is_nested_meta op -> true
-    | C(_,ts) -> ts +> List.exists contains_infeasible
+    (*| C(_,ts) -> ts +> List.exists contains_infeasible*)
     | _ -> false
 
 let infeasible p = 
