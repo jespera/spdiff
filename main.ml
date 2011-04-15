@@ -3327,18 +3327,7 @@ let apply_spatch_fixed spatch (term, flow) =
                      env_traces
                   )
     
-(*
 
-
-  
-  let annotated_spatches = List.map (annotate_spatch init_annotated) traces in
-  let chunkified_spatches = annotated_spatches +> List.rev_map Diff.chunks_of_diff in
-  let pending_term = List.fold_left 
-  (fun acc_pending_term chunk_set -> 
-  chunk_set +> List.fold_left (insert_chunk flow) acc_pending_term
-  ) term chunkified_spatches in
-  perform_pending pending_term
- *)
 
 
 (* this function tries to determine if the spatch is safe for some
