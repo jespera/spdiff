@@ -512,11 +512,12 @@ let spec_main () =
   (* now make diff-pairs is a list of abs-term pairs *)
   let term_pairs = 
     List.fold_left (fun acc_pairs (lfile, rfile) ->
-      Reader.read_filepair_defs lfile rfile @ acc_pairs
-		   ) [] !file_pairs
-      +> List.filter (function (l,r) ->
-    	not(!only_changes) || not(l = r)
-    		     )
+      try 
+	Reader.read_filepair_defs lfile rfile @ acc_pairs
+      with (Failure _) -> acc_pairs)
+      [] !file_pairs
+      +> List.filter 
+      (function (l,r) -> not(!only_changes) || not(l = r))
   in
   (* assume that a threshold of 0 means the user did not set it
    * thus, set it to max instead 
