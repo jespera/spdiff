@@ -3246,28 +3246,17 @@ let perform_pending pending_term =
  *
  *)
 let apply_spatch_fixed spatch (term, flow) =
-  (*print_endline "apply spatch";*)
   let get_pattern_env_traces g sp =
     g#nodes#tolist 
       +> List.filter (function (i,gt) -> Diff.non_phony gt && not(Diff.is_control_node gt))
       +> fun igts -> begin
-	(*print_endline "igts: ";*)
-	(*List.iter (fun (i,gt) -> *)
-        (*print_endline (" " ^ string_of_int i ^ " " ^ Diff.string_of_gtree' gt)*)
-	(* ) igts;*)
 	igts
       end
 	  +> List.fold_left (fun acc_trs (i,gt) ->
 	    begin 
-              (*print_endline ("Matching node: " ^ string_of_int i);*)
 	      match Diff.get_env_traces g sp i with
               | None -> ((*print_endline "nothing";*) acc_trs)
 	      | Some trs -> begin
-		  (*print_endline ("something |"^trs +> List.length +> string_of_int*)
-		  (*^"|"); *)
-		  (*List.iter (fun (il, env) -> *)
-		  (*il +> List.map string_of_int +> String.concat " " +> print_endline*)
-		  (* ) trs;*)
 		  trs :: acc_trs
               end
 	    end
@@ -3332,13 +3321,6 @@ let apply_spatch_fixed spatch (term, flow) =
   let env_traces = get_pattern_env_traces flow pattern 
   in
   begin
-    (*print_endline *)
-    (*("#no env_traces: " ^ string_of_int (List.length*)
-    (*env_traces));*)
-    (*List.iter (fun path_env_list ->*)
-    (*print_endline ("Length of path_env_list " ^*)
-    (*string_of_int (List.length path_env_list))*)
-    (* ) env_traces;*)
     perform_pending (List.fold_left 
                        (fun acc_pending_term seq_env_list ->
 			 List.fold_left (fun acc_pending_term (seq, env) ->
@@ -3346,18 +3328,6 @@ let apply_spatch_fixed spatch (term, flow) =
 			   let spa = annotate_spatch_seq sp' seq in      
 			   let chunks = Diff.chunks_of_diff spa in
 			   begin
-                             (*print_endline "chunks to apply:";*)
-                             (*chunks +>*)
-                             (*List.iter (fun chunk -> *)
-                             (*print_endline "[begin]";*)
-                             (*print_endline (chunk*)
-                             (*+> List.map (function *)
-                             (*| Difftype.ID (p,_)*)
-                             (*| Difftype.RM (p,_)*)
-                             (*| Difftype.ADD(p,_) -> Diff.string_of_gtree' p)*)
-                             (*+> String.concat "\n");*)
-                             (*print_endline "[end]";*)
-                             (* );*)
 			     List.fold_left (insert_chunk flow) acc_pending_term chunks
 			   end
 					)
