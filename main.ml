@@ -2642,20 +2642,22 @@ let is_exit_node t = match view t with
 | A("head:seqend",_) -> true
 | _ -> false
 
-(* this 'get_path' function takes a CFG for a function def and a nodei within
- * that flow and all paths from the root to the node (both nodes
- * included); a path is a list of node-indices excluding "phony" nodes
- *)
+(* this 'get_path' function takes a CFG for a function def and a nodei
+   within that flow and returns a path from the root to the node (both
+   nodes included); a path is a list of node-indices excluding "phony"
+   nodes and "exit-nodes"*)
+
 let get_path g n = 
   let path = ref [] in
   let f xi path' = 
     if xi = n then path := xi :: path' in
   Ograph_extended.dfs_iter_with_path 0 f g;
   !path 
-    +> List.filter (function xi -> 
+    +> List.filter 
+    (function xi -> 
       let t = g#nodes#find xi in
       Diff.non_phony t && not(is_exit_node t)
-		   )
+    )
     +> List.rev
 
 type ('a, 'b) annotated = NOAN of 'a | ANNO of 'a * 'b
@@ -3069,16 +3071,7 @@ let locate_subterm g orig_subterm orig_path f =
 	    +> print_endline;
 	  raise (Break path)
 	end
-            (*
-	      | Break path -> begin
-	      print_string "[Main] caught break in function ";
-	      g +> get_fun_name_gflow +> print_endline;
-	      print_string "[Main] at path: ";
-	      path +> List.map string_of_int +> String.concat " "
-	      +> print_endline;
-	      raise (Break path)
-	      end
-	     *)
+
 
 (* this function takes a chunk and a subterm and uses the subterm to
    create a pending-chunk/term to insert instead of the subterm given;
@@ -3094,11 +3087,9 @@ let gtree_of_ann_iop iop = match iop with
 
 let pending_of_chunk chunk subterm = 
   let embedded_chunk = 
-    chunk +> List.map gtree_of_ann_iop
-  in 
-  (
-   mkC("pending", subterm :: embedded_chunk)
-  )
+    chunk +> List.map gtree_of_ann_iop in 
+  mkC("pending", subterm :: embedded_chunk)
+
 
 (* this function takes a term with embedded pending transformation
    info and a chunk and locates the chunk in the term and inserts the
@@ -3123,23 +3114,18 @@ let insert_chunk flow pending_term chunk =
   let ctx_point_nodes = 
     match get_context_point chunk with
     | Difftype.ID(p,is) | Difftype.RM(p,is) -> is
-    | _ -> raise (Diff.Fail "insert_chunk get_context_point") 
-  in
+    | _ -> raise (Diff.Fail "insert_chunk get_context_point") in
   (* the 'f' function is responsible for checking chunk compatibility *)
   let f t = 
     match view t with
     | C("pending", _) -> t
-    | _ -> pending_of_chunk chunk t 
-  in
-  let paths = List.rev_map (get_path flow) ctx_point_nodes 
-  in
-  paths +> List.fold_left 
+    | _ -> pending_of_chunk chunk t in
+  List.rev_map (get_path flow) ctx_point_nodes
+    +> List.fold_left 
     (fun acc_t path -> 
       try locate_subterm flow pending_term path f 
-      with LocateSubterm -> 
-	begin
-	  acc_t
-	end) pending_term
+      with LocateSubterm -> acc_t) 
+    pending_term
 
 
 let perform_pending pending_term = 
@@ -3202,9 +3188,10 @@ let perform_pending pending_term =
    - match the pattern with the flow and collect the traces
 
    - use the traces to annotate the spatch (notice there can be
-   several annotated spatches when the pattern matches in more than
-   one node; however, notice by the shortest-paths semantics of
-   ... that the same pattern can not have overlapping matches
+   several annotated spatches when the pattern matches starting from
+   more than one node; however, notice by the shortest-paths semantics
+   of ... that the same pattern can not have overlapping matches (with
+   the same environment)
 
    - for each anno_spatch: split in chunks
    - for each set of chunks (corresponding to one anno_spatch)
@@ -3221,9 +3208,9 @@ let apply_spatch_fixed spatch (term, flow) =
     g#nodes#tolist 
       +> List.filter (function (i,gt) -> Diff.non_phony gt && not(Diff.is_control_node gt))
       +> List.fold_left (fun acc_trs (i,gt) ->
-	  match Diff.get_env_traces g sp i with
-          | None -> ((*print_endline "nothing";*) acc_trs)
-	  | Some trs -> trs :: acc_trs) [] 
+	match Diff.get_env_traces g sp i with
+        | None -> ((*print_endline "nothing";*) acc_trs)
+	| Some trs -> trs :: acc_trs) [] 
   in
   (* use env to replace metavars with the corresponding subterms *)
   let instantiate spatch env = 
@@ -3231,10 +3218,8 @@ let apply_spatch_fixed spatch (term, flow) =
     | Difftype.ID  (t, ann) -> Difftype.ID  (Diff.sub env t, ann)
     | Difftype.RM  (t, ann) -> Difftype.RM  (Diff.sub env t, ann)
     | Difftype.ADD (t, ann) -> Difftype.ADD (Diff.sub env t, ann)
-    | _ -> raise (Impossible 1990)
-    in
-    List.map f spatch 
-  in
+    | _ -> raise (Impossible 1990) in
+    List.map f spatch in
   (* annotate elements of spatch with the nodei matched *)
   let annotate_spatch_seq sp node_seq = 
     let map2 skipf f ls1 ls2 = 
@@ -3245,16 +3230,13 @@ let apply_spatch_fixed spatch (term, flow) =
         | e1 :: ls1, e2 :: ls2 -> f e1 e2 :: loop ls1 ls2 
         | _, _ -> raise (Invalid_argument "annotate_spatch_seq")
       in
-      loop ls1 ls2 
-    in
-    let skip_add p = 
-      match p with 
-      | Difftype.ADD _ -> true 
-      | Difftype.ID (t,_) -> t == ddd
-      | _ -> false 
-    in
-    map2 skip_add add_annotation_iop sp node_seq 
-  in
+      loop ls1 ls2 in
+    let skip_add = 
+      function
+	| Difftype.ADD _ -> true 
+	| Difftype.ID (t,_) -> t == ddd
+	| _ -> false in
+    map2 skip_add add_annotation_iop sp node_seq in
   let pattern = List.fold_right 
       (fun iop acc_pattern -> 
         match iop with
@@ -3282,27 +3264,35 @@ let apply_spatch_fixed spatch (term, flow) =
      nodes) in the CFG plus bindings for metavariables used on the
      path to make the pattern match. An env_trace is a witness for how
      a pattern matched a graph. 
-
+     
      Thus, 'env_traceS' is a list of _all_ the ways a pattern could
      match a graph. The pattern may match starting from several
      different nodes of the graph
-
+     
    *)
-  let env_traces = get_pattern_env_traces flow pattern 
-  in
-  perform_pending (List.fold_left 
-                     (fun acc_pending_term seq_env_list ->
-		       List.fold_left (fun acc_pending_term (seq, env) ->
-			 let sp' = instantiate init_annotated env in 
-			 let spa = annotate_spatch_seq sp' seq in      
-			 let chunks = Diff.chunks_of_diff spa 
-			 in
-			 List.fold_left (insert_chunk flow) acc_pending_term chunks)
-			 acc_pending_term
-			 seq_env_list)
-                     term
-                     env_traces
-                  )
+  let env_traces = get_pattern_env_traces flow pattern in
+  (* We first fold over each env_trace of the pattern: for each
+     env_trace we construct a new annotated tree
+   *)
+  List.fold_left 
+  (fun acc_pending_term env_trace ->
+    (* for each env_trace fold over each list 
+       of (int list, env) in the env_trace
+     *)
+    List.fold_left 
+      (fun acc_pending_term (seq, env) ->
+	let sp' = instantiate init_annotated env in 
+	(* annotate each element of sp' with the node matched *)
+	let spa = annotate_spatch_seq sp' seq in
+	(* turn the annotated spa into a list of chunks *)
+	let chunks = Diff.chunks_of_diff spa in
+	(* for each chunk, insert a 'pending transformation 
+	   subtree' at the context-point of the chunk *)
+	List.fold_left (insert_chunk flow) acc_pending_term chunks
+      )
+      acc_pending_term env_trace
+  ) term env_traces
+  +> perform_pending
     
 
 
