@@ -3249,18 +3249,11 @@ let apply_spatch_fixed spatch (term, flow) =
   let get_pattern_env_traces g sp =
     g#nodes#tolist 
       +> List.filter (function (i,gt) -> Diff.non_phony gt && not(Diff.is_control_node gt))
-      +> fun igts -> begin
-	igts
-      end
-	  +> List.fold_left (fun acc_trs (i,gt) ->
-	    begin 
-	      match Diff.get_env_traces g sp i with
-              | None -> ((*print_endline "nothing";*) acc_trs)
-	      | Some trs -> begin
-		  trs :: acc_trs
-              end
-	    end
-			    ) [] in
+      +> List.fold_left (fun acc_trs (i,gt) ->
+	  match Diff.get_env_traces g sp i with
+          | None -> ((*print_endline "nothing";*) acc_trs)
+	  | Some trs -> trs :: acc_trs) [] 
+  in
   (* use env to replace metavars with the corresponding subterms *)
   let instantiate spatch env = 
     let f spatch = match spatch with
@@ -3320,24 +3313,19 @@ let apply_spatch_fixed spatch (term, flow) =
    *)
   let env_traces = get_pattern_env_traces flow pattern 
   in
-  begin
-    perform_pending (List.fold_left 
-                       (fun acc_pending_term seq_env_list ->
-			 List.fold_left (fun acc_pending_term (seq, env) ->
-			   let sp' = instantiate init_annotated env in 
-			   let spa = annotate_spatch_seq sp' seq in      
-			   let chunks = Diff.chunks_of_diff spa in
-			   begin
-			     List.fold_left (insert_chunk flow) acc_pending_term chunks
-			   end
-					)
-			   acc_pending_term
-			   seq_env_list
-                       )
-                       term
-                       env_traces
-                    )
-  end
+  perform_pending (List.fold_left 
+                     (fun acc_pending_term seq_env_list ->
+		       List.fold_left (fun acc_pending_term (seq, env) ->
+			 let sp' = instantiate init_annotated env in 
+			 let spa = annotate_spatch_seq sp' seq in      
+			 let chunks = Diff.chunks_of_diff spa 
+			 in
+			 List.fold_left (insert_chunk flow) acc_pending_term chunks)
+			 acc_pending_term
+			 seq_env_list)
+                     term
+                     env_traces
+                  )
     
 (*
 
