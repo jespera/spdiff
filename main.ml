@@ -3127,7 +3127,27 @@ let insert_chunk flow pending_term chunk =
       with LocateSubterm -> acc_t) 
     pending_term
 
+let is_empty_labeled stmt = 
+  match view stmt with
+  | C("stmt", [
+      {Hashcons.node=C("labeled", [{Hashcons.node=A("lname",lab') }])}
+    ]) -> true
+  | _ -> false
 
+let inline_stmt_label s1 s2 =
+  match view s1 with
+  | C("stmt", [
+      {Hashcons.node=C("labeled", [{Hashcons.node=A("lname",lab') }])}
+    ]) -> 
+      mkC("stmt", [mkC("labeled", [mkA("lname", lab'); s2])])
+  | _ -> raise (Impossible 8192)
+
+
+let rec fix_empty_labeled = function
+  | [] -> []
+  | s1 :: s2 :: rest when is_empty_labeled s1 -> inline_stmt_label s1 s2 :: fix_empty_labeled rest
+  | x :: xs -> x :: fix_empty_labeled xs
+ 
 let perform_pending pending_term = 
   let get_env orig_cp emb =
     let ctx = 
@@ -3171,11 +3191,9 @@ let perform_pending pending_term =
     | C(ty, ts) -> 
         let ts' = ts +> List.rev_map loop 
 	    +> List.rev
-	    +> List.flatten
-	in 
-        [mkC(ty, ts')]
-    | _ -> [t] 
-  in
+	    +> List.flatten in 
+	[mkC(ty, fix_empty_labeled ts')]
+    | _ -> [t] in
   match loop pending_term with
   | [t'] -> t'
   | _ -> raise (Diff.Fail "perform pending error")
