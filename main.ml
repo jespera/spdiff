@@ -932,7 +932,6 @@ and abstract_term depth env t =
 	      t :: List.rev (List.fold_left (fun acc_meta meta_list ->
 		mkC("call", f :: meta_list) :: acc_meta
 					    ) [] meta_perm), env_acc
-		(* | C _ when !max_level <= gsize t -> [t], env *)
           | C(ty, ts) ->
 	      (* generate abstract versions for each t ∈ ts *)
 	      let meta_lists, env_acc =
@@ -1689,7 +1688,7 @@ let contained_in p1 p2 =
      ) in
   p1 = p2
 || match view p1, view p2 with
-  | C("CM",[rp1]), C("CM",[rp2]) -> loop rp1 rp2 && gsize rp1 < gsize rp2
+  | C("CM",[rp1]), C("CM",[rp2]) -> loop rp1 rp2 && zsize rp1 < zsize rp2
   | _, _ when p1 = ddd || p2 = ddd -> false
   | _ -> false
 	(* 
@@ -3489,6 +3488,39 @@ let rec subseq s1 s2 =
     | _ -> false
 
 
+(* function that checks a given semantic patch for "interestingness" defined so
+ * far basically as: 
+ * - at least some sharing of metavars is evident
+ * => for each statement-pattern: at least one of the subsequent/preceeding
+ * statement-patterns must also include at least one of the same metavars
+*)
+let interesting_sp sp =
+	let rec get_metas env gt =
+		match view gt with
+		| A("meta", name) 
+			when List.mem name env -> env
+		| A("meta", name) -> name :: env
+		| C(_, ts) -> List.fold_left get_metas env ts 
+		| _ -> env in
+	let get_metas_dt dt = 
+		match dt with
+		| Difftype.RM gt
+		| Difftype.ADD gt 
+		| Difftype.ID gt -> get_metas [] gt 
+		| _ -> [] in
+	sp
+	+> List.map get_metas_dt
+	+> List.flatten
+	+> List.fold_left
+			(fun (seen, flag) mvar -> 
+				if List.mem mvar seen
+				then (seen, true)
+				else (mvar :: seen, flag)
+			) ([],false)
+	+> snd
+
+		
+
 (* decide whether sp1 <= sp2 relative to ttf_list *)
 let get_largest_spatchs ttf_list spatches =
   (* - for spatch
@@ -3579,7 +3611,7 @@ let get_largest_spatchs ttf_list spatches =
 	    print_endline (sp'
 			     +> List.map Diff.string_of_spdiff
 			     +> String.concat "\n");
-	    if (
+	    if interesting_sp sp && (
 	      sp = sp'
 	    || (
 	      let b1 = is_sub lhs_fmlists' lhs_fmlists in

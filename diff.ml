@@ -3783,7 +3783,7 @@ let get_patterns subterms_lists unique_subterms env term =
 
 let rec useless_abstraction p = is_meta p || 
   match view p with
-    | C("dlist", [p']) 
+    | C("dlist", _) -> true
     | C("stmt", [p']) 
         when !Jconfig.useless_abs && 
               useless_abstraction p' -> true
@@ -3800,11 +3800,6 @@ let rec useless_abstraction p = is_meta p ||
     | C("exp", [{Hashcons.node=C("const", _)}]) -> true
     | _ -> false
 
-(* The following function is used to decide when an abstraction is infeasible.
- * Either because it simply a meta-variable X or if it is too abstract
- *)
-(* let infeasible p = is_meta p || abstractness p > !default_abstractness  *)
-
 let rec is_nested_meta gt = is_meta gt || match view gt with
   | C(_,es) -> List.for_all is_meta es (* is_nested_meta e *)
   | _ -> false
@@ -3813,12 +3808,17 @@ let rec contains_infeasible p =
   match view p with
     | C("binary_arith", op :: _) 
     | C("binary_logi",  op :: _) when is_nested_meta op -> true
-    (*| C(_,ts) -> ts +> List.exists contains_infeasible*)
+		| C("call", gt_fname :: _) -> is_nested_meta gt_fname 
+		| C("return", _) -> false
+		| C(_, ts) -> List.exists contains_infeasible ts
     | _ -> false
 
+(* The following function is used to decide when an abstraction is infeasible.
+ * Either because it simply a meta-variable X or if it is too abstract
+ *)
 let infeasible p = 
-  contains_infeasible p 
-    || useless_abstraction p 
+    useless_abstraction p 
+  	|| contains_infeasible p 
     || is_nested_meta p
 
 let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
