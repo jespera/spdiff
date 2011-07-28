@@ -2128,7 +2128,8 @@ let find_embedded_succ g n p =
 
 let rec matches_exit node_gt =
   match view node_gt with
-    | C("return", _) -> true
+    | C("return", _) 
+    | C("exit", _) -> true
     | C(_, ns) -> ns +> List.exists matches_exit
     | _ -> false
 
@@ -2307,30 +2308,35 @@ let get_match pattern gt =
 (* Find the first matches of node_p starting from 
  * from_n in g. On each path to node_p there can 
  * be no occurrences of node_p or (get_val from_n)
+ *
+ * also: if from_node matches an exit-node, there are no successors
  *)
 let get_succ_nodes env node_p from_n g =
   let from_node = get_val from_n g in
-  let res_nodes = ref [] in
-  let f xi node_path =
-    let xi_val = get_val xi g in
-    if xi_val = from_node && node_path != []
-    then STOP (* we encountered the from_node *)
-    else 
-      try
-        let env' = get_match node_p xi_val in
-        begin
-          try
-            let env'' = merge_envs env env' in
-            res_nodes := xi :: !res_nodes;
-            STOP
-          with _ -> NOT_FOUND
-        end
-      with Fatal_error | Nomatch -> 
-        NOT_FOUND
-  in begin 
-    dfs_iter_with_path from_n f g;
-    !res_nodes
-  end
+  if matches_exit from_node
+  then []
+  else 
+    let res_nodes = ref [] in
+    let f xi node_path =
+      let xi_val = get_val xi g in
+      if xi_val = from_node && node_path != []
+      then STOP (* we encountered the from_node *)
+      else 
+        try
+          let env' = get_match node_p xi_val in
+          begin
+            try
+              let env'' = merge_envs env env' in
+              res_nodes := xi :: !res_nodes;
+              STOP
+            with _ -> NOT_FOUND
+          end
+        with Fatal_error | Nomatch -> 
+          NOT_FOUND
+    in begin 
+      dfs_iter_with_path from_n f g;
+      !res_nodes
+    end
 
 
 let cont_match_new_internal (g : gflow) cp n =
@@ -2385,6 +2391,7 @@ let cont_match_new_internal (g : gflow) cp n =
     loop cp n
 
 let cont_match_new g sp n =
+  if !Jconfig.to_print then print_endline ("[Diff] matching " ^ string_of_pattern sp ^ " on node " ^ string_of_int n);
     try 
       match cont_match_new_internal g sp n with
       | [] -> false
@@ -3783,16 +3790,13 @@ let get_patterns subterms_lists unique_subterms env term =
 
 let rec useless_abstraction p = is_meta p || 
   match view p with
-    | C("dlist", _) -> true
+    | C("dlist", _) -> true (* it's never a good idea to abstract local variables *)
     | C("stmt", [p']) 
-        when !Jconfig.useless_abs && 
-              useless_abstraction p' -> true
     | C("exprstmt", [p']) 
     | C("exp", [p']) 
     | C("fulltype", [p']) 
         when useless_abstraction p' -> true
-    | C("onedecl",[p_var;p_type;p_storage]) ->
-	[p_var; p_type] +> List.for_all useless_abstraction 
+    | C("onedecl",[p_var;p_type;p_storage]) ->[p_var; p_type] +> List.for_all useless_abstraction 
     | A("stobis", _) | A("inline",_) -> true
     | C("storage", [p1;p2]) | C("itype", [p1;p2]) when is_meta p1 || is_meta p2 -> true
 (*    | C("fulltype", _) (* | C("pointer", _) *) -> true *)
@@ -3817,9 +3821,9 @@ let rec contains_infeasible p =
  * Either because it simply a meta-variable X or if it is too abstract
  *)
 let infeasible p = 
-    useless_abstraction p 
-  	|| contains_infeasible p 
-    || is_nested_meta p
+  if !Jconfig.useless_abs
+  then false
+  else useless_abstraction p || contains_infeasible p || is_nested_meta p
 
 let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
   let c_parts = 
@@ -4190,10 +4194,10 @@ let merge_abstract_terms subterms_lists unique_subterms =
 		      else (* t < t' : i.e. pattern matches strictly fewer terms, so it
           might be interesting *) 
             true
-        else 
+        else
           (* t' > t or t is unrelated to t'; we only want to include t if it
            * is unrelated to t' *)
-		      not(tsup)
+          not(tsup)
         )) acc_ts
   in
   (* simple filter used under construction of potential set of node-patterns *)

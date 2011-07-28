@@ -97,7 +97,8 @@ let speclist =
      "-show_support",  Arg.Set show_support,    "  show the support of each sem. patch inferred";
      "-flow_support",  Arg.Set_int flow_support,"  threshold required of flow-patterns";
      "-useless_abs",   Arg.Set Jconfig.useless_abs,"  also include very abstract term-patterns";
-     "-print_chunks",  Arg.Set print_chunks,    "  print the chunks used to grow semantic patches"
+     "-print_chunks",  Arg.Set print_chunks,    "  print the chunks used to grow semantic patches";
+     "-to_print",      Arg.Set Jconfig.to_print,"  set internal printing flag"
    ]
     
 exception Impossible of int
@@ -858,8 +859,59 @@ let cont_match = Diff.cont_match_new
 (* let cont_match = Diff.cont_match *)
 
 
+(* we have a focus_fun iff !focus_function != "" *)
+let haveFocusFun () = String.compare !focus_function "" != 0
+    
+let get_fun_name_gflow f =
+  let head_node = 
+    f#nodes#tolist 
+      +> List.find (function (i,n) -> match view n with
+      | C("head:def", [{Hashcons.node=C("def",_)}]) -> true
+      | _ -> false) in
+  match view (snd head_node) with
+  | C("head:def",[{Hashcons.node=C("def",name::_)}]) -> 
+      (match view name with
+      | A("fname",name_str) -> name_str
+      | _ -> raise (Diff.Fail "impossible match get_fun_name_gflow")
+      )
+  | _ -> raise (Diff.Fail "get_fun_name?")
+	
+
+let sameName other_fun =
+  if String.compare !focus_function other_fun = 0
+  then begin
+    v_print_endline ("ff: " ^ !focus_function ^ " == " ^ other_fun);
+    true
+  end
+  else begin
+    v_print_endline ("ff: " ^ !focus_function ^ " != " ^ other_fun);
+    false
+  end    
+
+let get_focus_function gss =
+  List.hd (
+  List.find (function 
+    | [g] -> get_fun_name_gflow g = !focus_function
+    | _ -> raise (Impossible 120)
+	    ) gss
+ )
+
+let get_focus_function' gss =
+  List.find (fun g -> get_fun_name_gflow g = !focus_function) gss
+
+
+
 let exists_cont_match g p = nodes_of_graph g +> List.exists (cont_match g p) 
 let (|-) g p = exists_cont_match g p
+
+let exists_cont_match_graphs gss p =
+  if haveFocusFun ()
+  then 
+    let focus_flow = get_focus_function' gss in
+    if focus_flow |- p
+    then for_some !threshold (fun g -> exists_cont_match g p) gss
+    else false
+  else for_some !threshold (fun g -> exists_cont_match g p) gss
 
 (*
   let g_glob = ref (None : (Diff.gflow * 'a) option )
@@ -960,11 +1012,11 @@ let print_patterns gss ps =
     print_endline "]]]";
     (* show supporting functions *)
     List.iter (
-    function [f] -> 
-      if exists_cont_match f p
-      then 
-        print_string (" " ^ Diff.get_fun_name_gflow f)
-   ) gss;
+    function 
+      | [f] -> if exists_cont_match f p
+               then print_string (" " ^ Diff.get_fun_name_gflow f)
+      | _ -> ();
+    ) gss;
     print_newline ();
 	    ) ps
 
@@ -2165,66 +2217,30 @@ let construct_pattern sigma pattern =
 
 
 let infer_meta_variables graphs sem_patterns =
+  print_endline ("[Main] <"^sem_patterns +> List.length +> string_of_int^"> sem_patterns to infer from: ");
+  List.iter (fun sp -> 
+    sp +> string_of_pattern +> print_endline;
+    print_endline "-------------------";
+  ) sem_patterns;
+
   let meta_count = ref 0 in
   let meta_total = List.length sem_patterns in
-  print_string "[Main] infering strongest meta-var bindings ";
-  sem_patterns 
-    +> List.fold_left (
+  print_string "[Main] inferring strongest meta-var bindings ";
+  sem_patterns +> List.fold_left (
   fun acc_patterns spattern ->
     ANSITerminal.save_cursor ();
-    ANSITerminal.print_string 
-      [ANSITerminal.on_default] (
-    !meta_count +> string_of_int ^"/"^ meta_total +> string_of_int
-   );
+    ANSITerminal.print_string [ANSITerminal.on_default] (!meta_count +> string_of_int ^"/"^ meta_total +> string_of_int);
     ANSITerminal.restore_cursor();
     flush stdout;
     meta_count := !meta_count + 1;
     
     let sigma = infer_bindings spattern graphs in
     let new_pattern = (construct_pattern sigma spattern) in
-    if for_some !threshold (fun g -> exists_cont_match g new_pattern) graphs
+    if exists_cont_match_graphs graphs new_pattern
     then new_pattern :: acc_patterns
     else acc_patterns
  ) []
     
-    
-let get_fun_name_gflow f =
-  let head_node = 
-    f#nodes#tolist 
-      +> List.find (function (i,n) -> match view n with
-      | C("head:def", [{Hashcons.node=C("def",_)}]) -> true
-      | _ -> false) in
-  match view (snd head_node) with
-  | C("head:def",[{Hashcons.node=C("def",name::_)}]) -> 
-      (match view name with
-      | A("fname",name_str) -> name_str
-      | _ -> raise (Diff.Fail "impossible match get_fun_name_gflow")
-      )
-  | _ -> raise (Diff.Fail "get_fun_name?")
-	
-
-(* we have a focus_fun iff !focus_function != "" *)
-let haveFocusFun () = String.compare !focus_function "" != 0
-
-let sameName other_fun =
-  if String.compare !focus_function other_fun = 0
-  then begin
-    v_print_endline ("ff: " ^ !focus_function ^ " == " ^ other_fun);
-    true
-  end
-  else begin
-    v_print_endline ("ff: " ^ !focus_function ^ " != " ^ other_fun);
-    false
-  end    
-
-let get_focus_function gss =
-  List.hd (
-  List.find (function 
-    | [g] -> get_fun_name_gflow g = !focus_function
-    | _ -> raise (Impossible 120)
-	    ) gss
- )
-
 let common_patterns_graphs gss =
   let matches_focus_function = ref false in
   (* detect whether a threshold was given *)
@@ -2302,7 +2318,7 @@ let common_patterns_graphs gss =
       && gss ||- sp in
   let is_subpattern gss sp1 sp2 = subpattern_some gss sp1 sp2 in
   print_endline "[Main] finding list of common patterns";
-  let node_patterns_pool_initial = Diff.merge_abstract_terms subterms_lists unique_subterms in
+  let node_patterns_pool_initial = rm_dups (Diff.merge_abstract_terms subterms_lists unique_subterms) in
   let node_patterns_pool = 
     (* filter out the node-patterns do not match in the focus function (if
      * one is selected) *)
@@ -2311,28 +2327,29 @@ let common_patterns_graphs gss =
       print_endline ("[Main] refining node_patterns_pool according to focus function");
       let subterms_focus_fun =
         try 
-          let [focus_fun] = 
+          begin 
+            match 
             List.find (function 
               | [g] -> get_fun_name_gflow g = !focus_function
               | _ -> raise (Impossible 120)
                       ) gss
-          in
-          concrete_of_graph focus_fun 
-            +> List.filter (function n -> not(Diff.is_head_node n) && Diff.non_phony n)
+            with
+            | [focus_fun] -> concrete_of_graph focus_fun +> List.filter (function n -> not(Diff.is_head_node n) && Diff.non_phony n)
+            | _ -> raise (Impossible 121)
+          end
         with 
         | Not_found -> []
         | Match_failure _ -> raise (Impossible 119)
       in
       (* get subterms from focus_function *)
       List.filter 
-        (function npat -> List.exists 
-            (function term -> Diff.can_match npat term)
-            subterms_focus_fun
-        )
+        (fun npat -> List.exists (function term -> Diff.can_match npat term) subterms_focus_fun)
         node_patterns_pool_initial
     end
     else node_patterns_pool_initial 
   in
+  print_endline ("[Main] refined node patterns ["^string_of_int (List.length
+  node_patterns_pool) ^"]:\n" ^ String.concat "\n" (List.rev_map Diff.string_of_gtree' node_patterns_pool));
   print_string "[Main] finding semantic patterns ";
   find_seq_patterns_newest (* simulates _ wildcards with all fresh metavariables *)
     (* singleton_patterns: all node patterns with 'fresh' metas' *) 
@@ -3262,12 +3279,14 @@ let apply_spatch_fixed spatch (term, flow) =
         | _ -> raise (Impossible 1042)
       ) spatch [] 
   in
+  (*
   let stripped_spatch = spatch +> List.filter 
       (function iop -> 
         match iop with
         | Difftype.ID p when p ==  ddd -> false
         | _ -> true) 
   in
+  *)
   (* put empty operation annotations on all elements of spatch *)
   let init_annotated = spatch +> List.map 
       (function iop -> 
@@ -3851,9 +3870,11 @@ let find_common_patterns () =
       if haveFocusFun ()
       then 
         try 
-          Some (List.find 
-		  (function lhs_gt, rhs_gt, [lhs_flow] -> 
-		    Reader.get_fname_ast lhs_gt +> sameName) ttf_list)
+          Some (List.find (function 
+            | lhs_gt, rhs_gt, [lhs_flow] -> Reader.get_fname_ast lhs_gt +> sameName
+            | _ -> raise (Impossible 122)
+            ) ttf_list
+          )
         with Not_found -> None
       else None
     in
