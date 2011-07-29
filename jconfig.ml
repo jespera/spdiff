@@ -27,6 +27,7 @@ let print_abs = ref false
 let read_generic = ref false
 let useless_abs = ref false
 let to_print = ref false
+let include_larger = ref false
 
 let (+>) o f = f o
 

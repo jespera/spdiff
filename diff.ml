@@ -4197,7 +4197,7 @@ let merge_abstract_terms subterms_lists unique_subterms =
         else
           (* t' > t or t is unrelated to t'; we only want to include t if it
            * is unrelated to t' *)
-          not(tsup)
+          !Jconfig.include_larger || not(tsup)
         )) acc_ts
   in
   (* simple filter used under construction of potential set of node-patterns *)
