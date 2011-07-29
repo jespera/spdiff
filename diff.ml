@@ -2319,8 +2319,11 @@ let get_succ_nodes env node_p from_n g =
     let res_nodes = ref [] in
     let f xi node_path =
       let xi_val = get_val xi g in
-      if xi_val = from_node && node_path != []
-      then STOP (* we encountered the from_node *)
+      if xi_val = from_node 
+      then 
+        if node_path = []
+        then NOT_FOUND (* skip the initial node that we started in *)
+        else STOP (* we encountered the from_node along some non-empty path*)
       else 
         try
           let env' = get_match node_p xi_val in
