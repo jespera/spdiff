@@ -98,7 +98,8 @@ let speclist =
      "-flow_support",  Arg.Set_int flow_support,"  threshold required of flow-patterns";
      "-useless_abs",   Arg.Set Jconfig.useless_abs,"  also include very abstract term-patterns";
      "-print_chunks",  Arg.Set print_chunks,    "  print the chunks used to grow semantic patches";
-     "-to_print",      Arg.Set Jconfig.to_print,"  set internal printing flag"
+     "-to_print",      Arg.Set Jconfig.to_print,"  set internal printing flag";
+     "-include_larger",Arg.Set Jconfig.include_larger,"  include more node patterns initially"
    ]
     
 exception Impossible of int
@@ -2216,6 +2217,109 @@ let construct_pattern sigma pattern =
 	   ) pattern
 
 
+(* given a set of patterns and a set of terms that have been identified as
+ * belonging to a change, we wish to find the patterns that match any of the
+ * terms
+ *)
+let get_change_matches_terms spatterns terms =
+  v_print_endline "[Main] filtering patterns that are related to changed terms";
+  let changes = 
+    List.rev_map (
+      fun term -> 
+        let res = Diff.get_change_matches spatterns term in
+        if res = []
+        then begin
+          v_print_endline ("No patterns matching term: " ^ Diff.string_of_gtree'
+          term);
+          res
+        end
+        else 
+          begin
+            v_print_endline(string_of_int (List.length res) ^ " patterns matched " ^ Diff.string_of_gtree' term);
+            res
+          end
+    ) terms in
+  let tmp = tail_flatten changes in
+  let tmp1 = rm_dups tmp in
+  tmp1
+
+(* filter_changed uses the "flow-changes" information to extract a list of terms
+ * that it thinks have changed or are related to a change to filter out patterns
+ * match at least one of those terms
+ *)
+let filter_changed (* gss *) gpats = 
+  if !only_changes 
+  then begin
+    print_endline "[Main] looking for changed patterns";
+    v_print_endline "[Main] the following are the terms that have been detected as changed";
+    let c_terms = 
+      !Diff.flow_changes 
+      +> List.fold_left (fun acc_changed_terms diff -> 
+	        diff 
+	        +> Diff.get_marked_seq 
+	        +> List.fold_left (fun acc_changed_terms di ->
+	            match di with
+	            | Difftype.ID t 
+	            | Difftype.RM t -> t +++ acc_changed_terms
+	            | _ -> raise (Impossible 2)
+			    ) acc_changed_terms
+       ) [] in
+  c_terms +> List.iter (fun ct -> print_endline (Diff.string_of_gtree' ct));
+    get_change_matches_terms gpats c_terms
+  end
+  else gpats
+
+
+(* at this point we have a set/list of spatterns that we know to match
+   on some term that is believed to have been involved in a change; the
+   function is_freq determines whether a node-term is frequent in the RHS
+   graphs *)
+let rec get_context_point chunk =
+  match chunk with
+  | [] -> raise (Diff.Fail "no context point?")
+  | Difftype.ADD _ :: chunk -> get_context_point chunk
+  | c :: _ -> c
+
+
+let filter_changed_main sem_patterns =
+  let c_terms = 
+    !Diff.flow_changes 
+    +> List.fold_left (fun acc_changed_terms diff ->
+      (* chunkify the diff and fold over each chunk *)
+      let chunks = Diff.chunks_of_diff_generic (fun a -> a) diff in
+      List.fold_left (fun acc_changed_terms c_diff ->
+          if Diff.is_id_chunk c_diff
+          then acc_changed_terms
+          else match get_context_point c_diff with
+          | Difftype.ID t 
+          | Difftype.RM t -> t +++ acc_changed_terms
+          | _ -> raise (Impossible 2)
+      ) acc_changed_terms chunks
+    ) [] in
+  let _ =
+    print_endline ("changed terms: " ^ String.concat "\n" (List.map
+    Diff.string_of_gtree' c_terms)) in
+  List.filter (fun ps -> 
+    print_endline ("Checking whether pattern matches a transform: " ^ 
+    String.concat " " (List.map Diff.string_of_gtree' ps));
+    if List.exists (fun p -> 
+      List.exists (fun term -> 
+        match view p with
+        | C("CM",[p']) -> 
+            if Diff.can_match p' term
+            then begin
+              print_endline ("witness pattern: " ^ Diff.string_of_gtree' p');
+              print_endline ("witness term   : " ^ Diff.string_of_gtree' term);
+              true
+            end
+            else false
+        | _ -> false
+      ) c_terms
+    ) ps
+    then (print_endline "Yes"; true)
+    else (print_endline "No"; false)
+  ) sem_patterns
+
 let infer_meta_variables graphs sem_patterns =
   print_endline ("[Main] <"^sem_patterns +> List.length +> string_of_int^"> sem_patterns to infer from: ");
   List.iter (fun sp -> 
@@ -2363,6 +2467,14 @@ let common_patterns_graphs gss =
        +> renumber_fresh_metas_pattern)
     (* valid: check that sempat is frequent *)
     (is_frequent_sp_some gss)
+    +> fun ps -> begin
+      print_endline ("Before filter_changed: " ^ string_of_int (List.length
+      ps));
+      let res = filter_changed_main ps in
+      print_endline ("After filter_changed: " ^ string_of_int (List.length
+      res));
+      res
+    end
     +> infer_meta_variables (tail_flatten gss)
     +> function ps -> begin
       print_newline ();
@@ -2402,51 +2514,6 @@ let equal_flows f1 f2 =
 		      ) 
 
 
-(* given a set of patterns and a set of terms that have been identified as
- * belonging to a change, we wish to find the patterns that match any of the
- * terms
- *)
-let get_change_matches_terms spatterns terms =
-  v_print_endline "[Main] filtering patterns that are related to changed terms";
-  let changes = terms 
-      +> List.rev_map (Diff.get_change_matches spatterns) in
-  let tmp = tail_flatten changes in
-  let tmp1 = rm_dups tmp in
-  tmp1
-
-
-(* filter_changed uses the "flow-changes" information to extract a list of terms
- * that it thinks have changed or are related to a change to filter out patterns
- * match at least one of those terms
- *)
-let filter_changed (* gss *) gpats = 
-  if !only_changes 
-  then (
-    print_endline "[Main] looking for changed patterns";
-    v_print_endline "[Main] the following are the terms that have been detected as changed";
-    let c_terms = !Diff.flow_changes +> 
-      List.fold_left (fun acc_changed_terms diff -> 
-	diff 
-	  +> Diff.get_marked_seq 
-	  +> List.fold_left (fun acc_changed_terms di ->
-	    match di with
-	    | Difftype.ID t 
-	    | Difftype.RM t -> t +++ acc_changed_terms
-	    | _ -> raise (Impossible 2)
-			    ) acc_changed_terms
-		     ) [] in
-    c_terms +> List.iter (fun ct -> v_print_endline (Diff.string_of_gtree' ct));
-    get_change_matches_terms gpats c_terms
-      (*
-	gpats +> List.filter (function sp -> 
-	gss +> List.exists (function flows ->
-        flows +> List.for_all 
-        (function f -> not(f |- sp))
-	))
-       *)
-   )
-  else gpats
-
 
 (* Look through all relevant nodes and find out which one have
    changed; a node have changed if it does not occur in the RHS graph
@@ -2485,19 +2552,6 @@ let lhs_flows_of_term_pairs term_pairs =
       else
 	[flow] :: acc
     ) []
-
-
-
-
-(* at this point we have a set/list of spatterns that we know to match
-   on some term that is believed to have been involved in a change; the
-   function is_freq determines whether a node-term is frequent in the RHS
-   graphs *)
-let rec get_context_point chunk =
-  match chunk with
-  | [] -> raise (Diff.Fail "no context point?")
-  | Difftype.ADD _ :: chunk -> get_context_point chunk
-  | c :: _ -> c
 
 
 

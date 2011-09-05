@@ -2398,24 +2398,8 @@ let cont_match_new g sp n =
     try 
       match cont_match_new_internal g sp n with
       | [] -> false
-      | r -> 
-          begin
-            (*print_endline "matched ";*)
-            (*r *)
-            (*+> List.map (fun (nodes, env) -> *)
-              (*nodes *)
-              (*+> List.map string_of_int*)
-              (*+> String.concat " "*)
-            (*)*)
-            (*+> String.concat "\n"*)
-            (*+> print_endline;*)
-            (*print_endline "@";*)
-            true
-          end
-    with Fatal_error | Nomatch -> 
-      begin
-        false
-      end
+      | r -> true
+    with Fatal_error | Nomatch -> false
 
 let cont_match_traces_new g sp n =
   try 
@@ -3413,8 +3397,7 @@ let get_flow_changes flows1 flows2 =
     (function f ->
        let fname = get_fun_name_gflow f in
 	 flows2 
-	 +> List.find_all
-	   (function f' -> get_fun_name_gflow f' = fname)
+	 +> List.find_all (function f' -> get_fun_name_gflow f' = fname)
 	 +> List.iter (function f' -> 
 			 let diff = dfs_diff f f' in
 			   flow_changes := diff :: !flow_changes;
@@ -4028,12 +4011,12 @@ let rec merge_patterns p1 p2 =
 
 let all_adds diff = List.for_all (function ADD _ -> true | _ -> false) diff
 
-let chunks_of_diff diff =
+let chunks_of_diff_generic sel diff =
   let rec loop acc_chunks chunk diff = match diff with
     | [] -> List.rev ((List.rev chunk) :: acc_chunks)
     | i :: diff' -> (match i with
 		       | ADD t -> loop acc_chunks (i :: chunk) diff'
-           | ID (t,_) when t == skip -> 
+           | ID tt when (sel tt) == skip -> 
                loop ((List.rev chunk) :: acc_chunks) [] diff'
 		       | ID t | RM t -> _loop acc_chunks (i :: chunk) diff'
 		    ) 
@@ -4041,12 +4024,13 @@ let chunks_of_diff diff =
     | [] -> loop acc_chunks chunk []
     | i :: diff' -> (match i with
 		       | ADD _ -> _loop acc_chunks (i :: chunk) diff'
-           | ID (t,_) when t == skip -> 
+           | ID tt when (sel tt) == skip -> 
                loop ((List.rev chunk) :: acc_chunks) [] diff'
 		       | _ -> loop ((List.rev chunk) :: acc_chunks) [] diff
 		    ) in
     loop [] [] diff
 
+let chunks_of_diff diff = chunks_of_diff_generic (fun (a,b) -> a) diff
 
 (* given a set of patterns and a term that have been identified as
  * belonging to a change, we wish to find the patterns that match the
@@ -4065,12 +4049,11 @@ let get_change_matches spatterns term =
        +> List.exists (function p -> can_match (extract_pat p) term)
     ) 
 
-
-let chunks_of_diff_spatterns spatterns diff =
-  let is_id_chunk ch = match ch with
+let is_id_chunk ch = match ch with
     | [ID _] | [ADD _] | [] -> true
     | _ -> false
-  in
+
+let chunks_of_diff_spatterns spatterns diff =
   let print_chunk chunk =
     if !Jconfig.verbose
     then List.iter (function 
