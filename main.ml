@@ -2671,13 +2671,10 @@ let construct_spatches_new chunks safe_part_loc patterns =
   and construct_loop (wq, out) =
     match wq with
     | [] -> out
-    | p :: ps ->
-	p
-	  +> handle_p (ps, out)
-	  +> construct_loop in 
-  let rec init_pattern p = match p with
-  | [] -> []
-  | p :: p_tail -> Difftype.ID p :: init_pattern p_tail
+    | p :: ps -> p +> handle_p (ps, out) +> construct_loop in 
+    let rec init_pattern = function
+    | [] -> []
+    | p :: p_tail -> Difftype.ID p :: init_pattern p_tail
   in
   construct_loop (List.rev_map init_pattern patterns, [])
 
