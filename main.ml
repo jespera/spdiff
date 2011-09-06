@@ -3917,9 +3917,10 @@ let find_common_patterns () =
     print_endline ("[Main] finding chunks based on " ^ string_of_int(List.length(gpats')) ^ " patterns");
     let chunks = get_chunks gpats' in
     print_endline "[Main] constructing s.patches";
-    let ttf_list = term_pairs +> List.rev_map (function ((lhs_gt, lhs_flow),(rhs_gt,_)) -> 
-      (lhs_gt, rhs_gt, [lhs_flow])
-					      ) in
+    let ttf_list = 
+      term_pairs +> 
+      List.rev_map (fun ((lhs_gt, lhs_flow),(rhs_gt,_)) -> 
+                         (lhs_gt, rhs_gt, [lhs_flow])) in
     let ttf_focus_fun = 
       if haveFocusFun ()
       then 
@@ -3930,53 +3931,48 @@ let find_common_patterns () =
             ) ttf_list
           )
         with Not_found -> None
-      else None
-    in
+      else None in
     let is_transformation_sp sp = 
-      sp +> List.exists (function p ->
-	match p with
-	| Difftype.ID _ -> false
-	| _ -> true) in
+      sp +> List.exists (fun p ->
+	          match p with
+	          | Difftype.ID _ -> false
+	          | _ -> true) in
     let safe_for_ff sp =
       match ttf_focus_fun with
       | None -> true
-      | Some ttf -> (match is_spatch_safe_one ttf sp with
-        | None -> true
-        | Some b -> b
-		    ) in
+      | Some ttf -> begin
+          match is_spatch_safe_one ttf sp with
+          | None -> true
+          | Some b -> b
+        end in
     let is_safe_part sp =
-      let spa = List.map 
-	  (function p -> 
+      let spa = List.map (fun p -> 
             match p with
             | Difftype.PENDING_RM p' -> Difftype.RM p'
             | Difftype.PENDING_ID p' -> Difftype.ID p'
             | _ -> p
-	  ) sp in
+	          ) sp in
       not(is_transformation_sp spa)
-    || (
-      (match ttf_focus_fun with
-      | None -> true
-      | Some ttf -> 
-          (match is_spatch_safe_one ttf spa with
+      || ((match ttf_focus_fun with
           | None -> true
-          | Some b -> b
-          )
-      )
-        && is_spatch_safe_ttf_list spa ttf_list 
-   ) in
-    
+          | Some ttf -> begin
+              match is_spatch_safe_one ttf spa with
+              | None -> true
+              | Some b -> b
+          end)
+         && is_spatch_safe_ttf_list spa ttf_list) in
     let sp_candidates = construct_spatches_new chunks is_safe_part gpats'  in
     let trans_patches' = sp_candidates +> List.filter is_transformation_sp in
     if !print_raw
     then begin
       print_endline "[Main] candidate semantic patches...";
       trans_patches' +>
-      List.iter (function sp -> 
-	print_endline "[spatch:]";
-	print_endline (sp
-			 +> List.map Diff.string_of_spdiff
-			 +> String.concat "\n");
-		)
+      List.iter (fun sp -> 
+	      print_endline "[spatch:]";
+	      print_endline (sp
+			  +> List.map Diff.string_of_spdiff
+			  +> String.concat "\n");
+		  )
     end;
     print_endline ("[Main] getting missed RHS bindings");
     let trans_patches = get_missed_rhs trans_patches' gss in
@@ -3984,97 +3980,84 @@ let find_common_patterns () =
     then begin
       print_endline "[Main] after missed-analysis we have semantic patches...";
       trans_patches +>
-      List.iter (function sp -> 
-	print_endline "[spatch:]";
-	print_endline (sp
-			 +> List.map Diff.string_of_spdiff
-			 +> String.concat "\n");
-		)
+      List.iter (fun sp -> 
+	      print_endline "[spatch:]";
+	      print_endline (sp
+			  +> List.map Diff.string_of_spdiff
+			  +> String.concat "\n");
+		  )
     end;
-    print_string ("[Main] filtering safe semantic patches ("^ trans_patches +> 
-	    						      List.length +> 
-							      string_of_int ^") ... ");
+    print_string ("[Main] filtering safe semantic patches ("^ 
+                  trans_patches +> List.length +> string_of_int ^
+                  ") ... ");
     let res_count = ref 0 in
     let res_total = List.length trans_patches in
-    let res_spatches = 
-      trans_patches
-	+> List.fold_left 
-	(fun acc_sps sp -> begin
-	  ANSITerminal.save_cursor ();
-	  ANSITerminal.print_string 
-	    [ANSITerminal.on_default](
-	  !res_count +> string_of_int ^"/"^
-	  res_total +> string_of_int);
-	  ANSITerminal.restore_cursor();
-	  flush stdout;
-	  res_count := !res_count + 1;
-	  if safe_for_ff sp && is_spatch_safe_ttf_list sp ttf_list
-	  then sp :: acc_sps
-	  else begin
-	    if !Jconfig.print_abs
-	    then 
-	      begin
-		print_endline "[Main] not safe...";
-		print_endline (String.concat "\n" (List.map Diff.string_of_spdiff sp));
-	      end;
-	    acc_sps
-	  end
-	end) []
-	+> rm_dups
-    in
+    let res_spatches = trans_patches
+	      +> List.fold_left 
+	         (fun acc_sps sp -> begin
+	            ANSITerminal.save_cursor ();
+	            ANSITerminal.print_string 
+	            [ANSITerminal.on_default] 
+              (!res_count +> string_of_int ^"/"^ res_total +> string_of_int);
+	            ANSITerminal.restore_cursor();
+	            flush stdout;
+	            res_count := !res_count + 1;
+	            if safe_for_ff sp && is_spatch_safe_ttf_list sp ttf_list
+	            then sp :: acc_sps
+	            else begin
+	              if !Jconfig.print_abs
+	              then 
+	                begin
+		                print_endline "[Main] not safe...";
+		                print_endline (String.concat "\n" (List.map Diff.string_of_spdiff sp));
+	                end;
+	              acc_sps
+	            end
+	         end) []
+	      +> rm_dups in
     print_newline ();
     if !Jconfig.print_abs
     then begin
-      List.iter (function sp -> 
-	print_endline "[spatch:]";
-	print_endline (sp
-			 +> List.map Diff.string_of_spdiff
-			 +> String.concat "\n");
-		) res_spatches
+      List.iter (fun sp -> 
+	      print_endline "[spatch:]";
+	      print_endline (sp
+			    +> List.map Diff.string_of_spdiff
+			    +> String.concat "\n");
+		  ) res_spatches
     end;
     print_endline ("[Main] filtering largest semantic patches ("^
 		   res_spatches +> List.length +> string_of_int
 		   ^")");
     let largest_spatches =
       res_spatches 
-	+> (function spatches -> 
-	  if !filter_spatches then get_largest_spatchs ttf_list spatches
-	  else spatches)
-	+> rm_dups
-    in
+	    +> (fun spatches -> 
+	        if !filter_spatches then get_largest_spatchs ttf_list spatches
+	        else spatches)
+	    +> rm_dups in
     print_endline ("[Main] *REAL* semantic patches inferred: " ^
 		   List.length largest_spatches +> string_of_int);
     largest_spatches
-      +> List.iter (function diff ->
-	print_endline "[spatch:]";
-	print_endline (diff
-			 +> (* List.map Diff.string_of_spdiff*)
-		       Diff.string_of_spdiff_full
-			 (*+> String.concat "\n"*)
-		      );
-	if !show_support
-	then begin
-	  let sup = ttf_list +> List.filter 
-	      (function (gt_l,gt_t,flows) as ttf ->
-		match is_spatch_safe_one ttf diff with
-		| None -> false
-		| Some t -> t
-	      ) 
-	  in
-	  print_endline ("supporting functions (" 
-			 ^ sup +> List.length +> string_of_int 
-			 ^ "/" ^ ttf_list +> List.length +> string_of_int 
-			 ^ ")");
-	  print_string "< ";
-	  sup +> List.iter 
-	    (function (l,r,fs) -> 
-	      l +> Reader.get_fname_ast +> print_string;
-	      print_string " ";
-	    );
-	  print_endline " >";
-	  print_newline ();
-	end
-		   )
+    +> List.iter (fun diff ->
+        print_endline "[spatch:]";
+        print_endline (diff +> Diff.string_of_spdiff_full);
+        if !show_support
+        then begin
+          let sup = ttf_list +> List.filter 
+            (function (gt_l,gt_t,flows) as ttf ->
+                match is_spatch_safe_one ttf diff with
+                | None -> false
+                | Some t -> t
+            ) in
+          print_endline ("supporting functions (" 
+            ^ sup +> List.length +> string_of_int 
+            ^ "/" ^ ttf_list +> List.length +> string_of_int 
+            ^ ")");
+          print_string "< ";
+          sup +> List.iter 
+              (fun (l,r,fs) -> l +> Reader.get_fname_ast +> print_string; print_string " ";);
+          print_endline " >";
+          print_newline ();
+        end)
   end		  
 
 
