@@ -1871,7 +1871,8 @@ let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
 					  ) in
   (*   let (||-) gss sp = is_frequent_sp gss sp in *)
   let (+++) x xs = 
-    if List.mem x xs then xs else (
+    (*if List.mem x xs then xs else*)
+      (
     if !print_adding then (
       print_endline "[Main] adding pattern ";
       print_endline (string_of_pattern x);
@@ -2601,82 +2602,89 @@ let construct_spatches_new chunks safe_part_loc patterns =
     let rec apply_chunk_loop i p = match p with
     | [] -> raise (Impossible 113)
     | tp :: p_rest ->
-	if i = 0
-	then
-	  let before = chunk 
-	      +> get_before
-	      +> List.map (rev_sub_diff env) in
-	  let after  = chunk
-	      +> get_after
-	      +> List.map (rev_sub_diff env) in
-	  let tp = match List.nth p i with
-	  | Difftype.RM t
-	  | Difftype.ID t -> t
-	  | _ -> raise (Impossible 90) in
-	  let ctx    = match get_ctx_trans chunk with
-	  | Difftype.RM _ -> Difftype.PENDING_RM tp
-	  | Difftype.ID _ -> Difftype.PENDING_ID tp
-	  | _ -> raise (Impossible 109) in
-	  let insert_pending = before @ ctx :: after in
-	  insert_pending @ p_rest
-	else 
-	  tp :: apply_chunk_loop (i-1) p_rest in
+        if i = 0
+	      then
+	        let before = 
+            chunk 
+	          +> get_before +> List.map (rev_sub_diff env) in
+	        let after  = 
+            chunk +> get_after +> List.map (rev_sub_diff env) in
+	        let tp = match List.nth p i with
+	                 | Difftype.RM t
+	                 | Difftype.ID t -> t
+	                 | _ -> raise (Impossible 90) in
+	        let ctx    = match get_ctx_trans chunk with
+	                     | Difftype.RM _ -> Difftype.PENDING_RM tp
+	                     | Difftype.ID _ -> Difftype.PENDING_ID tp
+	                     | _ -> raise (Impossible 109) in
+	        let insert_pending = before @ ctx :: after in
+	        insert_pending @ p_rest
+	      else 
+	        tp :: apply_chunk_loop (i-1) p_rest in
     apply_chunk_loop i p 
   in
 
   let rec handle_p acc orig_p =
     let rec loop_p (wq, out) (i, p) = 
-
       match p with
       | [] -> (wq, out)
       | tp :: p_rest ->
-	  if pending_or_add tp
-	      (* we skip term patterns which have already been paired
-		 with a chunk *)
-	  then loop_p (wq, out) (i+1, p_rest)
-	  else begin
-	    let new_wq, new_out = chunks +> List.fold_left 
-		(fun (wq, out) ch ->
-
-		  match try_match tp (get_ctx_trans ch) with
-		  | None -> (wq, out)
-		  | Some env' ->
-
-		      let spa = apply_chunk env' ch i orig_p in
-
-		      if (* safe_part_loc spa && *) 
-			not(List.mem spa out)
-		      then begin
-
-			(spa +++ wq,
-			 (spa 
-			    +> List.map 
-			    (function p -> match p with
-			    | Difftype.PENDING_RM tp -> Difftype.RM tp
-			    | Difftype.PENDING_ID tp -> Difftype.ID tp
-			    | _ -> p
-			    )) +++ out)
-		      end
-		      else begin
-
-			(wq, out)
-		      end
-		) (wq, out) 
-	    in 
-	    loop_p (new_wq, new_out) (i+1, p_rest)
-	  end
-    in
-    loop_p acc (0, orig_p)
-
-  and construct_loop (wq, out) =
-    match wq with
-    | [] -> out
-    | p :: ps -> p +> handle_p (ps, out) +> construct_loop in 
-    let rec init_pattern = function
-    | [] -> []
-    | p :: p_tail -> Difftype.ID p :: init_pattern p_tail
+          if pending_or_add tp
+	        (* we skip term patterns which have already been paired with a chunk *)
+	        then loop_p (wq, out) (i+1, p_rest)
+	        else begin
+	          let new_wq, new_out = chunks +> List.fold_left 
+		          (fun (wq, out) ch ->
+		              match try_match tp (get_ctx_trans ch) with
+		              | None -> (wq, out)
+		              | Some env' -> let spa = apply_chunk env' ch i orig_p in
+                      begin
+                        if List.mem spa wq
+                        then (wq, out) (* we already have spa in wq *)
+                        else
+                          begin                  
+                            (*print_string "Determine safety ";*)
+                            (*flush stdout;*)
+                            let is_s = safe_part_loc spa in
+                            (*print_endline (string_of_bool is_s);*)
+                            if is_s 
+                            then 
+                              (spa +++ wq,
+                              (spa +> List.map (function
+                                            | Difftype.PENDING_RM tp -> Difftype.RM tp
+                                            | Difftype.PENDING_ID tp -> Difftype.ID tp
+                                            | p -> p
+                              )) +++ out)
+                            else (wq, out)
+                          end
+                      end
+		          ) (wq, out) in 
+	          loop_p (new_wq, new_out) (i+1, p_rest)
+	        end in (* end of loop_p def *)
+    begin
+      (*print_endline ("[main] working on patch: ");*)
+      (*print_endline (String.concat "\n" (List.map Diff.string_of_diff orig_p));*)
+      loop_p acc (0, orig_p) 
+    end in
+  let rec construct_loop (wq, out) =
+      match wq with
+      | [] -> out
+      | p :: ps -> 
+          begin
+            print_endline (
+              "[main] |out| = " ^ string_of_int (List.length out) ^
+              "|wq| = " ^ string_of_int (List.length wq)
+            );
+            p +> handle_p (ps, out) +> construct_loop 
+          end 
   in
-  construct_loop (List.rev_map init_pattern patterns, [])
+  let rec init_pattern = function
+    | [] -> []
+    | p :: p_tail -> Difftype.ID p :: init_pattern p_tail in
+  begin
+    print_endline("[main] There are " ^ string_of_int (List.length patterns) ^ " patterns to consider");
+    construct_loop (List.rev_map init_pattern patterns, [])
+  end
 
 let get_rhs_flows term_pairs =
   term_pairs
