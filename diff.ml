@@ -59,6 +59,10 @@ struct
 end
 
 
+let pfold fold_f l opid concat = 
+  (*Parmap.parfold ~ncores:4 ~op:op ~s:(Parmap.L l) ~opid:opid ~concat:concat*)
+  Parmap.parfold ~ncores:4 fold_f (Parmap.L l) opid concat
+
 (*
  *module DiffT =
  *  struct
@@ -4155,10 +4159,12 @@ let merge_abstract_terms subterms_lists unique_subterms =
   (* There should be no duplicate subterms in each subterms_list *)
   let non_dub_subterms_lists =
     List.rev_map rm_dub subterms_lists in
-
+  let opt_app ls1 ls2 = match ls1, ls2 with
+    | None, _ -> ls2
+    | _, None -> ls1
+    | Some xs1, Some xs2 -> Some (List.rev_append xs1 xs2) in
   let abs_count = ref 0 in
   let abs_total = ref 0 in
-
   (* Function to compute extension of node-pattern; uses Hashtable for
    * memoization *)
   let pat_extension p = 
@@ -4195,27 +4201,26 @@ let merge_abstract_terms subterms_lists unique_subterms =
     && not(is_head_node t)
     && not(acc_ts +> List.exists (function t' -> t = t')) 
   in
-    non_dub_subterms_lists
-    +> List.fold_left 
-      (fun acc_ts ts_list -> match acc_ts with
-        | None -> ts_list +> some
-        | Some ts -> 
-            begin
-              ts +> List.fold_left 
-                (fun acc_ts t_merged -> 
-		                  ts_list +> List.fold_left 
-                        (fun acc_ts t ->
-                          let t', env = merge_terms t t_merged in
-                          let p = renumber_metas_gtree t' in
-                          if interesting_t p acc_ts
-                          then p +++ acc_ts
-                          else acc_ts
-                        ) acc_ts
-		            ) (List.rev_append ts ts_list)
-              +> some
-            end 
-      ) 
-      None
+  let f ts_list acc_ts =
+      match acc_ts with
+      | None -> ts_list +> some
+      | Some ts -> 
+          begin
+            ts +> List.fold_left 
+              (fun acc_ts t_merged -> 
+                    ts_list +> List.fold_left 
+                      (fun acc_ts t ->
+                        let t', env = merge_terms t t_merged in
+                        let p = renumber_metas_gtree t' in
+                        if interesting_t p acc_ts
+                        then p +++ acc_ts
+                        else acc_ts
+                      ) acc_ts
+              ) (List.rev_append ts ts_list)
+            +> some
+          end 
+  in
+    (pfold f non_dub_subterms_lists None opt_app)
     +> get_some
     +> (function x -> 
           begin
