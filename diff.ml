@@ -429,6 +429,11 @@ let rec string_of_diff d =
       | PENDING_ID s -> "PID:  " ^ string_of_gtree' s
       | PENDING_RM s -> "PRM:  " ^ string_of_gtree' s
 
+let print_diffs ds =
+  print_endline "{{{";
+  List.iter (fun d -> print_endline (string_of_diff d)) ds;
+  print_endline "}}}"
+
 let extract_pat p = match view p with
 | C("CM", [p]) -> p
 | _ -> raise (Match_failure (string_of_gtree' p, 772,0))
@@ -1237,41 +1242,26 @@ let rec edit_cost gt1 gt2 =
     | RM t | ADD t -> node_size t
     | UP (t1,t2) when t1  = t2 -> 0
     | UP (t,t') -> node_size t + node_size t'
-    | _ -> raise (Fail "edit_cost upcost")
-  in
-(*
-  let get_cost gt1 g2 =
-    patience_diff (flatten_tree gt1) (flatten_tree gt2) +>
-      List.fold_left (fun acc_sum up -> up_cost up + acc_sum) 0 in
-*)
+    | _ -> raise (Fail "edit_cost upcost") in
   let rec get_cost_tree gt1 gt2 = 
     if gt1 = gt2 then 0
     else 
       match view gt1, view gt2 with
-	| C(t1,gts1), C(t2,gts2) -> 
-	    (if t1 = t2 then 0 else 1) + (
-	      patience_diff gts1 gts2 +>
-		(*get_diff gts1 gts2 +> *)
-		List.fold_left (fun acc_sum up -> match up with
-				  (* | UP(t1,t2) -> get_cost_tree t1 t2 + acc_sum *)
-				  | UP(t1,t2) -> edit_cost t1 t2 + acc_sum
-				  | _ -> up_cost up + acc_sum) 0)
-	(* | _ -> 1  *)
-	| _ -> up_cost (UP(gt1,gt2)) 
-  in
-    try
-      let res = PT.find editht (gt1,gt2) in
-	res
-    with Not_found ->
-      let 
-	(* res = minimal_tree_dist gt1 gt2 *)
-	  res = get_cost_tree gt1 gt2
-	  (* res = get_cost gt1 gt2 *)
-      in
-	(
-	  PT.add editht (gt1,gt2) res;
-	  res
-	)
+      | C(t1,gts1), C(t2,gts2) -> 
+	        (if t1 = t2 then 0 else 1) + (
+	          patience_diff gts1 gts2 
+            +> List.fold_left (fun acc_sum up -> match up with
+                    | UP(t1,t2) -> edit_cost t1 t2 + acc_sum
+				            | _ -> up_cost up + acc_sum) 0)
+    	| _ -> up_cost (UP(gt1,gt2)) in
+  try
+    PT.find editht (gt1,gt2)
+  with Not_found ->
+      let res = get_cost_tree gt1 gt2 in
+	    begin
+        PT.add editht (gt1,gt2) res;
+	      res
+	    end
 	
 
 (* apply up t, applies up to t and returns the new term and the environment bindings *)
@@ -1764,11 +1754,21 @@ and part_of_edit_dist gt1 gt2 gt3 =
     ("12: " ^ string_of_int dist12 ^ " 23: " ^ string_of_int dist23 ^ 
     " 13: " ^ string_of_int dist13) +> print_endline;
 *)
-    false
-    (* raise (Fail "<") *)
+    (*false*)
+    raise (Fail "<")
    )    
   else
-    dist12 + dist23 = dist13
+    if dist12 + dist23 = dist13
+    then true
+    else begin
+   string_of_gtree' gt1 +> print_endline;    
+    string_of_gtree' gt2 +> print_endline; 
+    string_of_gtree' gt3 +> print_endline;
+    ("12: " ^ string_of_int dist12 ^ " 23: " ^ string_of_int dist23 ^ 
+    " 13: " ^ string_of_int dist13) +> print_endline;
+
+      false
+    end
 
 (* is up a safe part of the term pair (t, t'') 
  *
@@ -3188,11 +3188,6 @@ let no_calls_dive lhs rhs =
     | C (_,_), C (_,_) -> true
     | _ -> false
 
-let print_diffs ds =
-  print_endline "{{{";
-  List.iter (fun d -> print_endline (string_of_diff d)) ds;
-  print_endline "}}}"
-
 let print_additions d =
   match d with
     | ADD d -> print_endline ("\n+ " ^ string_of_gtree' d)
@@ -4346,60 +4341,56 @@ let get_metas t =
 let find_simple_updates_merge_changeset changeset =
   print_endline ("[Diff] threshold " ^ string_of_int !no_occurs);
   let for_some n f ls = 
-    let rec loop n ls =
-      n = 0 ||
-      match ls with
-	| x :: xs when f x -> loop (n - 1) xs
-	| _ :: xs -> loop n xs
-	| [] -> false in
-      loop n ls
+    let rec loop n ls = n = 0 || match ls with
+	                               | x :: xs when f x -> loop (n - 1) xs
+	                               | _ :: xs -> loop n xs
+	                               | [] -> false in
+    loop n ls
   in
   let interesting_tu (UP (l,r)) acc_tus = 
     not(l = r) &&
-      not(infeasible l) &&
-      let l_metas = get_metas l in
-      let r_metas = get_metas r in
-	sublist r_metas l_metas 
-	&& changeset +> for_some !no_occurs (safe_part (UP(l,r)))
-	&& not(acc_tus +> List.exists (function tu' -> (UP(l,r)) = tu'))
+    not(infeasible l) &&
+	  sublist (get_metas r) (get_metas l)
+	  && changeset +> for_some !no_occurs (safe_part (UP(l,r)))
+	  && not(acc_tus +> List.exists (function tu' -> (UP(l,r)) = tu'))
   in
     changeset
-    +> List.rev_map (function (l,r) -> get_tree_changes l r +> rm_dub)
-    +> (function x -> begin
-	  print_endline ("[Diff] got all non-abstract tree changes ("
-			 ^ x +> List.rev_map List.length +> List.fold_left (+) 0 +> string_of_int
-			 ^ ")");
-	  print_string ("[Diff] possible combinations: ");
-	  x +> List.rev_map List.length +> List.fold_left ( * ) 1 +> string_of_int +> print_endline;
-	  x
-	end)
+    +> List.rev_map (fun (l,r) -> get_tree_changes l r +> rm_dub)
+    +> (fun x -> 
+        begin
+          print_endline ("[Diff] got all non-abstract tree changes (" ^ 
+                          x +> List.rev_map List.length +> List.fold_left (+) 0 +> string_of_int ^ 
+                          ")");
+          print_string ("[Diff] possible combinations: ");
+          x +> List.rev_map List.length +> List.fold_left ( * ) 1 +> string_of_int +> print_endline;
+          x
+	      end)
     +> List.fold_left 
-      (fun acc_tus tu_list ->
-	 match acc_tus with
-	   | None -> tu_list +> some
-	   | Some tus -> 
-	       begin
-		 if !Jconfig.print_abs
-		 then begin
-		   print_endline ("[Diff] acc_tus (" ^ tus +> List.length +> string_of_int ^ ")");
-		   tus +> List.iter (function tu ->
-				       tu 
-				       +> string_of_diff 
-				       +> print_endline);
-		 end;
-		 tus
-		 +> List.fold_left (fun acc_tus tu_merged -> 
-				      tu_list +> List.fold_left 
-					(fun acc_tus tu ->
-					   let tu' = merge_tus tu tu_merged in
-					     if interesting_tu tu' acc_tus
-					     then tu' :: acc_tus
-					     else acc_tus
-					)
-					acc_tus
-				   ) (List.rev_append tus tu_list)
-		 +> some
-	       end 
-      ) 
-      None
+        (fun acc_tus tu_list ->
+          match acc_tus with
+          | None -> tu_list +> some
+          | Some tus -> begin
+              if !Jconfig.print_abs
+              then begin
+                print_endline ("[Diff] acc_tus (" ^ tus +> List.length +> string_of_int ^ ")");
+                tus +> List.iter (fun tu -> tu 
+                 +> string_of_diff 
+                 +> print_endline);
+              end;
+              tus
+              +> List.fold_left 
+                   (fun acc_tus tu_merged -> 
+                     tu_list +> List.fold_left 
+                        (fun acc_tus tu ->
+                            let tu' = merge_tus tu tu_merged in
+                            if interesting_tu tu' acc_tus
+                            then tu' :: acc_tus
+                            else acc_tus
+                        )
+                        acc_tus
+                   ) 
+                   (List.rev_append tus tu_list)
+              +> some
+             end)
+        None
     +> get_some
