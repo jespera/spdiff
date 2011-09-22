@@ -1754,21 +1754,11 @@ and part_of_edit_dist gt1 gt2 gt3 =
     ("12: " ^ string_of_int dist12 ^ " 23: " ^ string_of_int dist23 ^ 
     " 13: " ^ string_of_int dist13) +> print_endline;
 *)
-    (*false*)
-    raise (Fail "<")
+    false
+    (*raise (Fail "<")*)
    )    
   else
-    if dist12 + dist23 = dist13
-    then true
-    else begin
-   string_of_gtree' gt1 +> print_endline;    
-    string_of_gtree' gt2 +> print_endline; 
-    string_of_gtree' gt3 +> print_endline;
-    ("12: " ^ string_of_int dist12 ^ " 23: " ^ string_of_int dist23 ^ 
-    " 13: " ^ string_of_int dist13) +> print_endline;
-
-      false
-    end
+    dist12 + dist23 = dist13
 
 (* is up a safe part of the term pair (t, t'') 
  *

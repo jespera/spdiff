@@ -2645,11 +2645,11 @@ let construct_spatches_new chunks safe_part_loc patterns =
                           begin                  
                             (*print_string "Determine safety ";*)
                             (*flush stdout;*)
-                            let is_s = safe_part_loc spa in
+                            let is_s = true (* safe_part_loc spa *) in
                             (*print_endline (string_of_bool is_s);*)
                             if is_s 
                             then 
-                              (spa +++ wq,
+                              (spa :: wq,
                               (spa +> List.map (function
                                             | Difftype.PENDING_RM tp -> Difftype.RM tp
                                             | Difftype.PENDING_ID tp -> Difftype.ID tp
