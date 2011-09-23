@@ -4203,9 +4203,14 @@ let merge_abstract_terms subterms_lists unique_subterms =
                       ) acc_ts
               ) (List.rev_append ts ts_list)
             +> some
-          end 
+          end
   in
-    (pfold f non_dub_subterms_lists None opt_app)
+  let concat ls1 ls2 = match ls1, ls2 with
+    | None, _ -> ls2
+    | _, None -> ls1
+    | Some ps, _ -> f ps ls2
+  in
+    (pfold f non_dub_subterms_lists None concat)
     +> get_some
     +> (function x -> 
           begin
