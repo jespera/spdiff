@@ -3765,7 +3765,7 @@ let get_patterns subterms_lists unique_subterms env term =
 
 let rec useless_abstraction p = is_meta p || 
   match view p with
-    | C("dlist", inis) -> 
+    | C("dlist", inis) ->
         List.for_all useless_abstraction inis
     | C("stmt", [p']) 
     | C("exprstmt", [p']) 

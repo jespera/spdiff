@@ -2466,7 +2466,7 @@ let common_patterns_graphs gss =
     +> fun ps -> begin
       print_endline ("Before filter_changed: " ^ string_of_int (List.length
       ps));
-      let res = filter_changed_main ps in
+      let res = if !only_changes then filter_changed_main ps else ps in
       print_endline ("After filter_changed: " ^ string_of_int (List.length
       res));
       res
@@ -2666,10 +2666,12 @@ let construct_spatches_new chunks safe_part_loc patterns =
       | [] -> out
       | p :: ps -> 
           begin
+            (*
             print_endline (
               "[main] |out| = " ^ string_of_int (List.length out) ^
               "|wq| = " ^ string_of_int (List.length wq)
             );
+            *)
             p +> handle_p (ps, out) +> construct_loop 
           end 
   in
@@ -3592,7 +3594,6 @@ let interesting_sp sp =
 				else (mvar :: seen, flag)
 			) ([],false)
 	+> snd
-
 		
 
 (* decide whether sp1 <= sp2 relative to ttf_list *)
@@ -3654,14 +3655,11 @@ let get_largest_spatchs ttf_list spatches =
 	  fm_lists2 +> List.for_all
 	    (function (f2,m2,_) ->
 	      try
-		let (_, m1, _) = List.find (function (f1,m1,r1) -> f1 = f2) fm_lists1 in
-		if Diff.part_of_edit_dist f2 m1 m2
-		then (print_endline "part_of"; true)
-		else (print_endline "NOT part_of";false)
-		    (* Diff.msa_cost f2 m1 m2 *)
+		      let (_, m1, _) = List.find (function (f1,m1,r1) -> f1 = f2) fm_lists1 in
+		      Diff.part_of_edit_dist f2 m1 m2
 	      with Not_found -> 
-		(print_endline  ("Not finding: " ^ Diff.string_of_gtree' f2);
-		 raise Not_found)
+		      (print_endline  ("Not finding: " ^ Diff.string_of_gtree' f2)
+          ;raise Not_found)
 	    )
 	with Not_found -> false (*  (raise Not_found) *)
       )
@@ -3689,34 +3687,23 @@ let get_largest_spatchs ttf_list spatches =
 	      sp = sp'
 	    || (
 	      let b1 = is_sub lhs_fmlists' lhs_fmlists in
-	      if b1 then print_endline "b1";
 	      let b2 = is_sub lhs_fmlists lhs_fmlists' in
-	      if b2 then print_endline "b2";
 	      if b1
 	      then 
 		if b2
 		then (
-		  print_endline "[Main] subseq?";
 		  if subseq (strip_patch sp') (strip_patch sp)
-		  then (print_endline "true"; true)
+		  then true
 		  else false
 		 )
 		else true
 	      else not b2 (* sp strictly larger or unrelated!*)
-		  (*
-		    if b1
-		    then not b2
-		    || contained_subseq 
-		    (strip_patch sp') 
-		    (strip_patch sp)
-		    else not b2
-		   *)
 	     )
 	  )
 	    then
-	      (print_endline "local ok"; true)
+	      true
 	    else
-	      (print_endline "local counter example"; false)
+	      false
 	  )
       then
 	(
@@ -3724,7 +3711,6 @@ let get_largest_spatchs ttf_list spatches =
 	 Some sp 
 	)
       else (
-	print_endline "[Main] not largest";
 	None
        )
     )
