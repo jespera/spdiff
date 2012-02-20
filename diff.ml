@@ -61,7 +61,7 @@ end
 
 let pfold fold_f l opid concat = 
   (*Parmap.parfold ~ncores:4 ~op:op ~s:(Parmap.L l) ~opid:opid ~concat:concat*)
-  Parmap.parfold ~ncores:4 fold_f (Parmap.L l) opid concat
+  Parmap.parfold ~ncores:1 fold_f (Parmap.L l) opid concat
 
 (*
  *module DiffT =
