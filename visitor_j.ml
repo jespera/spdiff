@@ -453,18 +453,19 @@ and trans_decl decl = match decl with
       "mdecl" @@ s @@@ List.map (function a -> trans_arg (unwrap a)) args
 	(*and trans_odecl ((fopt, ftype, stor, _), _) = match fopt with *)
 
-and trans_odecl ({v_namei = fopt; v_type = ftype; v_storage = stor; v_local = local}, _) = match fopt with
+and trans_odecl ({v_namei = fopt; v_type = ftype; v_storage = stor; v_local = local}, _) = 
+  match fopt with
   | None -> "onedecl" %% "()"
       (*raise (Fail "decl_spec with no init_decl")*)
   | Some ((var, initOpt), _) -> 
-      let new_var = match local with
-	| Ast_c.LocalDecl -> begin
-	    match offset ftype with
-	      | OriginTok {Common.line=l;Common.column=c;Common.file=f}
-		  -> mk_id (l,c,f) var
-	      | _ -> var
-	  end
-	| _ -> var in
+      let new_var = 
+        match local with
+        | Ast_c.LocalDecl -> begin
+            match offset ftype with
+            | OriginTok {Common.line=l;Common.column=c;Common.file=f} -> mk_id (l,c,f) var
+            | _ -> var
+          end
+        | _ -> var in
       let gt_var = "exp" @@ "ident" %% new_var in
       let gt_ft  = trans_type ftype in
       let gt_sto = trans_storage stor in

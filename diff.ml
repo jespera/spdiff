@@ -4142,8 +4142,7 @@ let get_some x = match x with
  *)
 let merge_abstract_terms subterms_lists unique_subterms =
   (* There should be no duplicate subterms in each subterms_list *)
-  let non_dub_subterms_lists =
-    List.rev_map rm_dub subterms_lists in
+  let non_dub_subterms_lists = List.rev_map rm_dub subterms_lists in
   let opt_app ls1 ls2 = match ls1, ls2 with
     | None, _ -> ls2
     | _, None -> ls1
@@ -4180,11 +4179,13 @@ let merge_abstract_terms subterms_lists unique_subterms =
   in
   (* simple filter used under construction of potential set of node-patterns *)
   let interesting_t t acc_ts = 
-    not(infeasible t)
-    && non_phony t
-    && not(control_true = t)
-    && not(is_head_node t)
-    && not(acc_ts +> List.exists (function t' -> t = t')) 
+    begin
+      not(infeasible t)
+      && non_phony t
+      && not(control_true = t)
+      && not(is_head_node t)
+      && not(acc_ts +> List.exists (function t' -> t = t')) 
+    end
   in
   let f ts_list acc_ts =
       match acc_ts with

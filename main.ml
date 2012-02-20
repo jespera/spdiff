@@ -1792,55 +1792,50 @@ let find_seq_patterns_newest
         sub_pat sem_pat sem_pat'
       ) in
   let rec grow acc cur =
-    v_print_endline ".";
-    let next = singleton_patterns +> List.fold_left
-	(fun acc_next p -> 
+    let next = 
+      singleton_patterns +> 
+      List.fold_left (fun acc_next p -> 
           if List.mem p cur
           then acc_next
           else 
             let new_cur = cur @@@ p in
-	    v_print_endline "?";
-	    v_print_endline ("[Main] testing validity of\n" ^ string_of_pattern new_cur);
             if valid new_cur 
-            then (v_print_endline "[Main] OK"; new_cur :: acc_next)
-            else 
-	      begin
-		v_print_endline "!";
-                v_print_endline "[Main] invalid";
-		if !Jconfig.verbose then
-		  begin 
-		    List.iter (function t -> 
-		      print_string (Diff.string_of_gtree' t);
-		      print_string " "
-			      ) new_cur;
-		    print_newline ();
-		  end;
-                acc_next
-	      end
-	) [] in 
+            then new_cur :: acc_next
+            else begin
+		          if !Jconfig.verbose 
+              then begin 
+		            List.iter (function t -> 
+		              print_string (Diff.string_of_gtree' t);
+		              print_string " "
+			          ) new_cur;
+		            print_newline ();
+		          end;
+              acc_next
+	          end) 
+      [] in 
     if next = []
     then begin
-      v_print_endline "empty";
-      if !print_adding
-      then begin
-	print_endline "[Main] adding pattern:";
-	string_of_pattern cur +> print_endline;
-      end;
-      cur ++ acc
-    end
-    else next +> List.fold_left
+        if !print_adding
+        then begin
+          print_endline "[Main] adding pattern:";
+          string_of_pattern cur +> print_endline;
+        end;
+        cur ++ acc
+      end
+    else 
+      next +> List.fold_left
         (fun acc new_cur ->
           if new_cur <<= acc
           then acc
           else grow acc new_cur
         ) acc 
   in
-  singleton_patterns 
-    +> List.fold_left (fun acc p -> 
+  singleton_patterns
+  +> List.fold_left (fun acc p -> 
       begin
-	Jconfig.counter_tick !grow_counter grow_total;
-	grow_counter := !grow_counter + 1;
-	grow acc [p]
+        Jconfig.counter_tick !grow_counter grow_total;
+        grow_counter := !grow_counter + 1;
+        grow acc [p]
       end) []
 
 let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
@@ -3450,13 +3445,14 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
   then None (* no match means, the patch is safe also: EXPERIMENTAL *)
   else Some ( 
     List.exists (function (left,middle,right) -> 
-      (*print_endline ("t1\t" ^ Diff.string_of_gtree' left);*)
-      (*print_endline ("t2\t" ^ Diff.string_of_gtree' middle);*)
-      (*print_endline ("t3\t" ^ Diff.string_of_gtree' right);*)
       if Diff.part_of_edit_dist left middle right
-	  (* if Diff.msa_cost left middle right *)
       then ((*print_endline "ok";*) true)
-      else ((*print_endline "unsafe";*) false)
+      else begin
+        (*print_endline ("t1\t" ^ Diff.string_of_gtree' left);*)
+        (*print_endline ("t2\t" ^ Diff.string_of_gtree' middle);*)
+        (*print_endline ("t3\t" ^ Diff.string_of_gtree' right);        *)
+        false
+      end
 		) patched_lhss
    )
 
