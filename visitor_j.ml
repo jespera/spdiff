@@ -70,23 +70,25 @@ let mk_id (x,y,filename) id_name =
   with Not_found ->
     let uniq_id = id_name ^ "@" ^ !current_fun in
 (*    let uniq_id = id_name ^ "@" ^ !id_cnt +> string_of_int in *)
-      begin
-	id_cnt := !id_cnt + 1;
-	bind_id ((x,y), id_name) uniq_id;
-	uniq_id
-      end
+    begin
+      id_cnt := !id_cnt + 1;
+      bind_id ((x,y), id_name) uniq_id;
+      uniq_id
+    end
       
 let rec trans_expr exp = 
   let (unwrap_e, typ), ii = exp in
-    match unwrap_e with
+  match unwrap_e with
       | Ident s -> 
-	  (* "exp" @@ "ident" %% s *)
-	  (match !typ with
+          (* "exp" @@ "ident" %% s *)
+          (match !typ with
              | None, _ -> "exp" @@ "ident" %% s
              | Some (ft, LocalVar (OriginTok {Common.line=l;Common.column=c;Common.file=f})), _ -> 
-		 let new_s = mk_id (l,c,f) s in
-		   "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% new_s]
-             | Some (ft, _), _ -> "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% s])
+                 let new_s = if !Jconfig.uniq_local then mk_id (l,c,f) s else s in
+                 (*let new_s = s in*)
+                 "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% new_s]
+             | Some (ft, _), _ -> "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% s]
+          )
       | Constant (String (s, _)) -> 
 	  "exp" @@ "const" @@ "string" %% s
       | Constant (Int s) -> 
