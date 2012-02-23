@@ -67,7 +67,7 @@ let focus_function = ref ""
 let speclist =
   Arg.align
     [
-     "-uniq_local"    ,Arg.Set Jconfig.uniq_local, " make names of local variables unique"; 
+     "-uniq_local"    ,Arg.Clear Jconfig.uniq_local, " make names of local variables unique (defaults to true)"; 
      "-focus_function",Arg.Set_string focus_function, "[STRING]  name of function to focus on";
      "-specfile",      Arg.Set_string mfile,    "[filename]  name of specification file (defaults to \"specfile\") ";
      "-threshold",     Arg.Set_int threshold,   "[num]   the minimum number of occurrences required";
