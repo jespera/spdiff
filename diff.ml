@@ -821,14 +821,18 @@ let rec sub env t =
 *)
 let rec match_term st t =
   match view st, view t with
+    | C("head:def", [defp]), C("head:def", [deft]) -> 
+          match_term defp deft
     | A("meta",mvar), _ -> mk_env (mvar, t)
     | A(sct,sat), A(ct,at) when sct = ct && sat = at -> empty_env
 	(* notice that the below lists s :: sts and t :: ts will always match due to
 	 * the way things are translated into gtrees. a C(type,args) must always have
 	 * at least ONE argument in args 
 	 *)
-    | C(sct,s :: sts), C(ct, t :: ts) when 
-	  sct = ct && List.length sts = List.length ts -> 
+    | C("def", [namep;paramsp;bodyp]), C("def", [name;params;body]) ->
+          match_term namep name +> merge_envs (match_term paramsp params)
+    | C(sct,s :: sts), C(ct, t :: ts) 
+      when sct = ct && List.length sts = List.length ts -> 
         List.rev (
           List.fold_left2 (fun acc_env st t ->
             merge_envs (match_term st t) acc_env
@@ -845,9 +849,9 @@ let get_read_only_val t = match view t with
 
 let mark_as_read_only t = mkC("RO", [t])
 
-let can_match p t = 
-  try (match match_term p t with
-	 | _ -> true) with
+let can_match p t =
+  try (match match_term p t with | _ -> true) 
+  with
     | Nomatch -> false
     | _ -> raise (Impossible 191)
 
@@ -928,6 +932,7 @@ let is_head_node n =
   n = control_else ||
   n = control_inloop || 
   match view n with
+  | C("head:def", _) -> false
   | A(hd,_ ) | C(hd, _ ) -> is_header hd
 
 
@@ -4245,7 +4250,7 @@ let merge_abstract_terms subterms_lists unique_subterms =
 		                  ^ ps +> List.length +> string_of_int ^ " patterns");
       List.iter (function p -> print_endline (string_of_gtree' p)) ps;
       let ps = ps
-	      +> List.filter (function t -> not(infeasible t) && non_phony t && not(control_true = t) && not(is_head_node t))
+        +> List.filter (function t -> not(infeasible t) && non_phony t && not(control_true = t) && not(is_head_node t))
 	      +> function ps' ->
               ps' +> List.fold_left 
                 (fun acc t -> if interesting_post t ps'
