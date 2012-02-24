@@ -3351,6 +3351,7 @@ let seq_of_flow f =
     dfs_iter start_idx add_node f;
     !seq 
     +> List.filter non_phony
+    +> List.filter (fun x -> not (is_head_node x))
     +> List.rev
 
 
