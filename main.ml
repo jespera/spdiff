@@ -3893,7 +3893,10 @@ let find_common_patterns () =
   print_endline ("[Main] read " ^ string_of_int (List.length term_pairs) ^ " files");
   let gss = lhs_flows_of_term_pairs term_pairs in
   let gpats'' = common_patterns_graphs gss in
-  let gpats' = filter_changed gpats'' +> rm_dups in
+  let gpats' = 
+    if !only_changes 
+    then filter_changed gpats'' +> rm_dups 
+    else gpats'' in
   if List.length gpats' = 0
   then print_endline "[Main] *NO* common patterns found"
   else begin
