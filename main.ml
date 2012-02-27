@@ -197,8 +197,8 @@ let get_best_itemset ndb =
   Diff.DBD.fold_unique ndb (
   fun item freq () ->
     print_endline ("[Main db] " ^ 
-		   Diff.string_of_diff item ^ ", " ^
-		   string_of_int freq)
+       Diff.string_of_diff item ^ ", " ^
+       string_of_int freq)
  ) ();
   items
 
@@ -207,7 +207,7 @@ let list_at_least n f ls =
     if f e
     then acc_n + 1
     else acc_n
-		  ) 0 ls) >= n
+      ) 0 ls) >= n
 
 
 let do_datamining abs_patches =
@@ -270,7 +270,7 @@ let rec filter_redundant solutions =
   | [] -> []
   | s :: sols -> s :: List.filter (function s' ->
       not(redundant_sol (list_of_bp s) (list_of_bp s'))) 
-		       (filter_redundant sols)
+           (filter_redundant sols)
 
 let implies b1 b2 = not(b1) || b2
 
@@ -278,7 +278,7 @@ let filter_more_abstract abs_terms =
   let keep_sol p =
     List.for_all (function p' -> 
       implies (Diff.can_match p p' || Diff.can_match p' p) (gsize p <= gsize p')
-		 ) abs_terms in
+     ) abs_terms in
   List.filter keep_sol abs_terms
 
 let filter_smaller chgset solutions =
@@ -341,7 +341,7 @@ let generate_sols chgset_orig simple_patches =
   let next_bps bps cur_bp = match cur_bp with
   | None -> List.filter (function bp ->
       Diff.safe_part_changeset bp chgset_orig
-			) bps (*simple_patches*)
+      ) bps (*simple_patches*)
   | Some cur_bp -> (
       (*print_string "[Main] considering next w.r.t.\n\t";*)
       (*print_endline (Diff.string_of_diff cur_bp);*)
@@ -378,26 +378,26 @@ let generate_sols chgset_orig simple_patches =
       (*print_endline ("[Main] bps'.length " ^*)
       (*string_of_int (List.length bps'));*)
       List.fold_left (fun sol bp ->
-	let nbp = extend_bp cur_bp bp in
-	(* let nbps = restrict_bps (unwrap nbp) bps_pool in *)
-	(* gen sol nbps nbp *)
+  let nbp = extend_bp cur_bp bp in
+  (* let nbps = restrict_bps (unwrap nbp) bps_pool in *)
+  (* gen sol nbps nbp *)
 
-	(* remove bp from the list of next bps to select since we know that
-	 * the same bp can not be applied twice
-	 *)
-	if !prune
-	then 
+  (* remove bp from the list of next bps to select since we know that
+   * the same bp can not be applied twice
+   *)
+  if !prune
+  then 
           if List.exists (function bp' -> 
             Diff.subpatch_changeset chgset_orig (unwrap nbp) bp'
-			 ) sol
+       ) sol
           then sol
           else 
             let bps_new_pool = List.filter (fun bp' -> not(bp = bp')) bps_pool in
             gen sol bps_new_pool nbp
-	else 
+  else 
           let bps_new_pool = List.filter (fun bp' -> not(bp = bp')) bps_pool in
-      	  gen sol bps_new_pool nbp
-		     ) sol bps'
+          gen sol bps_new_pool nbp
+         ) sol bps'
      )
   in
   if simple_patches = []
@@ -409,12 +409,12 @@ let generate_sols chgset_orig simple_patches =
     let res_final = 
       if !prune
       then
-	res +> List.filter
-	  (function bp -> res +> List.for_all
-	      (function bp' ->
-          	(* bp' <= bp || not(bp <= bp') *)
-		(* Diff.subpatch_changeset chgset_orig bp' bp
-		   || *) 
+  res +> List.filter
+    (function bp -> res +> List.for_all
+        (function bp' ->
+            (* bp' <= bp || not(bp <= bp') *)
+    (* Diff.subpatch_changeset chgset_orig bp' bp
+       || *) 
                 if bp = bp' || not(Diff.subpatch_changeset chgset_orig bp bp')
                 then true
                 else begin
@@ -424,8 +424,8 @@ let generate_sols chgset_orig simple_patches =
                   print_endline (Diff.string_of_diff bp');
                   false
                 end
-	      )
-	  )
+        )
+    )
       else res 
     in
     print_endline ("[Main] found " ^ string_of_int (List.length res_final) ^ " solutions");
@@ -437,7 +437,7 @@ let print_sol sol =
   print_endline "{{{";
   List.iter (function bp -> 
     print_endline (Diff.string_of_diff bp);
-	    ) sol;
+      ) sol;
   print_endline "}}}"
 
 let print_sols sols =
@@ -447,7 +447,7 @@ let print_sols sols =
     print_endline (string_of_int !cnt);
     print_sol sol;
     cnt := !cnt + 1
-	    ) sols
+      ) sols
 
 (* if we are relaxed get all the simple patches that are relaxed_safe for
  * the changeset and otherwise we can simply get all the ones that occur
@@ -503,7 +503,7 @@ let strip term_pairs abs_patches =
   in
   let pot_res = List.fold_left (fun part atomp ->
     add_atom part atomp
-			       ) [] abs_patches in
+             ) [] abs_patches in
   (*List.map (fun eq_class -> List.hd (filter_smaller term_pairs eq_class )) pot_res*)
   List.rev_map (fun eq_class -> List.hd eq_class) pot_res
 
@@ -516,7 +516,7 @@ let spec_main () =
   let term_pairs = 
     List.fold_left (fun acc_pairs (lfile, rfile) ->
       try 
-	Reader.read_filepair_defs lfile rfile @ acc_pairs
+  Reader.read_filepair_defs lfile rfile @ acc_pairs
       with (Failure _) -> acc_pairs)
       [] !file_pairs
       +> List.filter 
@@ -529,7 +529,7 @@ let spec_main () =
   then threshold := List.length term_pairs;
   Diff.no_occurs := !threshold;
   print_endline ("[Main] Constructing all safe parts for " ^ 
-		 string_of_int (List.length term_pairs) ^ " term pairs");
+     string_of_int (List.length term_pairs) ^ " term pairs");
 
   let filtered_patches = 
     (* if !do_dmine *)
@@ -537,33 +537,33 @@ let spec_main () =
     (* else get_all_safe term_pairs abs_patches *)
     Diff.find_simple_updates_merge_changeset term_pairs
       +> (function x ->
-	begin
-	  print_string "[Main] find_simple_updates_merge return this many updates: ";
-	  x +> List.length +> string_of_int +> print_endline;
-	  if !Jconfig.print_abs
-	  then begin
-	    x +> List.iter (function tu ->
-	      tu 
-		+> Diff.string_of_diff 
-		+> print_endline);
-	  end;
-	  x
-	end
-	 )
+  begin
+    print_string "[Main] find_simple_updates_merge return this many updates: ";
+    x +> List.length +> string_of_int +> print_endline;
+    if !Jconfig.print_abs
+    then begin
+      x +> List.iter (function tu ->
+        tu 
+    +> Diff.string_of_diff 
+    +> print_endline);
+    end;
+    x
+  end
+   )
       +> (function x ->
-	print_endline "[Main] filtering all safe patches."; 
-	x)
+  print_endline "[Main] filtering all safe patches."; 
+  x)
       +> List.filter (function tu -> 
-	term_pairs +> 
-	for_some !threshold
-	  (Diff.safe_part tu)
-		     )
+  term_pairs +> 
+  for_some !threshold
+    (Diff.safe_part tu)
+         )
       +> (function tus -> begin
-	print_string "[Main] after filtering we have this many updates: ";
-	tus +> List.length +> string_of_int +> print_endline;
-	tus
+  print_string "[Main] after filtering we have this many updates: ";
+  tus +> List.length +> string_of_int +> print_endline;
+  tus
       end
-	 )
+   )
       +> List.rev_map Diff.renumber_metas_up
       +> Diff.rm_dub
   in
@@ -579,12 +579,12 @@ let spec_main () =
     List.iter (fun d ->
       print_endline (Diff.string_of_diff d);
       print_endline " ++ ";
-	      ) stripped_patches;
+        ) stripped_patches;
     print_endline "}}}"
    );
   print_endline ("[Main] generating solutions from " 
-		 ^ string_of_int (List.length stripped_patches)
-		 ^ " inputs");
+     ^ string_of_int (List.length stripped_patches)
+     ^ " inputs");
   let solutions = generate_sols term_pairs stripped_patches in
   print_sols solutions
 
@@ -599,7 +599,7 @@ let spec_main_term_pairs term_pairs =
   then threshold := List.length term_pairs;
   Diff.no_occurs := !threshold;
   print_endline ("[Main] Constructing all safe parts for " ^ 
-		 string_of_int (List.length term_pairs) ^ " term pairs");
+     string_of_int (List.length term_pairs) ^ " term pairs");
 
   let filtered_patches = 
     (* if !do_dmine *)
@@ -607,33 +607,33 @@ let spec_main_term_pairs term_pairs =
     (* else get_all_safe term_pairs abs_patches *)
     Diff.find_simple_updates_merge_changeset term_pairs
       +> (function x ->
-	begin
-	  print_string "[Main] find_simple_updates_merge return this many updates: ";
-	  x +> List.length +> string_of_int +> print_endline;
-	  if !Jconfig.print_abs
-	  then begin
-	    x +> List.iter (function tu ->
-	      tu 
-		+> Diff.string_of_diff 
-		+> print_endline);
-	  end;
-	  x
-	end
-	 )
+  begin
+    print_string "[Main] find_simple_updates_merge return this many updates: ";
+    x +> List.length +> string_of_int +> print_endline;
+    if !Jconfig.print_abs
+    then begin
+      x +> List.iter (function tu ->
+        tu 
+    +> Diff.string_of_diff 
+    +> print_endline);
+    end;
+    x
+  end
+   )
       +> (function x ->
-	print_endline "[Main] filtering all safe patches."; 
-	x)
+  print_endline "[Main] filtering all safe patches."; 
+  x)
       +> List.filter (function tu -> 
-	term_pairs +> 
-	for_some !threshold
-	  (Diff.safe_part tu)
-		     )
+  term_pairs +> 
+  for_some !threshold
+    (Diff.safe_part tu)
+         )
       +> (function tus -> begin
-	print_string "[Main] after filtering we have this many updates: ";
-	tus +> List.length +> string_of_int +> print_endline;
-	tus
+  print_string "[Main] after filtering we have this many updates: ";
+  tus +> List.length +> string_of_int +> print_endline;
+  tus
       end
-	 )
+   )
       +> List.rev_map Diff.renumber_metas_up
   in
   if !print_raw
@@ -643,7 +643,7 @@ let spec_main_term_pairs term_pairs =
     List.iter (fun d ->
       print_endline (Diff.string_of_diff d);
       print_endline " ++ ";
-	      ) filtered_patches;
+        ) filtered_patches;
     print_endline "}}}"
    );
   print_endline "[Main] generating solutions...";
@@ -710,7 +710,7 @@ let fold_botup term upfun initial_result =
         let new_terms, new_acc_result = List.fold_left
             (fun (ts, acc_res) t ->
               let new_t, new_acc = loop t acc_res in
-	      new_t :: ts, new_acc
+        new_t :: ts, new_acc
             ) ([], acc_result) ts
         in
         upfun (mkC(ct, List.rev new_terms)) new_acc_result
@@ -791,7 +791,7 @@ let (@@@) l1 l2 = List.rev l1 +> List.fold_left
 let prefix_all l ls =
   l +> List.fold_left (fun acc_prefix e -> 
     prefix e ls @@@ acc_prefix
-		      ) []
+          ) []
 
 (* given a list of lists, produce all permutations where one
  * takes one element from each list in the order given
@@ -822,7 +822,7 @@ let get_metas_single p =
 let get_metas_pattern ps =
   List.fold_left (fun acc_metas p -> 
     List.fold_left (fun acc_metas m -> m +++ acc_metas) acc_metas (get_metas_single p)
-		 ) [] ps
+     ) [] ps
 
 let intersect_lists l1 l2 =
   List.filter (function e1 -> List.mem e1 l2) l1
@@ -877,7 +877,7 @@ let get_fun_name_gflow f =
       | _ -> raise (Diff.Fail "impossible match get_fun_name_gflow")
       )
   | _ -> raise (Diff.Fail "get_fun_name?")
-	
+  
 
 let sameName other_fun =
   if String.compare !focus_function other_fun = 0
@@ -895,7 +895,7 @@ let get_focus_function gss =
   List.find (function 
     | [g] -> get_fun_name_gflow g = !focus_function
     | _ -> raise (Impossible 120)
-	    ) gss
+      ) gss
  )
 
 let get_focus_function' gss =
@@ -955,7 +955,7 @@ and abstract_term depth env t =
    *)
   List.exists (function i -> Diff.find_embedded_succ g i t_sub) idxs 
   (*    if List.exists (function i -> Diff.find_embedded_succ g i t_sub) idxs
-	then (print_endline ("[Main] follow_abs: " ^ (Diff.string_of_gtree' t_sub)); true) else false  *)
+  then (print_endline ("[Main] follow_abs: " ^ (Diff.string_of_gtree' t_sub)); true) else false  *)
   in
  *)
   let rec loop depth env t =
@@ -971,36 +971,36 @@ and abstract_term depth env t =
         else  
           (match view t with
           | A _ -> (* always abstract atoms *)
-	      [meta], (id, t) => env
+        [meta], (id, t) => env
           | C("storage", _) -> [t], env
           | C("call", f :: ts) ->
-	      (* generate abstract versions for each t ∈ ts *)
-	      let meta_lists, env_acc =
+        (* generate abstract versions for each t ∈ ts *)
+        let meta_lists, env_acc =
                 List.fold_left (fun (acc_lists, env') t -> 
-		  let meta', env'' = loop (depth - 1) env' t
-		  in (meta' :: acc_lists), env''
-			       ) ([], env) ts in
-	      (* generate all permutations of the list of lists *)
-	      let meta_perm = gen_perms (List.rev meta_lists) in
-	      (* construct new term from lists *)
-	      t :: List.rev (List.fold_left (fun acc_meta meta_list ->
-		mkC("call", f :: meta_list) :: acc_meta
-					    ) [] meta_perm), env_acc
+      let meta', env'' = loop (depth - 1) env' t
+      in (meta' :: acc_lists), env''
+             ) ([], env) ts in
+        (* generate all permutations of the list of lists *)
+        let meta_perm = gen_perms (List.rev meta_lists) in
+        (* construct new term from lists *)
+        t :: List.rev (List.fold_left (fun acc_meta meta_list ->
+    mkC("call", f :: meta_list) :: acc_meta
+              ) [] meta_perm), env_acc
           | C(ty, ts) ->
-	      (* generate abstract versions for each t ∈ ts *)
-	      let meta_lists, env_acc =
+        (* generate abstract versions for each t ∈ ts *)
+        let meta_lists, env_acc =
                 List.fold_left (fun (acc_lists, env') t -> 
-		  let meta', env'' = loop (depth - 1) env' t
-		  in (meta' :: acc_lists), env''
-			       ) ([], env) ts in
-	      (* generate all permutations of the list of lists *)
-	      let meta_perm = gen_perms (List.rev meta_lists) in
-	      (* construct new term from lists *)
-	      t :: List.rev (List.fold_left (fun acc_meta meta_list ->
-		mkC(ty, meta_list) :: acc_meta
-					    ) [] meta_perm), env_acc
+      let meta', env'' = loop (depth - 1) env' t
+      in (meta' :: acc_lists), env''
+             ) ([], env) ts in
+        (* generate all permutations of the list of lists *)
+        let meta_perm = gen_perms (List.rev meta_lists) in
+        (* construct new term from lists *)
+        t :: List.rev (List.fold_left (fun acc_meta meta_list ->
+    mkC(ty, meta_list) :: acc_meta
+              ) [] meta_perm), env_acc
                 (*
-		  | _ -> [meta;t], (id, t) => env
+      | _ -> [meta;t], (id, t) => env
                  *)
           )
   in
@@ -1020,7 +1020,7 @@ let print_patterns gss ps =
       | _ -> ();
     ) gss;
     print_newline ();
-	    ) ps
+      ) ps
 
 (* let non_phony p = match view p with *)
 (* | A("phony", _)  *)
@@ -1034,7 +1034,7 @@ let concrete_of_graph g =
   let ns = nodes +> List.filter (function (i,t) -> Diff.non_phony t) in
   let ns' = ns +> List.filter (function (i,t) -> 
     (g#successors i)#length <= 1
-			      ) in
+            ) in
   ns' +> List.rev_map snd 
 
 let concrete_of_graph_indicies g =
@@ -1049,7 +1049,7 @@ let concrete_nodes_of_graph g =
   let ns = nodes +> List.filter (function (i,t) -> Diff.non_phony t) in
   let ns' = ns +> List.filter (function (i,t) -> 
     (g#successors i)#length <= 1
-			      ) in
+            ) in
   ns' 
     
 (* depth first search *)
@@ -1059,13 +1059,13 @@ let dfs_iter xi' f g =
     xs +> List.iter (fun xi -> 
       if Hashtbl.mem already xi then ()
       else begin
-	Hashtbl.add already xi true;
-	if not(xi = xi')
-	then f xi;
-	let succ = g#successors xi in
-	aux_dfs (succ#tolist +> List.map fst);
+  Hashtbl.add already xi true;
+  if not(xi = xi')
+  then f xi;
+  let succ = g#successors xi in
+  aux_dfs (succ#tolist +> List.map fst);
       end
-		    ) in
+        ) in
   aux_dfs [xi']
 
 let extract_pat p = Diff.extract_pat p
@@ -1082,7 +1082,7 @@ let follows_p p g pa =
   idxs +> List.iter (function i -> dfs_iter i add_node g);
   !succ_nodes +> List.fold_left (fun acc_pa i -> 
     g#nodes#find i +++ acc_pa
-				) [] +> List.filter (function t -> List.mem t pa)
+        ) [] +> List.filter (function t -> List.mem t pa)
 
 let rm_dups xs = List.fold_left (fun acc_xs x -> x +++ acc_xs) [] xs
 
@@ -1137,7 +1137,7 @@ let get_pattern_traces g sp =
       match Diff.get_traces g sp i with
       | None -> acc_trs
       | Some trs -> trs :: acc_trs
-		      ) []
+          ) []
 
 (* function that finds the traces of a pattern wrt to a graph but only
    considering "silly" nodes in the graph in order to reduce the
@@ -1148,14 +1148,14 @@ let get_pattern_traces_real g sp =
     +> List.filter 
     (function (i,gt) -> 
       Diff.non_phony gt
-	&& not(Diff.is_control_node gt)
-	&& not(Diff.is_head_node gt)
-    )		      
+  && not(Diff.is_control_node gt)
+  && not(Diff.is_head_node gt)
+    )          
     +> List.fold_left (fun acc_trs (i,gt) -> 
       match Diff.get_traces g sp i with
       | None -> acc_trs
       | Some trs -> trs :: acc_trs
-		      ) []
+          ) []
 
 
 (* a pattern sp is a subpattern of another sp' if all the traces of sp
@@ -1164,8 +1164,8 @@ let embedded_trace g tr1 tr2 =
   tr1 +> List.for_all (function t_list -> 
     tr2 +> List.exists (function t_list' -> 
       t_list <++ t_list'
-		       )
-		      )
+           )
+          )
 let print_trace tr =
   v_print_string ("[Main] " ^ string_of_int (List.length tr) ^ ": ");
   tr +> List.iter 
@@ -1173,9 +1173,9 @@ let print_trace tr =
       v_print_string ("<" ^ List.length i_list +> string_of_int ^ ">");
       v_print_string "[[ ";
       i_list 
-	+> List.map string_of_int
-	+> String.concat " > "
-	+> v_print_string;
+  +> List.map string_of_int
+  +> String.concat " > "
+  +> v_print_string;
       v_print_string " ]] "
     );
   v_print_newline ()
@@ -1186,14 +1186,14 @@ let subpattern g sp1 sp2 =
   let subseq = sp1 <++ sp2 in
   let embed  = trcs1 +> List.for_all 
       (function trace1 ->
-	trcs2 +> List.exists (function trace2 -> 
-	  embedded_trace g trace1 trace2
-			     )) in
+  trcs2 +> List.exists (function trace2 -> 
+    embedded_trace g trace1 trace2
+           )) in
   if  embed
       && not(trcs1 = [])
       && not(trcs2 = [])
       (* &&
-	 subseq *)
+   subseq *)
   then 
     (v_print_endline "[Main] subsumed pattern:";
      v_print_endline (string_of_pattern sp1);
@@ -1217,8 +1217,8 @@ let subpattern_some gss sp1 sp2 =
   gss +> for_some !threshold 
     (function flows ->
       flows +> List.exists (function f -> 
-	subpattern f sp1 sp2
-			   )
+  subpattern f sp1 sp2
+         )
     )
 
 
@@ -1235,20 +1235,20 @@ let embedded_pattern sp1 sp2 =
   | C("CM", [t]) -> t
   | _ when x == ddd -> x
   | _ -> raise (Diff.Fail (
-		"!! applied to non-pattern:" ^ 
-		Diff.string_of_gtree' x
-	       )) in
+    "!! applied to non-pattern:" ^ 
+    Diff.string_of_gtree' x
+         )) in
   let rec chop x xs = match xs with
   | [] -> raise Not_found
   | x' :: xs' when 
       Diff.can_match !!x !!x'  
-	&& abstractness x <= abstractness x' -> xs'
+  && abstractness x <= abstractness x' -> xs'
   | x' :: xs' when Diff.find_match !!x !!x' -> xs' 
   | x' :: xs' -> chop x xs' in
   let rec (<++) p p' = p = [] || match p, p' with
   | x :: xs, ys -> 
       let ys' = 
-	try Some (chop x ys) with Not_found -> None 
+  try Some (chop x ys) with Not_found -> None 
       in
       (match ys' with
       | None -> false
@@ -1284,16 +1284,16 @@ let filter_shorter_sub_unsafe gss sub_pat pss =
     +> List.fold_left 
     (fun acc_patterns sp -> 
       if pss +>
-	List.for_all (function sp' -> 
-	  not(sub_pat sp sp')
-	|| sub_pat sp' sp && gsize_spattern sp' <= gsize_spattern sp
-		     )
+  List.for_all (function sp' -> 
+    not(sub_pat sp sp')
+  || sub_pat sp' sp && gsize_spattern sp' <= gsize_spattern sp
+         )
       then 
-	sp :: acc_patterns
+  sp :: acc_patterns
       else begin
-	print_endline "[Main] not including:";
-	print_patterns gss [sp] ;
-	acc_patterns;
+  print_endline "[Main] not including:";
+  print_patterns gss [sp] ;
+  acc_patterns;
       end
     ) []
 
@@ -1305,14 +1305,14 @@ let filter_shorter_sub gss sub_pat pss =
     +> List.fold_left 
     (fun acc_patterns sp -> 
       if pss +>
-	List.for_all (function sp' -> 
-	  not(sub_pat sp sp' && sub_pat sp' sp)
-	|| gsize_spattern sp' <= gsize_spattern sp
-		     )
+  List.for_all (function sp' -> 
+    not(sub_pat sp sp' && sub_pat sp' sp)
+  || gsize_spattern sp' <= gsize_spattern sp
+         )
       then 
-	sp :: acc_patterns
+  sp :: acc_patterns
       else
-	acc_patterns
+  acc_patterns
     ) []
 
 
@@ -1330,15 +1330,15 @@ let equal_pattern_term gt1 gt2 =
   if ngt1 = ngt2
   then (
     v_print_endline ("[Main] equal patterns:\n\t" ^
-		     Diff.string_of_gtree' gt1 ^
-		     "\n\t=\n\t" ^
-		     Diff.string_of_gtree' gt2);
+         Diff.string_of_gtree' gt1 ^
+         "\n\t=\n\t" ^
+         Diff.string_of_gtree' gt2);
     true)
   else (
     v_print_endline ("[Main] NOT equal patterns:\n\t" ^
-		     Diff.string_of_gtree' ngt1 ^
-		     "\n\t!=\n\t" ^
-		     Diff.string_of_gtree' ngt2);
+         Diff.string_of_gtree' ngt1 ^
+         "\n\t!=\n\t" ^
+         Diff.string_of_gtree' ngt2);
     false)
 
 
@@ -1401,8 +1401,8 @@ let find_seq_patterns is_frequent_sp is_common g =
       && (v_print "is_freq "; not(pp' <== ps))
       then (
       (*
-	print_string "adding ";
-	print_endline (string_of_pattern pp');  *)
+  print_string "adding ";
+  print_endline (string_of_pattern pp');  *)
       v_print_endline "not_subseq";
       let ps' = ps ++ pp' in
       grow ps' (ext p p', env')
@@ -1424,18 +1424,18 @@ let find_seq_patterns is_frequent_sp is_common g =
       ) pa_f in
       g_glob := None;
       (* 
-	 print_string "[Main] number of abstractions to consider : ";
-	 let ms = ref 0 in
-	 List.iter (function (ps, _) -> ms := List.length ps + !ms) abs_P_env;
-	 print_endline (string_of_int !ms);
+   print_string "[Main] number of abstractions to consider : ";
+   let ms = ref 0 in
+   List.iter (function (ps, _) -> ms := List.length ps + !ms) abs_P_env;
+   print_endline (string_of_int !ms);
        *)            
       (*
-	print_endline "[Main] abstractions to consider";
-	abs_P_env +> List.iter (function (ps, env) -> 
-	ps +> List.iter (function p -> print_endline (Diff.string_of_gtree' p));
-	print_endline "[Main] under environment";
-	Diff.print_environment env;
-	); 
+  print_endline "[Main] abstractions to consider";
+  abs_P_env +> List.iter (function (ps, env) -> 
+  ps +> List.iter (function p -> print_endline (Diff.string_of_gtree' p));
+  print_endline "[Main] under environment";
+  Diff.print_environment env;
+  ); 
        *)
       let nextP1 = abs_P_env +> 
       List.fold_left (fun acc_p_env (ps, env) -> 
@@ -1468,16 +1468,16 @@ let find_seq_patterns is_frequent_sp is_common g =
       in
       grow [] ([], [])
       (*
-	let pairs = List.fold_left (fun acc_p_env (ps, env) -> 
-	List.map (function p -> ([mkC("CM", [p])], env)) ps
-	:: acc_p_env) 
-	[] (List.map (reset_meta(); abstract_term depth []) pa) in
-	List.fold_left (fun acc_ps next_pairs -> 
-	print_endline ("Trying from fresh patterns.");
-	next_pairs +> List.iter (function (ps,env) -> 
-	string_of_pattern ps +> print_endline);
-	List.fold_left grow acc_ps next_pairs) 
-	[] pairs
+  let pairs = List.fold_left (fun acc_p_env (ps, env) -> 
+  List.map (function p -> ([mkC("CM", [p])], env)) ps
+  :: acc_p_env) 
+  [] (List.map (reset_meta(); abstract_term depth []) pa) in
+  List.fold_left (fun acc_ps next_pairs -> 
+  print_endline ("Trying from fresh patterns.");
+  next_pairs +> List.iter (function (ps,env) -> 
+  string_of_pattern ps +> print_endline);
+  List.fold_left grow acc_ps next_pairs) 
+  [] pairs
        *)
      *) 
 
@@ -1495,7 +1495,7 @@ let precede_node_patterns g np1 np2 =
     then
       let t = Diff.get_val xi g in
       if Diff.can_match np2 t then
-	(found := true; raise Found_it)
+  (found := true; raise Found_it)
   in
   let node_ids = concrete_nodes_of_graph g 
       +> List.filter (function (i,t) -> Diff.can_match np1 t)
@@ -1533,7 +1533,7 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
     f +> Diff.get_fun_name_gflow +> print_endline;
   end
     | _ -> raise (Diff.Fail "impossible match! in find_seq_patterns")
-			);
+      );
   reset_meta();
   let mk_pat p = [mkC("CM",[p])] in
   let (<==) sp ps gss = ps +> List.exists (function sp' -> 
@@ -1541,17 +1541,17 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
       && embedded_pattern sp sp'
 
       (*
-	if sub_pat gss sp sp' 
-	then 
-	(print_endline "sub-pattern found :";
-	print_patterns [sp];
-	print_endline "is less than :";
-	print_patterns [sp'];
-	true)
-	else
-	false
+  if sub_pat gss sp sp' 
+  then 
+  (print_endline "sub-pattern found :";
+  print_patterns [sp];
+  print_endline "is less than :";
+  print_patterns [sp'];
+  true)
+  else
+  false
        *)
-					  ) in
+            ) in
   (*   let (||-) gss sp = is_frequent_sp gss sp in *)
   let (+++) x xs = 
     if List.mem x xs then xs else (
@@ -1573,19 +1573,19 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
       match p with 
       | [] -> true
       | p :: seq when 
-	  loop seq 
-	    && is_match p -> 
-	      not(
-	      List.exists (function p' -> 
-		equal_pattern_term p p') seq
-	     )
-		&& (match get_metas_single p with
-		| [] -> true
-		| p_metas -> 
-		    (match get_metas_pattern seq with
-		    | [] -> true
-		    | seq_metas -> not(intersect_lists p_metas seq_metas = []))
-		   ) 
+    loop seq 
+      && is_match p -> 
+        not(
+        List.exists (function p' -> 
+    equal_pattern_term p p') seq
+       )
+    && (match get_metas_single p with
+    | [] -> true
+    | p_metas -> 
+        (match get_metas_pattern seq with
+        | [] -> true
+        | seq_metas -> not(intersect_lists p_metas seq_metas = []))
+       ) 
       | skip :: seq when skip == ddd -> loop seq
       | _ -> false
     in
@@ -1598,33 +1598,33 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
     else
       begin
         v_print_string "[Main] get_next ... ";
-      	let res = abs_P_env 
+        let res = abs_P_env 
             +> List.fold_left 
             (fun acc_abs_P_env (pat, env) -> 
               
-	      let gss' = gss +> List.filter 
-		  (function 
-              	    | [f] -> f |- (mk_pat pat) && f |- (ext p pat)
-              	    | _ -> raise (Impossible 117)) in
-      	      if List.length gss' < !threshold 
-      	      then begin
-            	if !Jconfig.print_abs
-            	then begin
-            	  print_string "[Main] not including pattern with threshold: ";
-            	  gss' +> List.length +> string_of_int +> print_endline;
-            	  print_endline "[Main] env: ";
-            	  env +> List.iter (function (m, t) -> 
-		    print_endline (m ^ " ⇾ " ^
-				   Diff.string_of_gtree' t);
-				   );
+        let gss' = gss +> List.filter 
+      (function 
+                    | [f] -> f |- (mk_pat pat) && f |- (ext p pat)
+                    | _ -> raise (Impossible 117)) in
+              if List.length gss' < !threshold 
+              then begin
+              if !Jconfig.print_abs
+              then begin
+                print_string "[Main] not including pattern with threshold: ";
+                gss' +> List.length +> string_of_int +> print_endline;
+                print_endline "[Main] env: ";
+                env +> List.iter (function (m, t) -> 
+        print_endline (m ^ " ⇾ " ^
+           Diff.string_of_gtree' t);
+           );
                   print_patterns gss' [(ext p pat)];
-		end;
-		acc_abs_P_env
-	      end
-	      else (pat,env, gss') :: acc_abs_P_env
-	    ) [] in
-	v_print_endline "done";
-	res
+    end;
+    acc_abs_P_env
+        end
+        else (pat,env, gss') :: acc_abs_P_env
+      ) [] in
+  v_print_endline "done";
+  res
       end 
   in
   (* ext1 = p1 p2  -- p2 is immediate successor *)
@@ -1643,25 +1643,25 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
     let pp' = ext_p (* renumber_metas_pattern ext_p *) in
     if !Jconfig.verbose then ( 
       print_string ("[Main] testing : " ^ 
-		    List.map Diff.string_of_gtree' pp'
-		      +> String.concat " ");
+        List.map Diff.string_of_gtree' pp'
+          +> String.concat " ");
      );
     if
       valid pp'
         && (v_print " valid "; is_frequent_sp gss pp')
         && (v_print "is_freq "; 
-	    if !prune then not((pp' <== ps) gss) else true)
+      if !prune then not((pp' <== ps) gss) else true)
     then (
       v_print_endline "not_subseq";
       let ps' = ps ++ pp' in
       let last_p =  pp' +> List.rev +> List.hd in
       if Diff.matches_exit last_p
       then
-	(* if the last pattern matches an exit-node, there is no
-	   need to grow the pattern any more *)
-	ps'
+  (* if the last pattern matches an exit-node, there is no
+     need to grow the pattern any more *)
+  ps'
       else
-	grow ps' (ext_p, env', gss)
+  grow ps' (ext_p, env', gss)
      )
     else (
       v_print_endline "";
@@ -1671,22 +1671,22 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
     v_print_endline (string_of_pattern p);
     let abs_P_env = 
       get_pa p (* env *)
-	(*      
-		+> sort_pa_env gss
-		+> List.filter 
-		(function (pat,env) ->
-		p = [] 
-		|| gss
-		+> for_some !threshold
-		(function flows ->
-		flows
-		+> List.exists
-		(function f ->
-		f |- mk_pat pat
-		)
-		)
-		)
-	 *)
+  (*      
+    +> sort_pa_env gss
+    +> List.filter 
+    (function (pat,env) ->
+    p = [] 
+    || gss
+    +> for_some !threshold
+    (function flows ->
+    flows
+    +> List.exists
+    (function f ->
+    f |- mk_pat pat
+    )
+    )
+    )
+   *)
     in
     v_print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
     let nextP2 = get_next abs_P_env ext2 p gss in
@@ -1698,29 +1698,29 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
        then we know that |- p p' can also NOT be the case 
      *)
     let abs_P_env' = abs_P_env
-	(*
-	  +> List.filter
-	  (fun (pat, env) -> 
-	  nextP2 +> List.exists 
-	  (function (p'', env', gss') -> 
-	  if Diff.node_pat_eq unique_subterms (pat, env) (p'', env')
-	  then (
-	  (* print_endline "pat eq:";
-	     pat +> Diff.string_of_gtree' +> print_endline;
-	     p'' +> Diff.string_of_gtree' +> print_endline;
-	   *)
-	  true
-	  )
-	  else
-	  false
-	  )
-	  ) 
-	 *) 
+  (*
+    +> List.filter
+    (fun (pat, env) -> 
+    nextP2 +> List.exists 
+    (function (p'', env', gss') -> 
+    if Diff.node_pat_eq unique_subterms (pat, env) (p'', env')
+    then (
+    (* print_endline "pat eq:";
+       pat +> Diff.string_of_gtree' +> print_endline;
+       p'' +> Diff.string_of_gtree' +> print_endline;
+     *)
+    true
+    )
+    else
+    false
+    )
+    ) 
+   *) 
     in
     let nextP1 = get_next abs_P_env' ext1 p gss in
     v_print_endline ("[Main] from pattern :\n" ^ string_of_pattern p);
     v_print_endline ("[Main] potential new patterns : " ^ string_of_int (
-							  List.length nextP1 + List.length nextP2));
+                List.length nextP1 + List.length nextP2));
     v_print_newline ();
     let ps' = 
       List.fold_left (fun acc_ps p_e_gss -> grow' ext2 p acc_ps p_e_gss) ps nextP2 in
@@ -1736,7 +1736,7 @@ let contained_in p1 p2 =
   || (match view rp1, view rp2 with
     | C(ty1, ts1), C(ty2, ts2) ->
         ty1 = ty2 
-	  && List.length ts1 = List.length ts2
+    && List.length ts1 = List.length ts2
           && List.for_all2 loop ts1 ts2
     | _ -> false
      ) in
@@ -1745,14 +1745,14 @@ let contained_in p1 p2 =
   | C("CM",[rp1]), C("CM",[rp2]) -> loop rp1 rp2 && zsize rp1 < zsize rp2
   | _, _ when p1 = ddd || p2 = ddd -> false
   | _ -> false
-	(* 
-	   begin
-	   print_newline();
-	   print_endline (Diff.verbose_string_of_gtree p1);
-	   print_endline (Diff.verbose_string_of_gtree p2);
-	   raise (Impossible 1000)
-	   end
-	 *)
+  (* 
+     begin
+     print_newline();
+     print_endline (Diff.verbose_string_of_gtree p1);
+     print_endline (Diff.verbose_string_of_gtree p2);
+     raise (Impossible 1000)
+     end
+   *)
 
 
 exception True_found
@@ -1776,7 +1776,7 @@ let find_seq_patterns_newest
   if not(!flow_support = 0)
   then begin
     print_endline ("[Main] setting new threshold : " 
-		   ^ string_of_int !flow_support);
+       ^ string_of_int !flow_support);
     threshold := !flow_support;
     Diff.no_occurs := !threshold;
   end;
@@ -1803,16 +1803,16 @@ let find_seq_patterns_newest
             if valid new_cur 
             then new_cur :: acc_next
             else begin
-		          if !Jconfig.verbose 
+              if !Jconfig.verbose 
               then begin 
-		            List.iter (function t -> 
-		              print_string (Diff.string_of_gtree' t);
-		              print_string " "
-			          ) new_cur;
-		            print_newline ();
-		          end;
+                List.iter (function t -> 
+                  print_string (Diff.string_of_gtree' t);
+                  print_string " "
+                ) new_cur;
+                print_newline ();
+              end;
               acc_next
-	          end) 
+            end) 
       [] in 
     if next = []
     then begin
@@ -1846,7 +1846,7 @@ let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
     f +> Diff.get_fun_name_gflow +> print_endline;
   end
     | _ -> raise (Diff.Fail "impossible match! in find_seq_patterns")
-			);
+      );
   reset_meta();
   let mk_pat p = [mkC("CM",[p])] in
   let (<==) sp ps gss = ps +> List.exists (function sp' -> 
@@ -1854,17 +1854,17 @@ let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
       && embedded_pattern sp sp'
 
       (*
-	if sub_pat gss sp sp' 
-	then 
-	(print_endline "sub-pattern found :";
-	print_patterns [sp];
-	print_endline "is less than :";
-	print_patterns [sp'];
-	true)
-	else
-	false
+  if sub_pat gss sp sp' 
+  then 
+  (print_endline "sub-pattern found :";
+  print_patterns [sp];
+  print_endline "is less than :";
+  print_patterns [sp'];
+  true)
+  else
+  false
        *)
-					  ) in
+            ) in
   (*   let (||-) gss sp = is_frequent_sp gss sp in *)
   let (+++) x xs = 
     (*if List.mem x xs then xs else*)
@@ -1887,19 +1887,19 @@ let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
       match p with 
       | [] -> true
       | p :: seq when 
-	  loop seq 
-	    && is_match p -> 
-	      not(
-	      List.exists (function p' -> 
-		equal_pattern_term p p') seq
-	     )
-		&& (match get_metas_single p with
-		| [] -> true
-		| p_metas -> 
-		    (match get_metas_pattern seq with
-		    | [] -> true
-		    | seq_metas -> not(intersect_lists p_metas seq_metas = []))
-		   ) 
+    loop seq 
+      && is_match p -> 
+        not(
+        List.exists (function p' -> 
+    equal_pattern_term p p') seq
+       )
+    && (match get_metas_single p with
+    | [] -> true
+    | p_metas -> 
+        (match get_metas_pattern seq with
+        | [] -> true
+        | seq_metas -> not(intersect_lists p_metas seq_metas = []))
+       ) 
       | skip :: seq when skip == ddd -> loop seq
       | _ -> false
     in
@@ -1912,33 +1912,33 @@ let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
     else
       begin
         v_print_string "[Main] get_next ... ";
-      	let res = abs_P_env 
+        let res = abs_P_env 
             +> List.fold_left 
             (fun acc_abs_P_env (pat, env) -> 
               
-	      let gss' = gss +> List.filter 
-		  (function 
-              	    | [f] -> f |- (mk_pat pat) && f |- (ext p pat)
-              	    | _ -> raise (Impossible 117)) in
-      	      if List.length gss' < !threshold 
-      	      then begin
-            	if !Jconfig.print_abs
-            	then begin
-            	  print_string "[Main] not including pattern with threshold: ";
-            	  gss' +> List.length +> string_of_int +> print_endline;
-            	  print_endline "[Main] env: ";
-            	  env +> List.iter (function (m, t) -> 
-		    print_endline (m ^ " ⇾ " ^
-				   Diff.string_of_gtree' t);
-				   );
+        let gss' = gss +> List.filter 
+      (function 
+                    | [f] -> f |- (mk_pat pat) && f |- (ext p pat)
+                    | _ -> raise (Impossible 117)) in
+              if List.length gss' < !threshold 
+              then begin
+              if !Jconfig.print_abs
+              then begin
+                print_string "[Main] not including pattern with threshold: ";
+                gss' +> List.length +> string_of_int +> print_endline;
+                print_endline "[Main] env: ";
+                env +> List.iter (function (m, t) -> 
+        print_endline (m ^ " ⇾ " ^
+           Diff.string_of_gtree' t);
+           );
                   print_patterns gss' [(ext p pat)];
-		end;
-		acc_abs_P_env
-	      end
-	      else (pat,env, gss') :: acc_abs_P_env
-	    ) [] in
-	v_print_endline "done";
-	res
+    end;
+    acc_abs_P_env
+        end
+        else (pat,env, gss') :: acc_abs_P_env
+      ) [] in
+  v_print_endline "done";
+  res
       end 
   in
   (* ext1 = p1 p2  -- p2 is immediate successor *)
@@ -1957,25 +1957,25 @@ let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
     let pp' = ext_p (* renumber_metas_pattern ext_p *) in
     if !Jconfig.verbose then ( 
       print_string ("[Main] testing : " ^ 
-		    List.map Diff.string_of_gtree' pp'
-		      +> String.concat " ");
+        List.map Diff.string_of_gtree' pp'
+          +> String.concat " ");
      );
     if
       valid pp'
         && (v_print " valid "; is_frequent_sp gss pp')
         && (v_print "is_freq "; 
-	    if !prune then not((pp' <== ps) gss) else true)
+      if !prune then not((pp' <== ps) gss) else true)
     then (
       v_print_endline "not_subseq";
       let ps' = ps ++ pp' in
       let last_p =  pp' +> List.rev +> List.hd in
       if Diff.matches_exit last_p
       then
-	(* if the last pattern matches an exit-node, there is no
-	   need to grow the pattern any more *)
-	ps'
+  (* if the last pattern matches an exit-node, there is no
+     need to grow the pattern any more *)
+  ps'
       else
-	grow ps' (ext_p, env', gss)
+  grow ps' (ext_p, env', gss)
      )
     else (
       v_print_endline "";
@@ -1985,22 +1985,22 @@ let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
     v_print_endline (string_of_pattern p);
     let abs_P_env = 
       get_pa p (* env *)
-	(*      
-		+> sort_pa_env gss
-		+> List.filter 
-		(function (pat,env) ->
-		p = [] 
-		|| gss
-		+> for_some !threshold
-		(function flows ->
-		flows
-		+> List.exists
-		(function f ->
-		f |- mk_pat pat
-		)
-		)
-		)
-	 *)
+  (*      
+    +> sort_pa_env gss
+    +> List.filter 
+    (function (pat,env) ->
+    p = [] 
+    || gss
+    +> for_some !threshold
+    (function flows ->
+    flows
+    +> List.exists
+    (function f ->
+    f |- mk_pat pat
+    )
+    )
+    )
+   *)
     in
     v_print_endline ("done (" ^ string_of_int (List.length abs_P_env) ^ ")");
     let nextP2 = get_next abs_P_env ext2 p gss in
@@ -2012,29 +2012,29 @@ let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
        then we know that |- p p' can also NOT be the case 
      *)
     let abs_P_env' = abs_P_env
-	(*
-	  +> List.filter
-	  (fun (pat, env) -> 
-	  nextP2 +> List.exists 
-	  (function (p'', env', gss') -> 
-	  if Diff.node_pat_eq unique_subterms (pat, env) (p'', env')
-	  then (
-	  (* print_endline "pat eq:";
-	     pat +> Diff.string_of_gtree' +> print_endline;
-	     p'' +> Diff.string_of_gtree' +> print_endline;
-	   *)
-	  true
-	  )
-	  else
-	  false
-	  )
-	  ) 
-	 *) 
+  (*
+    +> List.filter
+    (fun (pat, env) -> 
+    nextP2 +> List.exists 
+    (function (p'', env', gss') -> 
+    if Diff.node_pat_eq unique_subterms (pat, env) (p'', env')
+    then (
+    (* print_endline "pat eq:";
+       pat +> Diff.string_of_gtree' +> print_endline;
+       p'' +> Diff.string_of_gtree' +> print_endline;
+     *)
+    true
+    )
+    else
+    false
+    )
+    ) 
+   *) 
     in
     let nextP1 = get_next abs_P_env' ext1 p gss in
     v_print_endline ("[Main] from pattern :\n" ^ string_of_pattern p);
     v_print_endline ("[Main] potential new patterns : " ^ string_of_int (
-							  List.length nextP1 + List.length nextP2));
+                List.length nextP1 + List.length nextP2));
     v_print_newline ();
     let ps' = 
       List.fold_left (fun acc_ps p_e_gss -> grow' ext2 p acc_ps p_e_gss) ps nextP2 in
@@ -2045,8 +2045,8 @@ let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
 
 let patterns_of_graph is_frequent_sp common_np g =
   if !Jconfig.verbose then print_endline ("[Main] considering graph with [" ^ 
-					  string_of_int (List.length (concrete_of_graph g)) ^ 
-					  "] cnodes");
+            string_of_int (List.length (concrete_of_graph g)) ^ 
+            "] cnodes");
   (*
     let pa = concrete_of_graph g in
    *)
@@ -2084,33 +2084,33 @@ let get_common_node_patterns gss env =
     gss 
       +> List.rev_map 
       (function flows ->
-	flows 
-	  +> List.rev_map 
-	  (function f -> 
-	    concrete_of_graph f 
-	      +> List.rev_map get_nested_subterms
-	      +> tail_flatten
-	  )
-	  +> tail_flatten
-	  +> rm_dups
+  flows 
+    +> List.rev_map 
+    (function f -> 
+      concrete_of_graph f 
+        +> List.rev_map get_nested_subterms
+        +> tail_flatten
+    )
+    +> tail_flatten
+    +> rm_dups
       )
   in 
   v_print_string ("[Main] abstracting cterms (ct = " ^
-		  string_of_int (List.length concrete_terms) ^")") ;
+      string_of_int (List.length concrete_terms) ^")") ;
   let (|-) g sp = List.exists (cont_match g sp) (nodes_of_graph g) in
   let (!-) sp = gss +> for_some !threshold (function fs -> 
     fs +> List.exists (function f -> f |- sp)
-					   ) in     
+             ) in     
   let mk_pat p = [mkC("CM",[p])] in
   let is_common sp = !- (mk_pat sp) in
   let abs_P_env = concrete_terms
       +> List.rev_map (function cts -> 
-	cts 
-	  +> List.rev_map (function gt ->
-	    let (ps,env) = abstract_term !depth env gt in
-	    List.filter is_common ps, env
-			  )
-		      ) +> tail_flatten
+  cts 
+    +> List.rev_map (function gt ->
+      let (ps,env) = abstract_term !depth env gt in
+      List.filter is_common ps, env
+        )
+          ) +> tail_flatten
       +> List.filter (function (ps, env) -> not(ps = []))
   in
   v_print_endline " done";
@@ -2129,16 +2129,16 @@ let rec infer map ps ts =
   | (p::ps), (t :: ts) -> 
       let sigma = Diff.match_term (extract_pat p) t in
       let map' = List.fold_left
-	  (fun map_acc (x, term) ->
-	    (try
-	      let xs = List.assoc term map_acc in
-	      (term, x :: xs) :: (List.remove_assoc term map_acc)
-	    with Not_found -> (term, [x]) :: map_acc
-	    )
-	  ) map sigma in
+    (fun map_acc (x, term) ->
+      (try
+        let xs = List.assoc term map_acc in
+        (term, x :: xs) :: (List.remove_assoc term map_acc)
+      with Not_found -> (term, [x]) :: map_acc
+      )
+    ) map sigma in
       infer map' ps ts
   | _ -> raise (Diff.Fail "infer impossible error?")
-	
+  
 let infer_all spattern occ = 
   occ 
     +> List.fold_left (
@@ -2163,13 +2163,13 @@ let unify sigma1 sigma2 =
       +> List.fold_left (
     fun acc_rb s1 ->
       sigma2
-	+> List.fold_left (
+  +> List.fold_left (
       fun acc_rb s2 ->
-	let s' = intersect_lists s1 s2 in
-	match s' with
-	| []
-	| [_] -> acc_rb
-	| _ -> s' :: acc_rb
+  let s' = intersect_lists s1 s2 in
+  match s' with
+  | []
+  | [_] -> acc_rb
+  | _ -> s' :: acc_rb
      ) acc_rb
    ) []
 
@@ -2177,30 +2177,30 @@ let infer_bindings spattern graphs =
   let occ = 
     graphs
       +> List.filter (function g -> 
-	nodes_of_graph2 g
-	  +> List.exists (cont_match g spattern))
+  nodes_of_graph2 g
+    +> List.exists (cont_match g spattern))
       +> List.rev_map 
       (fun g -> 
-	get_pattern_traces_real g spattern
-	  +> List.rev_map
-	  (function ilistlist ->
+  get_pattern_traces_real g spattern
+    +> List.rev_map
+    (function ilistlist ->
             ilistlist 
               +> List.rev_map
               (function ilist ->
-		List.map (function n -> g#nodes#find n) ilist
+    List.map (function n -> g#nodes#find n) ilist
               ))) 
       +> tail_flatten in
   List.fold_left (fun sigma occ_i ->
     infer_strongest spattern occ_i
       +> unify sigma 
-		 ) [] occ
+     ) [] occ
 
 let instantiate sigma p = 
   let rec loop p = match view p with
   | A("meta", x) -> 
       (try 
-	let xs = List.find (function xs -> List.mem x xs) sigma in
-	mkA("meta", List.hd xs)
+  let xs = List.find (function xs -> List.mem x xs) sigma in
+  mkA("meta", List.hd xs)
       with Not_found -> p)
   | C(ty,ps) ->
       mkC(ty, List.map loop ps)
@@ -2211,7 +2211,7 @@ let instantiate sigma p =
 let construct_pattern sigma pattern = 
   List.map (function p ->
     instantiate sigma p
-	   ) pattern
+     ) pattern
 
 
 (* given a set of patterns and a set of terms that have been identified as
@@ -2252,14 +2252,14 @@ let filter_changed (* gss *) gpats =
     let c_terms = 
       !Diff.flow_changes 
       +> List.fold_left (fun acc_changed_terms diff -> 
-	        diff 
-	        +> Diff.get_marked_seq 
-	        +> List.fold_left (fun acc_changed_terms di ->
-	            match di with
-	            | Difftype.ID t 
-	            | Difftype.RM t -> t +++ acc_changed_terms
-	            | _ -> raise (Impossible 2)
-			    ) acc_changed_terms
+          diff 
+          +> Diff.get_marked_seq 
+          +> List.fold_left (fun acc_changed_terms di ->
+              match di with
+              | Difftype.ID t 
+              | Difftype.RM t -> t +++ acc_changed_terms
+              | _ -> raise (Impossible 2)
+          ) acc_changed_terms
        ) [] in
   c_terms +> List.iter (fun ct -> print_endline (Diff.string_of_gtree' ct));
     get_change_matches_terms gpats c_terms
@@ -2370,15 +2370,15 @@ let common_patterns_graphs gss =
     let nodes2 = nodes_of_graph2 g in
     sp +> List.for_all 
       (function p_gt ->
-	p_gt = ddd || nodes2 +> List.exists (function i -> 
-	  Diff.can_match (extract_pat p_gt) (g#nodes#find i))
+  p_gt = ddd || nodes2 +> List.exists (function i -> 
+    Diff.can_match (extract_pat p_gt) (g#nodes#find i))
       ) &&
     (List.exists (function i ->
       if cont_match g sp i
       then 
         (* the pattern matched the graph, also check if was the focus_fun *)
-	let g_name = get_fun_name_gflow g
-	in begin
+  let g_name = get_fun_name_gflow g
+  in begin
           if(haveFocusFun () && sameName g_name)
           then matches_focus_function := true;
           true
@@ -2400,13 +2400,13 @@ let common_patterns_graphs gss =
     (* check whether the pattern matches at least threshold graphs *)
     gss +> for_some !threshold 
       (function fs -> fs +> List.exists 
-	  (function f -> 
-	    (*flush_string ("." ^ Diff.get_fun_name_gflow f );*)
-	    (*"no. nodes: " +> print_endline;*)
-	    (*f +> nodes_of_graph2 +> List.length +> string_of_int +> print_endline;*)
-	    let r = f |- sp in
+    (function f -> 
+      (*flush_string ("." ^ Diff.get_fun_name_gflow f );*)
+      (*"no. nodes: " +> print_endline;*)
+      (*f +> nodes_of_graph2 +> List.length +> string_of_int +> print_endline;*)
+      let r = f |- sp in
             (*flush_string ";";*)
-	    r)) 
+      r)) 
       (* also: if ff != "" then we must have matched the ff *)
       && ((not (haveFocusFun ())) || !matches_focus_function) in
   let rec check_no_duplicates ls = match ls with
@@ -2480,15 +2480,15 @@ let common_patterns_graphs gss =
       print_endline "[Main] now removing duplicates";
       ps
     end
-	+> rm_dups
-	+> (function pss -> 
-	  if !filter_patterns
-	  then begin
-	    print_endline "[Main] finding largest patterns";
-	    filter_shorter_sub gss (is_subpattern gss) pss 
-	  end
-	  else pss)
-	
+  +> rm_dups
+  +> (function pss -> 
+    if !filter_patterns
+    then begin
+      print_endline "[Main] finding largest patterns";
+      filter_shorter_sub gss (is_subpattern gss) pss 
+    end
+    else pss)
+  
 
 let get_arcs g i =
   (g#successors i)#tolist
@@ -2508,9 +2508,9 @@ let equal_flows f1 f2 =
     (* arcs should also be equal, we ignore predecessors  *)
     && 
   ns1 +> List.for_all (function (i,n) -> equal_arcs (get_arcs f1 i) (get_arcs f2 i)
-		      ) &&
+          ) &&
   ns2 +> List.for_all (function (i,n) -> equal_arcs (get_arcs f1 i) (get_arcs f2 i)
-		      ) 
+          ) 
 
 
 
@@ -2531,25 +2531,25 @@ let lhs_flows_of_term_pairs term_pairs =
     (fun  acc ((gt,flow), (gt',flow')) -> 
       if !only_changes 
       then
-	let f_name = 
-	  try get_fun_name_gflow flow 
-	  with Not_found ->
-	    raise (Diff.Fail ("no function found in LHS")) 
-	in 
-	(* if not(equal_flows flow flow')
-	 *)
-	let edit_cost = Diff.edit_cost gt gt' in
-	if not(edit_cost = 0)
-	then (
-	  print_endline ("[Main] function " ^ f_name ^ " changed (" ^
-			 string_of_int edit_cost
-			 ^ ")" );
-	  [flow] :: acc
-	 )
-	else
-	  acc
+  let f_name = 
+    try get_fun_name_gflow flow 
+    with Not_found ->
+      raise (Diff.Fail ("no function found in LHS")) 
+  in 
+  (* if not(equal_flows flow flow')
+   *)
+  let edit_cost = Diff.edit_cost gt gt' in
+  if not(edit_cost = 0)
+  then (
+    print_endline ("[Main] function " ^ f_name ^ " changed (" ^
+       string_of_int edit_cost
+       ^ ")" );
+    [flow] :: acc
+   )
+  else
+    acc
       else
-	[flow] :: acc
+  [flow] :: acc
     ) []
 
 
@@ -2569,11 +2569,11 @@ let construct_spatches_new chunks safe_part_loc patterns =
   let try_match tp ctx =
     match tp, ctx with
     | (Difftype.ID p | Difftype.RM p) , (Difftype.ID t | Difftype.RM t) -> 
-	(try Some (Diff.match_term (extract_pat p) t) with _ -> None)
+  (try Some (Diff.match_term (extract_pat p) t) with _ -> None)
     | _ -> begin
-	print_endline "[Main] try_match: tp = ";
-	tp +> Diff.string_of_diff +> print_endline;
-	raise (Impossible 4)  
+  print_endline "[Main] try_match: tp = ";
+  tp +> Diff.string_of_diff +> print_endline;
+  raise (Impossible 4)  
     end in
 
   let rev_sub_diff env dt = match dt with
@@ -2601,24 +2601,24 @@ let construct_spatches_new chunks safe_part_loc patterns =
     | [] -> raise (Impossible 113)
     | tp :: p_rest ->
         if i = 0
-	      then
-	        let before = 
+        then
+          let before = 
             chunk 
-	          +> get_before +> List.map (rev_sub_diff env) in
-	        let after  = 
+            +> get_before +> List.map (rev_sub_diff env) in
+          let after  = 
             chunk +> get_after +> List.map (rev_sub_diff env) in
-	        let tp = match List.nth p i with
-	                 | Difftype.RM t
-	                 | Difftype.ID t -> t
-	                 | _ -> raise (Impossible 90) in
-	        let ctx    = match get_ctx_trans chunk with
-	                     | Difftype.RM _ -> Difftype.PENDING_RM tp
-	                     | Difftype.ID _ -> Difftype.PENDING_ID tp
-	                     | _ -> raise (Impossible 109) in
-	        let insert_pending = before @ ctx :: after in
-	        insert_pending @ p_rest
-	      else 
-	        tp :: apply_chunk_loop (i-1) p_rest in
+          let tp = match List.nth p i with
+                   | Difftype.RM t
+                   | Difftype.ID t -> t
+                   | _ -> raise (Impossible 90) in
+          let ctx    = match get_ctx_trans chunk with
+                       | Difftype.RM _ -> Difftype.PENDING_RM tp
+                       | Difftype.ID _ -> Difftype.PENDING_ID tp
+                       | _ -> raise (Impossible 109) in
+          let insert_pending = before @ ctx :: after in
+          insert_pending @ p_rest
+        else 
+          tp :: apply_chunk_loop (i-1) p_rest in
     apply_chunk_loop i p 
   in
 
@@ -2628,14 +2628,14 @@ let construct_spatches_new chunks safe_part_loc patterns =
       | [] -> (wq, out)
       | tp :: p_rest ->
           if pending_or_add tp
-	        (* we skip term patterns which have already been paired with a chunk *)
-	        then loop_p (wq, out) (i+1, p_rest)
-	        else begin
-	          let new_wq, new_out = chunks +> List.fold_left 
-		          (fun (wq, out) ch ->
-		              match try_match tp (get_ctx_trans ch) with
-		              | None -> (wq, out)
-		              | Some env' -> let spa = apply_chunk env' ch i orig_p in
+          (* we skip term patterns which have already been paired with a chunk *)
+          then loop_p (wq, out) (i+1, p_rest)
+          else begin
+            let new_wq, new_out = chunks +> List.fold_left 
+              (fun (wq, out) ch ->
+                  match try_match tp (get_ctx_trans ch) with
+                  | None -> (wq, out)
+                  | Some env' -> let spa = apply_chunk env' ch i orig_p in
                       begin
                         if List.mem spa wq
                         then (wq, out) (* we already have spa in wq *)
@@ -2656,9 +2656,9 @@ let construct_spatches_new chunks safe_part_loc patterns =
                             else (wq, out)
                           end
                       end
-		          ) (wq, out) in 
-	          loop_p (new_wq, new_out) (i+1, p_rest)
-	        end in (* end of loop_p def *)
+              ) (wq, out) in 
+            loop_p (new_wq, new_out) (i+1, p_rest)
+          end in (* end of loop_p def *)
     begin
       (*print_endline ("[main] working on patch: ");*)
       (*print_endline (String.concat "\n" (List.map Diff.string_of_diff orig_p));*)
@@ -2761,14 +2761,14 @@ let annotate_spatch spatch trace =
       map2 skip_add add_annotation_iop sp node_seq 
     with Invalid_argument e -> 
       print_endline ("annotate_seq sp.len: " ^ 
-		     List.length sp +> string_of_int ^ " node_seq.len " ^
-		     List.length node_seq +> string_of_int);
+         List.length sp +> string_of_int ^ " node_seq.len " ^
+         List.length node_seq +> string_of_int);
       sp +> List.iter (function iop -> (match iop with
       | Difftype.ID (p, ann) 
       | Difftype.RM (p, ann)
       | Difftype.ADD(p, ann) -> Diff.string_of_gtree' p +> print_endline
       | _ -> raise (Impossible 8))
-		      );
+          );
       raise (Invalid_argument e)
   in
   List.fold_left anno_seq spatch trace
@@ -2797,15 +2797,15 @@ let corresponds st t next_node_val path =
   | C("def",[rname;rtype;body]) -> 
       (match view t with
       | C("head:def", [def]) -> 
-	  (match view def with 
-	  | C("def",[hname;htype;_]) when rname = hname && rtype = htype
-	    -> Some ([body],
-		     function 
-		       | [newbody] -> 
-			   mkC("def",[rname;rtype;newbody])
-		       | _ -> raise (Impossible 9)
-		    ) +> same_path
-	  | _ -> raise (Diff.Fail "def-fail"))
+    (match view def with 
+    | C("def",[hname;htype;_]) when rname = hname && rtype = htype
+      -> Some ([body],
+         function 
+           | [newbody] -> 
+         mkC("def",[rname;rtype;newbody])
+           | _ -> raise (Impossible 9)
+        ) +> same_path
+    | _ -> raise (Diff.Fail "def-fail"))
       | _ -> None
       )
 
@@ -2813,114 +2813,114 @@ let corresponds st t next_node_val path =
       let s_func st = mkC("stmt", [st]) in
       (match view st, view t with
       | C("macroit",      [{Hashcons.node=C(t_name, [
-					    {Hashcons.node=C("macroargs", args)} as margs
-					      ;st
-					  ])}]), 
-	C("head:macroit", [{Hashcons.node=C(g_name, args_node)}]) 
-	when t_name = g_name && args = args_node ->
-	  at_breaking_handler := true;
-	  (match next_node_val with
-	  | None -> raise (Diff.Fail "no next control node val: InLoop could have been expected")
-	  | Some control_node ->
-	      if control_node = Diff.control_inloop
-	      then
-		Some([st], 
-		     (function 
-		       | [st'] -> 
-			   mkC("macroit",[mkC(t_name, [margs;st'])]) +> s_func
-		       | _ -> raise (Impossible 10))
-		       ,
-		     List.tl path
-		    )
-	      else raise (Next path)
-	  )
+              {Hashcons.node=C("macroargs", args)} as margs
+                ;st
+            ])}]), 
+  C("head:macroit", [{Hashcons.node=C(g_name, args_node)}]) 
+  when t_name = g_name && args = args_node ->
+    at_breaking_handler := true;
+    (match next_node_val with
+    | None -> raise (Diff.Fail "no next control node val: InLoop could have been expected")
+    | Some control_node ->
+        if control_node = Diff.control_inloop
+        then
+    Some([st], 
+         (function 
+           | [st'] -> 
+         mkC("macroit",[mkC(t_name, [margs;st'])]) +> s_func
+           | _ -> raise (Impossible 10))
+           ,
+         List.tl path
+        )
+        else raise (Next path)
+    )
       | C("comp{}", sts), A("head:seqstart", _) ->
-	  Some (sts, function sts' ->
-	    mkC("comp{}", sts') +> s_func) +> same_path
+    Some (sts, function sts' ->
+      mkC("comp{}", sts') +> s_func) +> same_path
       | A("comp{}", "NOP"), A("head:seqstart", _) -> 
-	  Some([], function ts -> s_func st) +> same_path
+    Some([], function ts -> s_func st) +> same_path
       | C("if",[b;t;f]), C("head:if",[c]) when b = c -> 
-	  (match next_node_val with
-	  | None -> raise (Diff.Fail "no next control node val!")
-	  | Some control_node ->
-	      if control_node = Diff.control_else
-	      then (* select false branch and consume control_node from path *)
-		Some([f],(function 
-		  | [f] -> mkC("if", [b;t;f]) +> s_func
-		  | _ -> raise (Impossible 11)), List.tl path)
-	      else (* select true branch and consume control_node node from path *)
-		if control_node = Diff.control_true
-		then
-		  Some([t],(function 
-		    | [t] -> mkC("if", [b;t;f]) +> s_func
-		    | _ -> raise (Impossible 12)), List.tl path)
-		else begin
-		  (* we were not supposed to enter the if-statement but skip it *)
-		  raise (Next path)
-		end
-	  )
+    (match next_node_val with
+    | None -> raise (Diff.Fail "no next control node val!")
+    | Some control_node ->
+        if control_node = Diff.control_else
+        then (* select false branch and consume control_node from path *)
+    Some([f],(function 
+      | [f] -> mkC("if", [b;t;f]) +> s_func
+      | _ -> raise (Impossible 11)), List.tl path)
+        else (* select true branch and consume control_node node from path *)
+    if control_node = Diff.control_true
+    then
+      Some([t],(function 
+        | [t] -> mkC("if", [b;t;f]) +> s_func
+        | _ -> raise (Impossible 12)), List.tl path)
+    else begin
+      (* we were not supposed to enter the if-statement but skip it *)
+      raise (Next path)
+    end
+    )
       | C("switch",[e;s]), C("head:switch", [e']) when e = e' ->
-	  begin
-	    (* setup break handler *)
-	    at_breaking_handler := true;
-	    Some ([s], function s' ->
-	      mkC("switch", e :: s') +> s_func) +> same_path
-	  end
+    begin
+      (* setup break handler *)
+      at_breaking_handler := true;
+      Some ([s], function s' ->
+        mkC("switch", e :: s') +> s_func) +> same_path
+    end
       | C("while",[e;s]), C("head:while", _) ->
-	  at_breaking_handler := true;
-	  (match next_node_val with
-	  | None -> raise (Diff.Fail "no next control node in while")
-	  | Some control_node ->
-	      if control_node = Diff.control_inloop
-	      then
-		Some ([s],(function s' ->
-		  mkC("while", e :: s') +> s_func),
-		      List.tl path)
-	      else raise (Next path)
-	  )
+    at_breaking_handler := true;
+    (match next_node_val with
+    | None -> raise (Diff.Fail "no next control node in while")
+    | Some control_node ->
+        if control_node = Diff.control_inloop
+        then
+    Some ([s],(function s' ->
+      mkC("while", e :: s') +> s_func),
+          List.tl path)
+        else raise (Next path)
+    )
       | C("dowhile", [s;e]), C("head:do", [e']) when e = e' 
-	    (* TODO: we also need to verify the statement s
-	       with the graph *) ->
-		 at_breaking_handler := true;
-		 Some ([s], (function s' ->
-		   mkC("dowhile", s' @ [e]) +> s_func)) +> same_path
+      (* TODO: we also need to verify the statement s
+         with the graph *) ->
+     at_breaking_handler := true;
+     Some ([s], (function s' ->
+       mkC("dowhile", s' @ [e]) +> s_func)) +> same_path
       | C("for", [e1;e2;e3;st]), C("head:for", _) ->
-	  at_breaking_handler := true;
-	  (match next_node_val with
-	  | None -> raise (Diff.Fail "no next control node in for")
-	  | Some control_node ->
-	      if control_node = Diff.control_inloop
-	      then 
-		Some ([st], (function st' ->
-		  mkC("for", e1 :: e2 ::e3 :: st') +> s_func),
-		      List.tl path)
-	      else raise (Next path)
-	  )
+    at_breaking_handler := true;
+    (match next_node_val with
+    | None -> raise (Diff.Fail "no next control node in for")
+    | Some control_node ->
+        if control_node = Diff.control_inloop
+        then 
+    Some ([st], (function st' ->
+      mkC("for", e1 :: e2 ::e3 :: st') +> s_func),
+          List.tl path)
+        else raise (Next path)
+    )
       | C("case", [e;st]), C("head:case",[lab_e]) when e = lab_e ->
-	  Some ([st], function st' ->
-	    mkC("case", e :: st') +> s_func) +> same_path
+    Some ([st], function st' ->
+      mkC("case", e :: st') +> s_func) +> same_path
       | C("caseRange", [e1;e2;st]), C("head:caserange", [from_e;to_e])
-	when e1 = from_e && e2 = to_e ->
-	  Some ([st], function st' ->
-	    mkC("caseRange", e1 :: e2 :: st') +> s_func) +> same_path
+  when e1 = from_e && e2 = to_e ->
+    Some ([st], function st' ->
+      mkC("caseRange", e1 :: e2 :: st') +> s_func) +> same_path
       | C("default", [st]), A("head:default", _) ->
-	  Some ([st], function 
-	    | [st'] ->
-		mkC("default", [st']) +> s_func
-	    | _ -> raise (Impossible 13)) +> same_path
+    Some ([st], function 
+      | [st'] ->
+    mkC("default", [st']) +> s_func
+      | _ -> raise (Impossible 13)) +> same_path
       | C("caseRange",[e1;e2;st]), A("head:case", _) -> 
-	  Some ([st], function st' ->
-	    mkC("caseRange", e1 :: e2 :: st') +> s_func) +> same_path
+    Some ([st], function st' ->
+      mkC("caseRange", e1 :: e2 :: st') +> s_func) +> same_path
       | C("labeled", [{Hashcons.node=A("lname", s_lab)} as l; st]), 
-	  A("head:label", lab) -> 
-	    Some ([st], function 
-	      | [st] -> mkC("labeled", [l; st]) +> s_func
-	      | _ -> raise (Impossible 14)) 
-	      +> same_path
+    A("head:label", lab) -> 
+      Some ([st], function 
+        | [st] -> mkC("labeled", [l; st]) +> s_func
+        | _ -> raise (Impossible 14)) 
+        +> same_path
       | _ -> None
       )
   | _ -> None
-	
+  
 let rec ( *>) (t_list : gtree list) func def_arg =
   match t_list with
   | [] -> (* raise LocateSubterm *)
@@ -2931,7 +2931,7 @@ let rec ( *>) (t_list : gtree list) func def_arg =
   with
     | LocateSubterm -> t :: ((t_list *> func) def_arg) 
     | Next arg -> t :: ((t_list *> func) arg) 
-		   )
+       )
 
 exception Label_not_found of string
 exception Goto of string * int list
@@ -2940,15 +2940,15 @@ let rec iterate_lab t_list loop locate_label (lab, path) =
   let rec cont t_list = 
     match t_list with
     | [] -> 
-	raise (Label_not_found lab)
+  raise (Label_not_found lab)
     | t :: t_list -> (try 
-	let t' = locate_label (lab, path) t in
-	t' :: t_list
+  let t' = locate_label (lab, path) t in
+  t' :: t_list
     with
       | LocateSubterm -> t :: ((t_list *> loop) path) 
       | Next new_path -> t :: ((t_list *> loop) new_path) 
       | Label_not_found _ -> t :: cont t_list
-		     )
+         )
   in
   cont t_list
 
@@ -2995,15 +2995,15 @@ let locate_subterm g orig_subterm orig_path f =
     | C("stmt",[s]), (C("dlist", _) | C("mdecl", _)) ->  s === t2
     | C("exp",[te;e]), C("exp", [e']) when is_typed te -> e === e'
     | C(ty1,ts1), C(ty2,ts2) when ty1 = ty2 ->
-	(try 
-	  List.for_all2 (===) ts1 ts2
-	with Invalid_argument e -> 
+  (try 
+    List.for_all2 (===) ts1 ts2
+  with Invalid_argument e -> 
           (print_endline "ts1";
-	   ts1 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
-	   print_endline "ts2";
-	   ts2 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
-	   raise (Invalid_argument e))
-	)
+     ts1 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
+     print_endline "ts2";
+     ts2 +> List.map Diff.verbose_string_of_gtree +> List.iter print_endline;
+     raise (Invalid_argument e))
+  )
     | _ -> t1 = t2 in
   (* this function is used to check whether we are at a context point *)
   let is_at_context node_term pending_subterm = 
@@ -3019,105 +3019,105 @@ let locate_subterm g orig_subterm orig_path f =
     | [] -> begin
         (* we should actually *NEVER* reach this point because of
          * the next pattern-match *)
-	print_endline ("[Main] reached end of path at subterm: "
-		       ^ subterm +> Diff.string_of_gtree');
-	print_string ("Orig path: \t ");
-	orig_path +> List.iter 
+  print_endline ("[Main] reached end of path at subterm: "
+           ^ subterm +> Diff.string_of_gtree');
+  print_string ("Orig path: \t ");
+  orig_path +> List.iter 
           (function i -> print_string (" " ^ string_of_int i););
-	print_newline ();
-	print_endline ("Last node value " ^ orig_path +> 
-					    List.rev +> List.hd +> get_val +> 
-					    Diff.string_of_gtree');  
-	print_endline ("In function: " ^ g +> get_fun_name_gflow);
-	raise (Diff.Fail "At end of path!")
+  print_newline ();
+  print_endline ("Last node value " ^ orig_path +> 
+              List.rev +> List.hd +> get_val +> 
+              Diff.string_of_gtree');  
+  print_endline ("In function: " ^ g +> get_fun_name_gflow);
+  raise (Diff.Fail "At end of path!")
     end
     | [n] -> 
-	let node_term = get_val n 
+  let node_term = get_val n 
         in
-	if is_at_context node_term subterm
-	then f subterm
+  if is_at_context node_term subterm
+  then f subterm
             (* subterm/node_term -- can the subterm have more
                info than the node-term ? they should be
                identical! *)
-	else 
-	  begin
+  else 
+    begin
             (*
-	      print_endline ("Node term:\t" ^ 
+        print_endline ("Node term:\t" ^ 
               node_term +> Diff.string_of_gtree');
-	      print_endline ("Subterm:\t" ^ subterm +> Diff.string_of_gtree');
-	      print_string ("Orig path: \t");
+        print_endline ("Subterm:\t" ^ subterm +> Diff.string_of_gtree');
+        print_string ("Orig path: \t");
               orig_path +> List.iter (function i -> 
-	      print_string (string_of_int i ^ " ");
-	      );
-	      print_newline ();
-	      print_string ("Current path:\t");
-	      path +> List.iter (function i -> 
-	      print_string (string_of_int i ^ " ");
-	      );
-	      print_newline ();
-	      print_endline ("In function:\t" ^
-	      get_fun_name_gflow g);
+        print_string (string_of_int i ^ " ");
+        );
+        print_newline ();
+        print_string ("Current path:\t");
+        path +> List.iter (function i -> 
+        print_string (string_of_int i ^ " ");
+        );
+        print_newline ();
+        print_endline ("In function:\t" ^
+        get_fun_name_gflow g);
              *)
             (* Should we bail out at this place or raise
                "LocateSubterm" to indicate that the search should
                continue but that we did not find the node term at
                this point?  *)
-	    raise LocateSubterm
-	      (* raise (Diff.Fail "unable to locate subterm") *)
-	  end
+      raise LocateSubterm
+        (* raise (Diff.Fail "unable to locate subterm") *)
+    end
     | n' :: path -> 
-	let t = get_val n' 
-	in
-	if subterm === t
-	then 
-	  (match extract_label t with
-	  | Some lab -> raise (Goto (lab, path))
-	  | None     -> begin
-	      if is_break subterm
-	      then
-		raise (Break path)
-	      else
-		raise (Next path)
-	  end
-	  )
-	else
-	  (
-	   match corresponds subterm t (get_next_node_val path) path  with
-	   | None -> raise LocateSubterm
-	   | Some (ts, ins_f, new_path) ->
-	       if !at_breaking_handler
-	       then begin
-		 at_breaking_handler := false;
-		 try begin
-		   (ts *> loop) new_path 
-		     +> ins_f;
-		 end
-		 with Break new_path -> raise (Next new_path)
-	       end
-	       else
-		 (ts *> loop) new_path +> ins_f
-	  ) 
+  let t = get_val n' 
+  in
+  if subterm === t
+  then 
+    (match extract_label t with
+    | Some lab -> raise (Goto (lab, path))
+    | None     -> begin
+        if is_break subterm
+        then
+    raise (Break path)
+        else
+    raise (Next path)
+    end
+    )
+  else
+    (
+     match corresponds subterm t (get_next_node_val path) path  with
+     | None -> raise LocateSubterm
+     | Some (ts, ins_f, new_path) ->
+         if !at_breaking_handler
+         then begin
+     at_breaking_handler := false;
+     try begin
+       (ts *> loop) new_path 
+         +> ins_f;
+     end
+     with Break new_path -> raise (Next new_path)
+         end
+         else
+     (ts *> loop) new_path +> ins_f
+    ) 
   and locate_label (lab, path) t =
     match view t with 
     | C("stmt", [
-	{Hashcons.node=C("labeled", [
-			 {Hashcons.node=A("lname",lab') }; _])}
+  {Hashcons.node=C("labeled", [
+       {Hashcons.node=A("lname",lab') }; _])}
       ]) 
       when lab = lab' -> loop t path
     | C("exp", _)
     | C("exprstmt", _)
     | C("stmtexp", _) -> raise (Label_not_found lab)
     | C(ty, ts) -> 
-	(* if t is a looping construct, we need to setup a break/continue handler *)
-	if is_looping t
-	then 
-	  try
-	    let ts' = iterate_lab ts loop locate_label (lab, path)
-	    in mkC(ty,ts')
-	  with Break new_path -> raise (Next new_path)
-	else 
-	  let ts' = iterate_lab ts loop locate_label (lab, path)
-	  in mkC(ty,ts')
+  (* if t is a looping construct, we need to setup a break/continue handler *)
+  if is_looping t
+  then 
+    try
+      let ts' = iterate_lab ts loop locate_label (lab, path)
+      in mkC(ty,ts')
+    with Break new_path -> raise (Next new_path)
+  else 
+    let ts' = iterate_lab ts loop locate_label (lab, path)
+    in mkC(ty,ts')
     | _ -> raise (Label_not_found lab) 
   in
   let rec search_label (lab, path) =
@@ -3134,18 +3134,18 @@ let locate_subterm g orig_subterm orig_path f =
     try loop orig_subterm orig_path 
     with
     | Goto (lab, path) -> 
-	try
-	  begin
-	    search_label (lab, path);
-	  end
-	with Break path -> begin
-	  print_string ("[Main] caught break after GOTO " ^ lab  ^ " in function ");
-	  g +> get_fun_name_gflow +> print_endline;
-	  print_string "[Main] at path: ";
-	  path +> List.map string_of_int +> String.concat " "
-	    +> print_endline;
-	  raise (Break path)
-	end
+  try
+    begin
+      search_label (lab, path);
+    end
+  with Break path -> begin
+    print_string ("[Main] caught break after GOTO " ^ lab  ^ " in function ");
+    g +> get_fun_name_gflow +> print_endline;
+    print_string "[Main] at path: ";
+    path +> List.map string_of_int +> String.concat " "
+      +> print_endline;
+    raise (Break path)
+  end
 
 
 (* this function takes a chunk and a subterm and uses the subterm to
@@ -3229,9 +3229,9 @@ let perform_pending pending_term =
       match List.find 
           (function p -> 
             match view p with 
-	    | C("=",[ctx])  
-	    | C("-",[ctx]) -> true
-	    | _ -> false) emb +> view 
+      | C("=",[ctx])  
+      | C("-",[ctx]) -> true
+      | _ -> false) emb +> view 
       with
       | C("=",[p]) | C("-",[p])-> p
       | _ -> raise (Impossible 16)
@@ -3239,13 +3239,13 @@ let perform_pending pending_term =
     try Diff.match_term (extract_pat ctx) orig_cp 
     with Diff.Nomatch -> 
       begin
-	print_endline "[Main] Nomatch between:";
-	Diff.string_of_gtree' orig_cp +> print_endline;
-	Diff.string_of_gtree' ctx +> print_endline;
-	print_endline "[Main] emb...";
-	emb +> List.iter 
-	  (function gt -> gt +> Diff.string_of_gtree' +> print_endline);
-	raise Diff.Nomatch
+  print_endline "[Main] Nomatch between:";
+  Diff.string_of_gtree' orig_cp +> print_endline;
+  Diff.string_of_gtree' ctx +> print_endline;
+  print_endline "[Main] emb...";
+  emb +> List.iter 
+    (function gt -> gt +> Diff.string_of_gtree' +> print_endline);
+  raise Diff.Nomatch
       end
   in
   let unfold_embedded orig embs = 
@@ -3258,21 +3258,21 @@ let perform_pending pending_term =
       | C("+", [p]) -> (let interm = Diff.sub env p 
       in interm :: res_ts)
       | _ -> raise (Impossible 17)
-		    ) embs []
+        ) embs []
   in
   let rec loop t = 
     match view t with
     | C("pending", orig_cp :: embedded) -> unfold_embedded orig_cp embedded
     | C(ty, ts) -> 
         let ts' = ts +> List.rev_map loop 
-	    +> List.rev
-	    +> List.flatten in 
-	[mkC(ty, fix_empty_labeled ts')]
+      +> List.rev
+      +> List.flatten in 
+  [mkC(ty, fix_empty_labeled ts')]
     | _ -> [t] in
   match loop pending_term with
   | [t'] -> t'
   | _ -> raise (Diff.Fail "perform pending error")
-	
+  
 
 (* this function applies a semantic patch to a term given a flow
    representing the term; the idea is to do the following
@@ -3295,15 +3295,15 @@ let perform_pending pending_term =
    - once all chunks in all chunk-set have been handled, perform
    transformations mentioned in the inserted chunks
  *)
-	
+  
 let apply_spatch_fixed spatch (term, flow) =
   let get_pattern_env_traces g sp =
     g#nodes#tolist 
       +> List.filter (function (i,gt) -> Diff.non_phony gt && not(Diff.is_control_node gt))
       +> List.fold_left (fun acc_trs (i,gt) ->
-	match Diff.get_env_traces g sp i with
+  match Diff.get_env_traces g sp i with
         | None -> ((*print_endline "nothing";*) acc_trs)
-	| Some trs -> trs :: acc_trs) [] 
+  | Some trs -> trs :: acc_trs) [] 
   in
   (* use env to replace metavars with the corresponding subterms *)
   let instantiate spatch env = 
@@ -3326,9 +3326,9 @@ let apply_spatch_fixed spatch (term, flow) =
       loop ls1 ls2 in
     let skip_add = 
       function
-	| Difftype.ADD _ -> true 
-	| Difftype.ID (t,_) -> t == ddd
-	| _ -> false in
+  | Difftype.ADD _ -> true 
+  | Difftype.ID (t,_) -> t == ddd
+  | _ -> false in
     map2 skip_add add_annotation_iop sp node_seq in
   let pattern = List.fold_right 
       (fun iop acc_pattern -> 
@@ -3376,14 +3376,14 @@ let apply_spatch_fixed spatch (term, flow) =
      *)
     List.fold_left 
       (fun acc_pending_term (seq, env) ->
-	let sp' = instantiate init_annotated env in 
-	(* annotate each element of sp' with the node matched *)
-	let spa = annotate_spatch_seq sp' seq in
-	(* turn the annotated spa into a list of chunks *)
-	let chunks = Diff.chunks_of_diff spa in
-	(* for each chunk, insert a 'pending transformation 
-	   subtree' at the context-point of the chunk *)
-	List.fold_left (insert_chunk flow) acc_pending_term chunks
+  let sp' = instantiate init_annotated env in 
+  (* annotate each element of sp' with the node matched *)
+  let spa = annotate_spatch_seq sp' seq in
+  (* turn the annotated spa into a list of chunks *)
+  let chunks = Diff.chunks_of_diff spa in
+  (* for each chunk, insert a 'pending transformation 
+     subtree' at the context-point of the chunk *)
+  List.fold_left (insert_chunk flow) acc_pending_term chunks
       )
       acc_pending_term env_trace
   ) term env_traces
@@ -3415,10 +3415,10 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
       p :: acc_pattern
   | Difftype.ADD _ -> acc_pattern
   | _ -> raise (Impossible 18)
-				) spatch [] in
+        ) spatch [] in
   let matched_flows = flows +> List.filter (function flow ->
     flow |- pattern
-					   ) in
+             ) in
   (* find corresponding function in lhs & rhs 
      - get name of function corresponding to flow
      - get subterm in lhs which is that function
@@ -3439,9 +3439,9 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
      function flow *)
   let patched_lhss = funs +> List.map 
       (fun (fname, flow, lhs_def_term, rhs_def_term) ->
-	(lhs_def_term, 
-	 apply_spatch_fixed spatch (lhs_def_term, flow), 
-	 rhs_def_term)
+  (lhs_def_term, 
+   apply_spatch_fixed spatch (lhs_def_term, flow), 
+   rhs_def_term)
       ) in
   (* check safety of result *)
   (*print_string "safety check for: ";*)
@@ -3458,7 +3458,7 @@ let is_spatch_safe_one (lhs_term, rhs_term, flows) spatch =
         (*print_endline ("t3\t" ^ Diff.string_of_gtree' right);        *)
         false
       end
-		) patched_lhss
+    ) patched_lhss
    )
 
 (* decide whether sp1 <= ttf_list *)
@@ -3512,7 +3512,7 @@ let apply_spatch_ttf spatch (lhs_term, rhs_term, flows) =
                                     | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
                                     | Difftype.ADD _ -> acc_pattern
                                     | _ -> raise (Impossible 19)
-				                        ) spatch [] in
+                                ) spatch [] in
   let matched_flows = flows +> List.filter (fun flow -> flow |- pattern) in
   (* find corresponding function in lhs & rhs 
      - get name of function corresponding to flow
@@ -3569,30 +3569,30 @@ let rec subseq s1 s2 =
  * statement-patterns must also include at least one of the same metavars
 *)
 let interesting_sp sp =
-	let rec get_metas env gt =
-		match view gt with
-		| A("meta", name) 
-			when List.mem name env -> env
-		| A("meta", name) -> name :: env
-		| C(_, ts) -> List.fold_left get_metas env ts 
-		| _ -> env in
-	let get_metas_dt dt = 
-		match dt with
-		| Difftype.RM gt
-		| Difftype.ADD gt 
-		| Difftype.ID gt -> get_metas [] gt 
-		| _ -> [] in
-	sp
-	+> List.map get_metas_dt
-	+> List.flatten
-	+> List.fold_left
-			(fun (seen, flag) mvar -> 
-				if List.mem mvar seen
-				then (seen, true)
-				else (mvar :: seen, flag)
-			) ([],false)
-	+> snd
-		
+  let rec get_metas env gt =
+    match view gt with
+    | A("meta", name) 
+      when List.mem name env -> env
+    | A("meta", name) -> name :: env
+    | C(_, ts) -> List.fold_left get_metas env ts 
+    | _ -> env in
+  let get_metas_dt dt = 
+    match dt with
+    | Difftype.RM gt
+    | Difftype.ADD gt 
+    | Difftype.ID gt -> get_metas [] gt 
+    | _ -> [] in
+  sp
+  +> List.map get_metas_dt
+  +> List.flatten
+  +> List.fold_left
+      (fun (seen, flag) mvar -> 
+        if List.mem mvar seen
+        then (seen, true)
+        else (mvar :: seen, flag)
+      ) ([],false)
+  +> snd
+    
 
 (* decide whether sp1 <= sp2 relative to ttf_list *)
 let get_largest_spatchs ttf_list spatches =
@@ -3708,9 +3708,9 @@ let get_chunks patterns =
       then [[e]]
       else
         res +> List.fold_left (fun res ls -> 
-	  (ls @ [e])
-	  :: res
-			      ) []
+    (ls @ [e])
+    :: res
+            ) []
     in
     (* results is a list of chunks to include/use/apply *)
     let rec loop chunk results =
@@ -3728,15 +3728,15 @@ let get_chunks patterns =
   let init_count = ref 0 in
   let total_count = List.length !Diff.flow_changes in
   print_endline ("[Main] getting initial chunks |flow_changes| = " ^ 
-		 !Diff.flow_changes +> List.length +> string_of_int);
+     !Diff.flow_changes +> List.length +> string_of_int);
   let chunks =
     !Diff.flow_changes +>
     List.fold_left (fun acc_chunks_lists diff ->
       List.rev_append 
-	(Jconfig.counter_tick !init_count total_count;
-	 init_count := !init_count + 1;
-	 Diff.chunks_of_diff_spatterns patterns diff)
-	acc_chunks_lists) [] in
+  (Jconfig.counter_tick !init_count total_count;
+   init_count := !init_count + 1;
+   Diff.chunks_of_diff_spatterns patterns diff)
+  acc_chunks_lists) [] in
   print_endline ("[Main] extracting the good chunks (initial: "^chunks +> List.length +> string_of_int^")");
   let good_chunks = chunks 
       +> List.filter (function diff -> match diff with 
@@ -3745,10 +3745,10 @@ let get_chunks patterns =
       +> List.filter (function diff -> match get_context_point diff with
       | Difftype.ID context_point 
       | Difftype.RM context_point -> 
-	  (* does the context-point match anything in at least some pattern *)
-	  not(Diff.get_change_matches patterns context_point = [])
+    (* does the context-point match anything in at least some pattern *)
+    not(Diff.get_change_matches patterns context_point = [])
       | _ -> raise (Impossible 6)
-		     )
+         )
       +> rm_dups in
 
   print_endline ("[Main] good chunks ("^ good_chunks +> List.length +> string_of_int^")");
@@ -3756,8 +3756,8 @@ let get_chunks patterns =
     +> List.iter (function diff -> 
       print_endline "[Chunk]";
       print_endline (diff 
-		       +> List.map Diff.string_of_diff
-		       +> String.concat "\n");
+           +> List.map Diff.string_of_diff
+           +> String.concat "\n");
       print_endline "[End]"
                  ); 
 
@@ -3783,8 +3783,8 @@ let get_chunks patterns =
         +> List.iter (function diff -> 
           print_endline "[Chunk]";
           print_endline (diff 
-			   +> List.map Diff.string_of_diff
-			   +> String.concat "\n");
+         +> List.map Diff.string_of_diff
+         +> String.concat "\n");
           print_endline "[End]"
                      );
     returned_chunks
@@ -3808,8 +3808,8 @@ let get_missed_rhs cand_spatches gss =
  *)
       if current_subterm = subterm
       then (
-(*	print_endline ("inserting " ^ x); *)
-	mkA("meta", x)
+(*  print_endline ("inserting " ^ x); *)
+  mkA("meta", x)
        )
       else match view current_subterm with
       | C(ty, ts) -> mkC(ty, List.rev (List.rev_map loop ts))
@@ -3826,29 +3826,29 @@ let get_missed_rhs cand_spatches gss =
   List.fold_left 
     (fun acc_spatches sp -> 
       let s_pattern = List.fold_right
-	  (fun po acc_pat -> match po with
-	  | (Difftype.ID t | Difftype.RM t) -> t :: acc_pat
-	  | _ -> acc_pat) sp [] 
+    (fun po acc_pat -> match po with
+    | (Difftype.ID t | Difftype.RM t) -> t :: acc_pat
+    | _ -> acc_pat) sp [] 
       in
       (* for each graph *)
       List.fold_left (fun acc_spatches f ->
-	let envs = 
-	  List.fold_left 
-	    (fun acc_envs n ->
-	      match Diff.get_merged_env f s_pattern n with
-	      | None -> acc_envs
-	      | Some e -> e :: acc_envs
-	    )
-	    []
-	    (nodes_of_graph2 f) 
-	in
-	(* for each env found *)
-	List.fold_left 
-	  (fun acc_spatches env ->
-	    find_rhs_sp env sp +++ acc_spatches
-	  ) acc_spatches envs
-		     ) acc_spatches gs
-	
+  let envs = 
+    List.fold_left 
+      (fun acc_envs n ->
+        match Diff.get_merged_env f s_pattern n with
+        | None -> acc_envs
+        | Some e -> e :: acc_envs
+      )
+      []
+      (nodes_of_graph2 f) 
+  in
+  (* for each env found *)
+  List.fold_left 
+    (fun acc_spatches env ->
+      find_rhs_sp env sp +++ acc_spatches
+    ) acc_spatches envs
+         ) acc_spatches gs
+  
     ) [] cand_spatches
 
 
@@ -3856,11 +3856,11 @@ let get_cfg_changeset () =
   List.rev (
   List.fold_left (fun acc_pairs (lfile, rfile) ->
     Reader.read_filepair_cfg lfile rfile @ acc_pairs
-		 ) [] !file_pairs)
+     ) [] !file_pairs)
     +> List.filter (function ((gt_lhs,f_lhs), (gt_rhs, f_rhs)) -> 
       not(!only_changes) 
     || not(gt_lhs = gt_rhs)
-		   ) 
+       ) 
 
 let find_common_patterns () =
   (*  malign := true; *)
@@ -3904,9 +3904,9 @@ let find_common_patterns () =
       else None in
     let is_transformation_sp sp = 
       sp +> List.exists (fun p ->
-	          match p with
-	          | Difftype.ID _ -> false
-	          | _ -> true) in
+            match p with
+            | Difftype.ID _ -> false
+            | _ -> true) in
     let safe_for_ff sp =
       match ttf_focus_fun with
       | None -> true
@@ -3921,7 +3921,7 @@ let find_common_patterns () =
             | Difftype.PENDING_RM p' -> Difftype.RM p'
             | Difftype.PENDING_ID p' -> Difftype.ID p'
             | _ -> p
-	          ) sp in
+            ) sp in
       not(is_transformation_sp spa)
       || ((match ttf_focus_fun with
           | None -> true
@@ -3938,11 +3938,11 @@ let find_common_patterns () =
       print_endline "[Main] candidate semantic patches...";
       trans_patches' +>
       List.iter (fun sp -> 
-	      print_endline "[spatch:]";
-	      print_endline (sp
-			  +> List.map Diff.string_of_spdiff
-			  +> String.concat "\n");
-		  )
+        print_endline "[spatch:]";
+        print_endline (sp
+        +> List.map Diff.string_of_spdiff
+        +> String.concat "\n");
+      )
     end;
     print_endline ("[Main] getting missed RHS bindings");
     let trans_patches = get_missed_rhs trans_patches' gss in
@@ -3951,11 +3951,11 @@ let find_common_patterns () =
       print_endline "[Main] after missed-analysis we have semantic patches...";
       trans_patches +>
       List.iter (fun sp -> 
-	      print_endline "[spatch:]";
-	      print_endline (sp
-			  +> List.map Diff.string_of_spdiff
-			  +> String.concat "\n");
-		  )
+        print_endline "[spatch:]";
+        print_endline (sp
+        +> List.map Diff.string_of_spdiff
+        +> String.concat "\n");
+      )
     end;
     print_string ("[Main] filtering safe semantic patches ("^ 
                   trans_patches +> List.length +> string_of_int ^
@@ -3963,49 +3963,49 @@ let find_common_patterns () =
     let res_count = ref 0 in
     let res_total = List.length trans_patches in
     let res_spatches = trans_patches
-	      +> List.fold_left 
-	         (fun acc_sps sp -> begin
-	            ANSITerminal.save_cursor ();
-	            ANSITerminal.print_string 
-	            [ANSITerminal.on_default] 
+        +> List.fold_left 
+           (fun acc_sps sp -> begin
+              ANSITerminal.save_cursor ();
+              ANSITerminal.print_string 
+              [ANSITerminal.on_default] 
               (!res_count +> string_of_int ^"/"^ res_total +> string_of_int);
-	            ANSITerminal.restore_cursor();
-	            flush stdout;
-	            res_count := !res_count + 1;
-	            if safe_for_ff sp && is_spatch_safe_ttf_list sp ttf_list
-	            then sp :: acc_sps
-	            else begin
-	              if !Jconfig.print_abs
-	              then 
-	                begin
-		                print_endline "[Main] not safe...";
-		                print_endline (String.concat "\n" (List.map Diff.string_of_spdiff sp));
-	                end;
-	              acc_sps
-	            end
-	         end) []
-	      +> rm_dups in
+              ANSITerminal.restore_cursor();
+              flush stdout;
+              res_count := !res_count + 1;
+              if safe_for_ff sp && is_spatch_safe_ttf_list sp ttf_list
+              then sp :: acc_sps
+              else begin
+                if !Jconfig.print_abs
+                then 
+                  begin
+                    print_endline "[Main] not safe...";
+                    print_endline (String.concat "\n" (List.map Diff.string_of_spdiff sp));
+                  end;
+                acc_sps
+              end
+           end) []
+        +> rm_dups in
     print_newline ();
     if !Jconfig.print_abs
     then begin
       List.iter (fun sp -> 
-	      print_endline "[spatch:]";
-	      print_endline (sp
-			    +> List.map Diff.string_of_spdiff
-			    +> String.concat "\n");
-		  ) res_spatches
+        print_endline "[spatch:]";
+        print_endline (sp
+          +> List.map Diff.string_of_spdiff
+          +> String.concat "\n");
+      ) res_spatches
     end;
     print_endline ("[Main] filtering largest semantic patches ("^
-		   res_spatches +> List.length +> string_of_int
-		   ^")");
+       res_spatches +> List.length +> string_of_int
+       ^")");
     let largest_spatches =
       res_spatches 
-	    +> (fun spatches -> 
-	        if !filter_spatches then get_largest_spatchs ttf_list spatches
-	        else spatches)
-	    +> rm_dups in
+      +> (fun spatches -> 
+          if !filter_spatches then get_largest_spatchs ttf_list spatches
+          else spatches)
+      +> rm_dups in
     print_endline ("[Main] *REAL* semantic patches inferred: " ^
-		   List.length largest_spatches +> string_of_int);
+       List.length largest_spatches +> string_of_int);
     largest_spatches
     +> List.iter (fun diff ->
         print_endline "[spatch:]";
@@ -4028,7 +4028,7 @@ let find_common_patterns () =
           print_endline " >";
           print_newline ();
         end)
-  end		  
+  end      
 
 
 
@@ -4048,26 +4048,26 @@ let embedded p t =
     match ps with
     | [] -> return env
     | p :: ps -> 
-	(match ts with
-	| [] -> zero
-	| t :: ts ->
-	    (match loop env p t with
-	    | None -> embedded_lists env (p::ps) ts
-	    | Some env' ->
-		(match embedded_lists env' ps ts with
-		| None -> embedded_lists env (p::ps) ts
-		| Some env -> return env
-		)
-	    )
-	)
+  (match ts with
+  | [] -> zero
+  | t :: ts ->
+      (match loop env p t with
+      | None -> embedded_lists env (p::ps) ts
+      | Some env' ->
+    (match embedded_lists env' ps ts with
+    | None -> embedded_lists env (p::ps) ts
+    | Some env -> return env
+    )
+      )
+  )
   and loop env p t = 
     if p = t
     then return env 
     else match view p, view t with
     | (A ("meta", x)) , t -> add_bind env (x,t)
     | (C (c,ps)), (C (c',ts)) when 
-	c = c' && List.length ps <= List.length ts -> 
-	  embedded_lists env ps ts
+  c = c' && List.length ps <= List.length ts -> 
+    embedded_lists env ps ts
     | _ -> zero
   in
   loop [] p t
@@ -4102,7 +4102,7 @@ let find_embedded t1 t2 =
   let add_bind env pair =
     try 
       let 
-	  (m,_) = List.find (function (m,pair') -> pair = pair') env 
+    (m,_) = List.find (function (m,pair') -> pair = pair') env 
       in
       mkA("meta",m), env
     with Not_found ->
@@ -4127,21 +4127,21 @@ let find_embedded t1 t2 =
 
 
       Diff.patience_diff ts1 ts2
-	+> List.rev
-	+> List.fold_left 
-	(fun (acc_ts, acc_env) up -> match up with
-	| Difftype.UP(l,r) ->
+  +> List.rev
+  +> List.fold_left 
+  (fun (acc_ts, acc_env) up -> match up with
+  | Difftype.UP(l,r) ->
 (*
   (loop acc_env l r +> fst :: acc_ts, acc_env)
  *)
-	    let t', env' = loop acc_env l r in
-	    (t' :: acc_ts, env')
+      let t', env' = loop acc_env l r in
+      (t' :: acc_ts, env')
 
-	| Difftype.ID t' -> (t' :: acc_ts, acc_env)
-	| Difftype.ADD _
-	| Difftype.RM _ -> (acc_ts, acc_env)
-	| _ -> raise (Diff.Fail "unhandled case in find_embedded")
-	) ([], env)
+  | Difftype.ID t' -> (t' :: acc_ts, acc_env)
+  | Difftype.ADD _
+  | Difftype.RM _ -> (acc_ts, acc_env)
+  | _ -> raise (Diff.Fail "unhandled case in find_embedded")
+  ) ([], env)
 
 (*
   
@@ -4165,17 +4165,17 @@ let find_embedded t1 t2 =
   | _, _ when t1 = t2 -> t1, env
 (*
   | _, _ when !current_embedded_depth > !max_embedded_depth -> 
-  add_bind env (t1, t2)	  
+  add_bind env (t1, t2)    
  *)
   | C(ty1,ts1), C(ty2,ts2) when ty1 = ty2 ->
       let old = !current_embedded_depth in
       begin
-	current_embedded_depth := !current_embedded_depth + 1;
-	let ts3, env' = loop_lists env ts1 ts2 in
-	begin
-	  current_embedded_depth := old;
-	  mkC(ty1, ts3), env'
-	end
+  current_embedded_depth := !current_embedded_depth + 1;
+  let ts3, env' = loop_lists env ts1 ts2 in
+  begin
+    current_embedded_depth := old;
+    mkC(ty1, ts3), env'
+  end
       end
   | _, _ -> add_bind env (t1,t2)
   in 
@@ -4198,23 +4198,23 @@ let find_merged_from_sets terms_lists =
       match acc_patterns_opt with
       | None -> terms +> some
       | Some acc_patterns ->
-	  acc_patterns
-	    +> List.fold_left 
-	    (fun acc_patterns' p_merged ->
-	      terms 
-		+> List.fold_left
-		(fun acc_patterns'' t ->
-		  (* let p' = find_embedded p_merged t *)
-		  let p' = Diff.merge_terms p_merged t 
-		      +> fst +> renumber_metas_gtree in
-		  if interesting p' acc_patterns''
-		  then p' :: acc_patterns''
-		  else begin
-		    acc_patterns''
-		  end
-		) acc_patterns'
-	    ) (List.rev_append acc_patterns terms)
-	    +> some
+    acc_patterns
+      +> List.fold_left 
+      (fun acc_patterns' p_merged ->
+        terms 
+    +> List.fold_left
+    (fun acc_patterns'' t ->
+      (* let p' = find_embedded p_merged t *)
+      let p' = Diff.merge_terms p_merged t 
+          +> fst +> renumber_metas_gtree in
+      if interesting p' acc_patterns''
+      then p' :: acc_patterns''
+      else begin
+        acc_patterns''
+      end
+    ) acc_patterns'
+      ) (List.rev_append acc_patterns terms)
+      +> some
     ) None
     +> get_some
     +> (function ps -> begin
@@ -4229,21 +4229,21 @@ let find_merged_from_sets terms_lists =
     +> List.filter 
     (function p -> 
       terms_lists 
-	+> for_some !threshold 
-	(function terms -> 
-	  terms
-	    +> List.exists 
-	    (function t ->
-	      if !Jconfig.verbose 
-	      then (
-		print_endline "[Main] testing embedded:";
-		p+>Diff.string_of_gtree'+>print_endline;
-		print_endline "IN";
-		t+>Diff.string_of_gtree'+>print_endline;
-	       );
-	      Diff.can_match p t 
-	    )
-	)
+  +> for_some !threshold 
+  (function terms -> 
+    terms
+      +> List.exists 
+      (function t ->
+        if !Jconfig.verbose 
+        then (
+    print_endline "[Main] testing embedded:";
+    p+>Diff.string_of_gtree'+>print_endline;
+    print_endline "IN";
+    t+>Diff.string_of_gtree'+>print_endline;
+         );
+        Diff.can_match p t 
+      )
+  )
     )
 
 
@@ -4262,7 +4262,7 @@ let get_matched_terms terms_lists pat =
   terms_lists +> List.fold_left
     (fun acc_terms_lists terms -> 
       terms +> List.filter
-	(function t -> Diff.can_match pat t)
+  (function t -> Diff.can_match pat t)
       :: acc_terms_lists
     ) []
 
@@ -4273,8 +4273,8 @@ let find_embedded_from_sets patterns terms_lists =
       && not(List.mem p acc_patterns)
       && acc_patterns +> List.for_all 
       (function p' -> 
-	not(is_embedded p p') ||
-	(not(is_embedded p' p) || csize p' <= csize p)
+  not(is_embedded p p') ||
+  (not(is_embedded p' p) || csize p' <= csize p)
       )
 
   in
@@ -4286,56 +4286,56 @@ let find_embedded_from_sets patterns terms_lists =
     +> List.rev_map
     (function p ->
       begin
-	print_endline "[Main] finding *embedded* patterns in: ";
-	p+>Diff.string_of_gtree'+>print_endline;
-	let terms_lists_restricted = get_matched_terms terms_lists p 
-	in
+  print_endline "[Main] finding *embedded* patterns in: ";
+  p+>Diff.string_of_gtree'+>print_endline;
+  let terms_lists_restricted = get_matched_terms terms_lists p 
+  in
 
-	terms_lists_restricted
-	  +> List.fold_left
-	  (fun acc_patterns_opt terms ->
-	    match acc_patterns_opt with
-	    | None -> terms +> some
-	    | Some acc_patterns ->
-		acc_patterns
-		  +> List.fold_left 
-		  (fun acc_patterns' p_merged ->
-		    terms 
-		      +> List.fold_left
-		      (fun acc_patterns'' t ->
-			let p' = find_embedded p_merged t 
-			    +> fst +> renumber_metas_gtree in
-			if interesting p' acc_patterns''
-			then p' :: acc_patterns''
-			else begin
-			  acc_patterns''
-			end
-		      ) acc_patterns'
-		  ) (List.rev_append acc_patterns terms)
-		  +> some
-	  ) None
-	  +> get_some
-	  +> (function ps -> begin
-	    print_endline "[Main] for pattern ";
-	    p+>Diff.string_of_gtree'+>print_endline;
-	    print_string "[Main] we found ";
-	    ps +> List.length +> string_of_int +> print_string;
-	    print_endline " number of pattern(s)";
-	    ps
-	  end
-	     )
-	  +> List.filter 
-	  (function p_embedded ->
-	    terms_lists_restricted
-	      +> for_some !threshold 
-	      (function terms ->
-		terms
-		  +> List.exists 
-		  (function t ->
-		    is_embedded p_embedded t
-		  )
-	      )
-	  )
+  terms_lists_restricted
+    +> List.fold_left
+    (fun acc_patterns_opt terms ->
+      match acc_patterns_opt with
+      | None -> terms +> some
+      | Some acc_patterns ->
+    acc_patterns
+      +> List.fold_left 
+      (fun acc_patterns' p_merged ->
+        terms 
+          +> List.fold_left
+          (fun acc_patterns'' t ->
+      let p' = find_embedded p_merged t 
+          +> fst +> renumber_metas_gtree in
+      if interesting p' acc_patterns''
+      then p' :: acc_patterns''
+      else begin
+        acc_patterns''
+      end
+          ) acc_patterns'
+      ) (List.rev_append acc_patterns terms)
+      +> some
+    ) None
+    +> get_some
+    +> (function ps -> begin
+      print_endline "[Main] for pattern ";
+      p+>Diff.string_of_gtree'+>print_endline;
+      print_string "[Main] we found ";
+      ps +> List.length +> string_of_int +> print_string;
+      print_endline " number of pattern(s)";
+      ps
+    end
+       )
+    +> List.filter 
+    (function p_embedded ->
+      terms_lists_restricted
+        +> for_some !threshold 
+        (function terms ->
+    terms
+      +> List.exists 
+      (function t ->
+        is_embedded p_embedded t
+      )
+        )
+    )
       end)
     +> tail_flatten
 
@@ -4355,9 +4355,9 @@ let embedded_subpattern_terms p1 p2 terms =
     +> List.for_all
     (function term ->
       implies 
-	(is_embedded p2 term) 
-	(is_embedded p1 term 
-	   && is_embedded p1 p2)	 
+  (is_embedded p2 term) 
+  (is_embedded p1 term 
+     && is_embedded p1 p2)   
     )
 
 let embedded_subpattern_terms_lists p1 p2 terms_lists =
@@ -4377,7 +4377,7 @@ let find_embedded_common () =
   let term_pairs = 
     List.fold_left (fun acc_pairs (lfile, rfile) ->
       Reader.read_filepair_top lfile rfile :: acc_pairs
-		   ) [] !file_pairs
+       ) [] !file_pairs
   in
   if !threshold = 0
   then 
@@ -4386,28 +4386,28 @@ let find_embedded_common () =
   let relevant_terms = 
     term_pairs 
       +> List.rev_map (function pairs -> List.fold_left
-	  (fun acc_terms (l,r) ->
-	    if !only_changes
-	    then 
-	      if l = r 
-	      then acc_terms
-	      else l :: acc_terms
-	    else
-	      l :: acc_terms
-	  ) 
-	  []
-	  pairs)
+    (fun acc_terms (l,r) ->
+      if !only_changes
+      then 
+        if l = r 
+        then acc_terms
+        else l :: acc_terms
+      else
+        l :: acc_terms
+    ) 
+    []
+    pairs)
   in
   print_endline ("[Main] #no of terms to consider " ^ 
-		 relevant_terms 
-		   +> List.length
-		   +> string_of_int);
+     relevant_terms 
+       +> List.length
+       +> string_of_int);
   let merged = 
     find_merged_from_sets relevant_terms
       +> (function x ->
-	print_endline "[Main] merged terms, now filtering embeddings";
-	x
-	 )
+  print_endline "[Main] merged terms, now filtering embeddings";
+  x
+   )
       +> rm_dups
 (*
   +> function ps -> 
@@ -4424,74 +4424,74 @@ let find_embedded_common () =
   in
   begin
     print_endline ("[Main] " ^ 
-		   merged
-		     +> List.length
-		     +> string_of_int ^ " common pattern(s) follow...");
+       merged
+         +> List.length
+         +> string_of_int ^ " common pattern(s) follow...");
     merged +> List.iter (function p -> 
       p
-	+> Diff.string_of_gtree'
-	+> print_endline 
-			);
+  +> Diff.string_of_gtree'
+  +> print_endline 
+      );
     print_endline "[Main] looking for common structure in patterns";
     let embeddings = 
       find_embedded_from_sets merged relevant_terms 
-	+> rm_dups
-	+> function ps -> 
-	  ps +> List.filter 
-	    (function p -> 
-	      not(no_leaves p) &&
-	      ps +> List.for_all
-		(function p' ->
-		  not(is_embedded p p') ||
-		  csize p' <= csize p
-		)
-	    )	 
+  +> rm_dups
+  +> function ps -> 
+    ps +> List.filter 
+      (function p -> 
+        not(no_leaves p) &&
+        ps +> List.for_all
+    (function p' ->
+      not(is_embedded p p') ||
+      csize p' <= csize p
+    )
+      )   
     in
     print_endline ("[Main] " ^ 
-		   embeddings
-		     +> List.length
-		     +> string_of_int ^ " common embeddings(s) follow...");
+       embeddings
+         +> List.length
+         +> string_of_int ^ " common embeddings(s) follow...");
     embeddings +> List.iter (function p -> 
       p
-	+> Diff.string_of_gtree'
-	+> print_endline 
-			    );
+  +> Diff.string_of_gtree'
+  +> print_endline 
+          );
 
 
     if !tmp_flag
     then  
       begin
-	print_endline "[Main] looking for matched terms that changed";
-	let flat_term_pairs = tail_flatten term_pairs in
-	let pattern_term_pairs = 
-	  embeddings 
-	    +> List.fold_left 
-	    (fun acc_pattern_term_pairs p ->
-	      let term_pairs = flat_term_pairs 
-		  +> List.filter
-		  (function (l,r) -> 
-		    not(l = r)
-		      && is_embedded p l
-		  )
-	      in 
-	      (p, term_pairs) :: acc_pattern_term_pairs
-	    ) [] in
-	print_endline "[Main] performing gpi for each embedded pattern";
-	pattern_term_pairs 
-	  +> List.iter (function (p, term_pairs) -> 
-	    if term_pairs = []
-	    then begin
-	      print_endline "[Main] skipping pattern:";
-	      p+>Diff.string_of_gtree'+>print_endline;
-	    end
-	    else begin
-	      print_endline "[Main] ###################";
-	      print_endline "[Main] relative to pattern:";
-	      p+>Diff.string_of_gtree'+>print_endline;
-	      print_endline "[Main] ###################";
-	      spec_main_term_pairs term_pairs;
-	    end
-		       )
+  print_endline "[Main] looking for matched terms that changed";
+  let flat_term_pairs = tail_flatten term_pairs in
+  let pattern_term_pairs = 
+    embeddings 
+      +> List.fold_left 
+      (fun acc_pattern_term_pairs p ->
+        let term_pairs = flat_term_pairs 
+      +> List.filter
+      (function (l,r) -> 
+        not(l = r)
+          && is_embedded p l
+      )
+        in 
+        (p, term_pairs) :: acc_pattern_term_pairs
+      ) [] in
+  print_endline "[Main] performing gpi for each embedded pattern";
+  pattern_term_pairs 
+    +> List.iter (function (p, term_pairs) -> 
+      if term_pairs = []
+      then begin
+        print_endline "[Main] skipping pattern:";
+        p+>Diff.string_of_gtree'+>print_endline;
+      end
+      else begin
+        print_endline "[Main] ###################";
+        print_endline "[Main] relative to pattern:";
+        p+>Diff.string_of_gtree'+>print_endline;
+        print_endline "[Main] ###################";
+        spec_main_term_pairs term_pairs;
+      end
+           )
       end
   end
 
@@ -4505,10 +4505,10 @@ let find_fun_common () =
   let term_pairs = 
     List.fold_left (fun acc_pairs (lfile, rfile) ->
       Reader.read_filepair_defs lfile rfile @ acc_pairs
-		   ) [] !file_pairs
+       ) [] !file_pairs
       +> List.filter (function (l,r) ->
-    	not(!only_changes) || not(l = r)
-    		     )
+      not(!only_changes) || not(l = r)
+             )
   in
   if !threshold = 0
   then 
@@ -4527,7 +4527,7 @@ let find_fun_common () =
     Diff.TT.find Diff.prepruned_ht p 
       
       (* unique_subterms +> List.fold_left *)
-      (* 	(fun acc_n t -> if Diff.can_match p t *)
+      (*   (fun acc_n t -> if Diff.can_match p t *)
       (* then acc_n + 1 else acc_n) 0 *)
   in
   begin
@@ -4536,51 +4536,51 @@ let find_fun_common () =
       +> (function x -> print_endline "[Main] removing useless patterns"; x)
       +> List.filter 
       (function (p,env) -> 
-	match view p with
-	| C("def", [name;funtype;gt_body]) -> 
-	    not(Diff.useless_abstraction gt_body)
-	| _ -> false
+  match view p with
+  | C("def", [name;funtype;gt_body]) -> 
+      not(Diff.useless_abstraction gt_body)
+  | _ -> false
       )
       +> (function x -> print_endline "[Main] sorting according to increasing order of frequency"; x)
       +> List.sort (fun (p,_) (p',_) -> 
-	get_frequency  p 
-	  - get_frequency  p'
-		   )
+  get_frequency  p 
+    - get_frequency  p'
+       )
       +> List.iter (function (p,env) -> 
-	begin
-	  let sup = get_frequency p
-	      (* subterms_lists  *)
-	      (* +> List.fold_left  *)
-	      (* (fun *)
-	      (*    acc_s [def] ->  *)
-	      (* 	 if Diff.can_match p def *)
-	      (* 	 then acc_s + 1 *)
-	      (* 	 else acc_s *)
-	      (* ) 0  *)
-	  in
-	  print_endline (">>> freq: " ^ string_of_int sup ^ "\n" ^
-			 p +> Diff.string_of_gtree');
-	  if !print_support
-	  then begin
-	    (* print supporting set also *)
-	    print_endline "[Main] support-set for pattern:";
-	    let count = ref 0 in
-	    subterms_lists
-	      +> List.iter (function
-		| [def] ->
-		    if Diff.can_match p def
-		    then begin
-		      count := !count + 1;
-		      def +> Diff.string_of_gtree' +> print_endline;
-		    end
-		| _ -> raise (Impossible 116)
-			   );
-	    if !count < !threshold
-	    then print_endline "[Main] the supperting set seems smaller than threshold?";
-	    print_newline();
-	  end
-	end
-		   )
+  begin
+    let sup = get_frequency p
+        (* subterms_lists  *)
+        (* +> List.fold_left  *)
+        (* (fun *)
+        (*    acc_s [def] ->  *)
+        (*    if Diff.can_match p def *)
+        (*    then acc_s + 1 *)
+        (*    else acc_s *)
+        (* ) 0  *)
+    in
+    print_endline (">>> freq: " ^ string_of_int sup ^ "\n" ^
+       p +> Diff.string_of_gtree');
+    if !print_support
+    then begin
+      (* print supporting set also *)
+      print_endline "[Main] support-set for pattern:";
+      let count = ref 0 in
+      subterms_lists
+        +> List.iter (function
+    | [def] ->
+        if Diff.can_match p def
+        then begin
+          count := !count + 1;
+          def +> Diff.string_of_gtree' +> print_endline;
+        end
+    | _ -> raise (Impossible 116)
+         );
+      if !count < !threshold
+      then print_endline "[Main] the supperting set seems smaller than threshold?";
+      print_newline();
+    end
+  end
+       )
   end
 
 let print_term_pairs () =
@@ -4589,16 +4589,16 @@ let print_term_pairs () =
   let term_pairs = 
     List.fold_left (fun acc_pairs (lfile, rfile) ->
       Reader.read_filepair_defs lfile rfile @ acc_pairs
-		   ) [] !file_pairs
+       ) [] !file_pairs
       +> List.filter (function (l,r) ->
-    	not(!only_changes) || not(l = r)
-    		     )
+      not(!only_changes) || not(l = r)
+             )
   in
   term_pairs +> List.iter (function (t,t') ->
     t +> Diff.verbose_string_of_gtree +> print_string;
     print_string " ";
     t' +> Diff.verbose_string_of_gtree +> print_endline;
-			  )
+        )
     
 let main () =
   (* decide which mode to operate in *)
