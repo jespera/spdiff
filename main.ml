@@ -3509,21 +3509,18 @@ let apply_spatch_ttf spatch (lhs_term, rhs_term, flows) =
   (* fold_right is ok to use here as patterns are most likely never
      much longer than 5 node-patterns/items *)
   let pattern = List.fold_right (fun iop acc_pattern -> match iop with
-  | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
-  | Difftype.ADD _ -> acc_pattern
-  | _ -> raise (Impossible 19)
-				) spatch [] in
-  let matched_flows = flows +> List.filter (function flow ->
-    flow |- pattern
-					   ) in
+                                    | Difftype.ID p | Difftype.RM p -> p :: acc_pattern
+                                    | Difftype.ADD _ -> acc_pattern
+                                    | _ -> raise (Impossible 19)
+				                        ) spatch [] in
+  let matched_flows = flows +> List.filter (fun flow -> flow |- pattern) in
   (* find corresponding function in lhs & rhs 
      - get name of function corresponding to flow
      - get subterm in lhs which is that function
      - do for rhs term
    *)
-  let fun_names = matched_flows +> List.map 
-      (function flow -> (get_fun_name_gflow flow, flow)) in
-  let funs = fun_names +> List.map (function (fname,flow) ->
+  let fun_names = matched_flows +> List.map (fun flow -> (get_fun_name_gflow flow, flow)) in
+  let funs = fun_names +> List.map (fun (fname,flow) ->
     (fname, 
      flow, 
      get_fun_in_term fname lhs_term, 
@@ -3534,12 +3531,10 @@ let apply_spatch_ttf spatch (lhs_term, rhs_term, flows) =
      only one lhs' because we assume that spatch-application is
      deterministic; cf. no overlapping semantic patterns in each
      function flow *)
-  let patched_lhss = funs +> List.map (function (fname, flow, lhs_def_term, rhs_def_term) ->
+  funs +> List.map (fun (fname, flow, lhs_def_term, rhs_def_term) ->
     (lhs_def_term, 
      apply_spatch_fixed spatch (lhs_def_term, flow), 
-     rhs_def_term)
-				      ) in
-  patched_lhss
+     rhs_def_term))
 
 
 let implies a b = not(a) || b
