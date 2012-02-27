@@ -3674,7 +3674,7 @@ let get_largest_spatchs ttf_list spatches =
                                           if b1
                                           then 
                                             if b2
-                                            then subseq (strip_patch sp') (strip_patch sp)
+                                            then not(subseq (strip_patch sp) (strip_patch sp'))
                                             else true (* sp is strictly larger than sp' *)
                                           else not b2 (* sp strictly larger or unrelated!*)
                                          ))
