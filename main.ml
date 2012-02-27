@@ -3556,10 +3556,8 @@ let strip_patch sp =
 
 let rec subseq s1 s2 = 
   s1 = [] || match s1, s2 with
-  | x :: xs, y :: ys ->
-      (x = y && subseq xs ys) 
-    || subseq s1 ys
-    | _ -> false
+  | x :: xs, y :: ys -> (x = y && subseq xs ys) || subseq s1 ys
+  | _ -> false
 
 
 (* fun that checks a given semantic patch for "interestingness" defined so
@@ -3674,7 +3672,7 @@ let get_largest_spatchs ttf_list spatches =
       if applied_spatches +> List.for_all 
                                 (fun (sp', lhs_fmlists') ->
                                    print_endline "[Main] against : ";
-                                    print_endline (sp' +> List.map Diff.string_of_spdiff
+                                   print_endline (sp' +> List.map Diff.string_of_spdiff
                                                       +> String.concat "\n");
                                    interesting_sp sp && 
                                       (sp = sp'
@@ -3684,7 +3682,7 @@ let get_largest_spatchs ttf_list spatches =
                                           then 
                                             if b2
                                             then subseq (strip_patch sp') (strip_patch sp)
-                                            else true
+                                            else true (* sp is strictly larger than sp' *)
                                           else not b2 (* sp strictly larger or unrelated!*)
                                          ))
                                 )
