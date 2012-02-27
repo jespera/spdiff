@@ -3665,15 +3665,8 @@ let get_largest_spatchs ttf_list spatches =
     (fun (sp, lhs_fmlists) ->
       Jconfig.counter_tick !a_counter a_total;
       a_counter := !a_counter + 1;
-      print_endline "[Main] checking maximality of:";
-      print_endline (sp
-           +> List.map Diff.string_of_spdiff
-           +> String.concat "\n");
       if applied_spatches +> List.for_all 
                                 (fun (sp', lhs_fmlists') ->
-                                   print_endline "[Main] against : ";
-                                   print_endline (sp' +> List.map Diff.string_of_spdiff
-                                                      +> String.concat "\n");
                                    interesting_sp sp && 
                                       (sp = sp'
                                       || (let b1 = is_sub lhs_fmlists' lhs_fmlists in
@@ -3687,8 +3680,7 @@ let get_largest_spatchs ttf_list spatches =
                                          ))
                                 )
       then
-        (print_endline "[Main] including as largest: "
-        ;Some sp)
+        Some sp
       else 
         None
     )
