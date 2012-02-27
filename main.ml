@@ -2342,6 +2342,7 @@ let infer_meta_variables graphs sem_patterns =
     else acc_patterns
  ) []
     
+
 let common_patterns_graphs gss =
   let matches_focus_function = ref false in
   (* detect whether a threshold was given *)
@@ -2363,6 +2364,7 @@ let common_patterns_graphs gss =
   let unique_subterms = subterms_lists 
       +> tail_flatten 
       +> Diff.rm_dub in
+  List.iter (fun x -> print_endline (Diff.string_of_gtree' x)) unique_subterms;
   let (|-) g sp = 
     (* pre-test whether the nodes of the pattern are at all in the graph *)
     let nodes2 = nodes_of_graph2 g in
@@ -2456,10 +2458,10 @@ let common_patterns_graphs gss =
     (* singleton_patterns: all node patterns with 'fresh' metas' *) 
     (node_patterns_pool 
        +> List.fold_left 
-       (fun acc p ->
-	 if not(infeasible p) && Diff.non_phony p && not(Diff.control_true = p) && not(Diff.is_head_node p)
-	 then mkC("CM",[p]) :: acc
-	 else acc
+       (fun acc p -> 
+         if not(infeasible p) && Diff.non_phony p && not(Diff.control_true = p) && not(Diff.is_head_node p)
+         then mkC("CM",[p]) :: acc
+         else acc
        ) []
        +> renumber_fresh_metas_pattern)
     (* valid: check that sempat is frequent *)
@@ -3631,92 +3633,74 @@ let get_largest_spatchs ttf_list spatches =
   print_string "[Main] applying spatches ";
   let a_counter = ref 0 in
   let a_total = List.length spatches in
-  let applied_spatches = spatches
-      +> List.rev_map 
-      (function sp -> begin
-	Jconfig.counter_tick !a_counter a_total;
-	a_counter := !a_counter + 1;
-	sp,
-	ttf_list +> 
-	List.fold_left
-	  (fun acc (lhs,rhs,flows)  ->
-	    let a_ttf = apply_spatch_ttf sp (lhs,rhs,flows) in
-	    if a_ttf = []
-	    then acc
-	    else (lhs, a_ttf) :: acc
-	  ) []
-      end 
-      )
+  let applied_spatches = 
+      spatches +> List.rev_map (function sp -> begin
+                                  Jconfig.counter_tick !a_counter a_total;
+                                  a_counter := !a_counter + 1;
+                                  sp, 
+                                  ttf_list +> List.fold_left
+                                    (fun acc (lhs,rhs,flows)  ->
+                                       let a_ttf = apply_spatch_ttf sp (lhs,rhs,flows) in
+                                       if a_ttf = []
+                                       then acc
+                                       else (lhs, a_ttf) :: acc
+                                    ) []
+                               end)
   in
   let is_sub lhss_fmlists1 lhss_fmlists2 = (* lhss_fmlists1 : (orig_lhs_gt, (f_src, f_mod, f_dst) list ) list *)
-    lhss_fmlists2 +> for_some !threshold 
-      (function (lhs2, fm_lists2) ->
-	try
-	  let (_, fm_lists1) = List.find (function (lhs1, _) -> lhs1 = lhs2) lhss_fmlists1 in
-	  fm_lists2 +> List.for_all
-	    (function (f2,m2,_) ->
-	      try
-		      let (_, m1, _) = List.find (function (f1,m1,r1) -> f1 = f2) fm_lists1 in
-		      Diff.part_of_edit_dist f2 m1 m2
-	      with Not_found -> 
-		      (print_endline  ("Not finding: " ^ Diff.string_of_gtree' f2)
-          ;raise Not_found)
-	    )
-	with Not_found -> false (*  (raise Not_found) *)
-      )
+    lhss_fmlists2 +> 
+    for_some !threshold (fun (lhs2, fm_lists2) ->
+                            try
+                              let (_, fm_lists1) = List.find (function (lhs1, _) -> lhs1 = lhs2) lhss_fmlists1 in
+                              fm_lists2 +> List.for_all
+                                (fun (f2,m2,_) ->
+                                  try
+                                    let (_, m1, _) = List.find (function (f1,m1,r1) -> f1 = f2) fm_lists1 in
+                                    Diff.part_of_edit_dist f2 m1 m2
+                                  with Not_found -> 
+                                    (print_endline  ("Not finding: " ^ Diff.string_of_gtree' f2)
+                                    ;raise Not_found)
+                                )
+                            with Not_found -> false (*  (raise Not_found) *)
+    )
   in
   (* the largest spatches are those for which all others are either smaller or not-comparable *)
   print_string "[Main] filtering largest ";
   a_counter := 0;
   applied_spatches 
-    +> List.rev_map
-    (function (sp, lhs_fmlists) ->
+  +> List.rev_map
+    (fun (sp, lhs_fmlists) ->
       Jconfig.counter_tick !a_counter a_total;
       a_counter := !a_counter + 1;
       print_endline "[Main] checking maximality of:";
       print_endline (sp
-		       +> List.map Diff.string_of_spdiff
-		       +> String.concat "\n");
-      
+           +> List.map Diff.string_of_spdiff
+           +> String.concat "\n");
       if applied_spatches +> List.for_all 
-	  (function (sp', lhs_fmlists') ->
-	    print_endline "[Main] against : ";
-	    print_endline (sp'
-			     +> List.map Diff.string_of_spdiff
-			     +> String.concat "\n");
-	    if interesting_sp sp && (
-	      sp = sp'
-	    || (
-	      let b1 = is_sub lhs_fmlists' lhs_fmlists in
-	      let b2 = is_sub lhs_fmlists lhs_fmlists' in
-	      if b1
-	      then 
-		if b2
-		then (
-		  if subseq (strip_patch sp') (strip_patch sp)
-		  then true
-		  else false
-		 )
-		else true
-	      else not b2 (* sp strictly larger or unrelated!*)
-	     )
-	  )
-	    then
-	      true
-	    else
-	      false
-	  )
+                                (fun (sp', lhs_fmlists') ->
+                                   print_endline "[Main] against : ";
+                                    print_endline (sp' +> List.map Diff.string_of_spdiff
+                                                      +> String.concat "\n");
+                                   interesting_sp sp && 
+                                      (sp = sp'
+                                      || (let b1 = is_sub lhs_fmlists' lhs_fmlists in
+                                          let b2 = is_sub lhs_fmlists lhs_fmlists' in
+                                          if b1
+                                          then 
+                                            if b2
+                                            then subseq (strip_patch sp') (strip_patch sp)
+                                            else true
+                                          else not b2 (* sp strictly larger or unrelated!*)
+                                         ))
+                                )
       then
-	(
-	 print_endline "[Main] including as largest: ";
-	 Some sp 
-	)
-      else (
-	None
-       )
+        (print_endline "[Main] including as largest: "
+        ;Some sp)
+      else 
+        None
     )
-    +> List.fold_left (fun acc opt -> match opt with Some sp -> 
-      sp :: acc | _ -> acc) []
+    +> List.fold_left 
+       (fun acc opt -> match opt with Some sp -> sp :: acc | _ -> acc) []
     +> rm_dups
 
 
