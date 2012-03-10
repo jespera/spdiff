@@ -108,7 +108,7 @@ $(EXEC).top: $(LIBS) $(OBJS)
 	$(OCAMLMKTOP) -o $@ $(SYSLIBS) $^
 
 clean::
-	rm -f $(TARGET) $(TARGET).opt $(TARGET).top
+	rm -f $(TARGET) $(TARGET).opt $(TARGET).top genericparser.mli
 
 clean::
 	set -e; for i in $(MAKESUBDIRS); do $(MAKE) -C $$i clean; done 
@@ -165,6 +165,13 @@ beforedepend:: test.ml
 	$(OCAMLC)  -c $<
 .ml.cmx:
 	$(OCAMLOPT)  -c $<
+
+%.ml: %.mll
+	$(OCAMLLEX) $<
+
+%.ml: %.mly
+	menhir $<
+	$(OCAMLC) -c $(<:mly=mli)
 
 .ml.mldepend: 
 	$(OCAMLC) -i $< 
