@@ -70,23 +70,25 @@ let mk_id (x,y,filename) id_name =
   with Not_found ->
     let uniq_id = id_name ^ "@" ^ !current_fun in
 (*    let uniq_id = id_name ^ "@" ^ !id_cnt +> string_of_int in *)
-      begin
-	id_cnt := !id_cnt + 1;
-	bind_id ((x,y), id_name) uniq_id;
-	uniq_id
-      end
+    begin
+      id_cnt := !id_cnt + 1;
+      bind_id ((x,y), id_name) uniq_id;
+      uniq_id
+    end
       
 let rec trans_expr exp = 
   let (unwrap_e, typ), ii = exp in
-    match unwrap_e with
+  match unwrap_e with
       | Ident s -> 
-	  (* "exp" @@ "ident" %% s *)
-	  (match !typ with
+          (* "exp" @@ "ident" %% s *)
+          (match !typ with
              | None, _ -> "exp" @@ "ident" %% s
              | Some (ft, LocalVar (OriginTok {Common.line=l;Common.column=c;Common.file=f})), _ -> 
-		 let new_s = mk_id (l,c,f) s in
-		   "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% new_s]
-             | Some (ft, _), _ -> "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% s])
+                 let new_s = if !Jconfig.uniq_local then mk_id (l,c,f) s else s in
+                 (*let new_s = s in*)
+                 "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% new_s]
+             | Some (ft, _), _ -> "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% s]
+          )
       | Constant (String (s, _)) -> 
 	  "exp" @@ "const" @@ "string" %% s
       | Constant (Int s) -> 
@@ -453,18 +455,19 @@ and trans_decl decl = match decl with
       "mdecl" @@ s @@@ List.map (function a -> trans_arg (unwrap a)) args
 	(*and trans_odecl ((fopt, ftype, stor, _), _) = match fopt with *)
 
-and trans_odecl ({v_namei = fopt; v_type = ftype; v_storage = stor; v_local = local}, _) = match fopt with
+and trans_odecl ({v_namei = fopt; v_type = ftype; v_storage = stor; v_local = local}, _) = 
+  match fopt with
   | None -> "onedecl" %% "()"
       (*raise (Fail "decl_spec with no init_decl")*)
   | Some ((var, initOpt), _) -> 
-      let new_var = match local with
-	| Ast_c.LocalDecl -> begin
-	    match offset ftype with
-	      | OriginTok {Common.line=l;Common.column=c;Common.file=f}
-		  -> mk_id (l,c,f) var
-	      | _ -> var
-	  end
-	| _ -> var in
+      let new_var = 
+        match local with
+        | Ast_c.LocalDecl -> begin
+            match offset ftype with
+            | OriginTok {Common.line=l;Common.column=c;Common.file=f} -> mk_id (l,c,f) var
+            | _ -> var
+          end
+        | _ -> var in
       let gt_var = "exp" @@ "ident" %% new_var in
       let gt_ft  = trans_type ftype in
       let gt_sto = trans_storage stor in

@@ -37,3 +37,13 @@ let rec csize bp = match bp with
 
 let fsize bp = match bp with
   | UP(t,_) -> zsize t
+
+let rec string_of_difftype f = function
+  | PENDING_ID a -> "?= " ^ f a
+  | PENDING_RM a -> "?- " ^ f a
+  | ID a         -> "   " ^ f a
+  | ADD a        -> "+  " ^ f a
+  | RM a         -> "-  " ^ f a
+  | UP (a, a')   -> f a ^ " -> " ^ f a'
+  | SEQ (ad, ad')-> string_of_difftype f ad ^ "; " ^ string_of_difftype f ad'
+

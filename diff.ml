@@ -59,6 +59,9 @@ struct
 end
 
 
+let pfold fold_f l opid concat = 
+  List.fold_left (fun acc ls -> concat (fold_f ls acc) acc) opid l
+
 (*
  *module DiffT =
  *  struct
@@ -424,6 +427,11 @@ let rec string_of_diff d =
       | RM s -> "RM:  " ^ string_of_gtree' s
       | PENDING_ID s -> "PID:  " ^ string_of_gtree' s
       | PENDING_RM s -> "PRM:  " ^ string_of_gtree' s
+
+let print_diffs ds =
+  print_endline "{{{";
+  List.iter (fun d -> print_endline (string_of_diff d)) ds;
+  print_endline "}}}"
 
 let extract_pat p = match view p with
 | C("CM", [p]) -> p
@@ -812,14 +820,18 @@ let rec sub env t =
 *)
 let rec match_term st t =
   match view st, view t with
+    | C("head:def", [defp]), C("head:def", [deft]) -> 
+          match_term defp deft
     | A("meta",mvar), _ -> mk_env (mvar, t)
     | A(sct,sat), A(ct,at) when sct = ct && sat = at -> empty_env
 	(* notice that the below lists s :: sts and t :: ts will always match due to
 	 * the way things are translated into gtrees. a C(type,args) must always have
 	 * at least ONE argument in args 
 	 *)
-    | C(sct,s :: sts), C(ct, t :: ts) when 
-	  sct = ct && List.length sts = List.length ts -> 
+    | C("def", [namep;paramsp;bodyp]), C("def", [name;params;body]) ->
+          match_term namep name +> merge_envs (match_term paramsp params)
+    | C(sct,s :: sts), C(ct, t :: ts) 
+      when sct = ct && List.length sts = List.length ts -> 
         List.rev (
           List.fold_left2 (fun acc_env st t ->
             merge_envs (match_term st t) acc_env
@@ -836,9 +848,9 @@ let get_read_only_val t = match view t with
 
 let mark_as_read_only t = mkC("RO", [t])
 
-let can_match p t = 
-  try (match match_term p t with
-	 | _ -> true) with
+let can_match p t =
+  try (match match_term p t with | _ -> true) 
+  with
     | Nomatch -> false
     | _ -> raise (Impossible 191)
 
@@ -919,6 +931,7 @@ let is_head_node n =
   n = control_else ||
   n = control_inloop || 
   match view n with
+  | C("head:def", _) -> false
   | A(hd,_ ) | C(hd, _ ) -> is_header hd
 
 
@@ -1233,41 +1246,26 @@ let rec edit_cost gt1 gt2 =
     | RM t | ADD t -> node_size t
     | UP (t1,t2) when t1  = t2 -> 0
     | UP (t,t') -> node_size t + node_size t'
-    | _ -> raise (Fail "edit_cost upcost")
-  in
-(*
-  let get_cost gt1 g2 =
-    patience_diff (flatten_tree gt1) (flatten_tree gt2) +>
-      List.fold_left (fun acc_sum up -> up_cost up + acc_sum) 0 in
-*)
+    | _ -> raise (Fail "edit_cost upcost") in
   let rec get_cost_tree gt1 gt2 = 
     if gt1 = gt2 then 0
     else 
       match view gt1, view gt2 with
-	| C(t1,gts1), C(t2,gts2) -> 
-	    (if t1 = t2 then 0 else 1) + (
-	      patience_diff gts1 gts2 +>
-		(*get_diff gts1 gts2 +> *)
-		List.fold_left (fun acc_sum up -> match up with
-				  (* | UP(t1,t2) -> get_cost_tree t1 t2 + acc_sum *)
-				  | UP(t1,t2) -> edit_cost t1 t2 + acc_sum
-				  | _ -> up_cost up + acc_sum) 0)
-	(* | _ -> 1  *)
-	| _ -> up_cost (UP(gt1,gt2)) 
-  in
-    try
-      let res = PT.find editht (gt1,gt2) in
-	res
-    with Not_found ->
-      let 
-	(* res = minimal_tree_dist gt1 gt2 *)
-	  res = get_cost_tree gt1 gt2
-	  (* res = get_cost gt1 gt2 *)
-      in
-	(
-	  PT.add editht (gt1,gt2) res;
-	  res
-	)
+      | C(t1,gts1), C(t2,gts2) -> 
+	        (if t1 = t2 then 0 else 1) + (
+	          patience_diff gts1 gts2 
+            +> List.fold_left (fun acc_sum up -> match up with
+                    | UP(t1,t2) -> edit_cost t1 t2 + acc_sum
+				            | _ -> up_cost up + acc_sum) 0)
+    	| _ -> up_cost (UP(gt1,gt2)) in
+  try
+    PT.find editht (gt1,gt2)
+  with Not_found ->
+      let res = get_cost_tree gt1 gt2 in
+	    begin
+        PT.add editht (gt1,gt2) res;
+	      res
+	    end
 	
 
 (* apply up t, applies up to t and returns the new term and the environment bindings *)
@@ -1761,7 +1759,7 @@ and part_of_edit_dist gt1 gt2 gt3 =
     " 13: " ^ string_of_int dist13) +> print_endline;
 *)
     false
-    (* raise (Fail "<") *)
+    (*raise (Fail "<")*)
    )    
   else
     dist12 + dist23 = dist13
@@ -2128,7 +2126,8 @@ let find_embedded_succ g n p =
 
 let rec matches_exit node_gt =
   match view node_gt with
-    | C("return", _) -> true
+    | C("return", _) 
+    | C("exit", _) -> true
     | C(_, ns) -> ns +> List.exists matches_exit
     | _ -> false
 
@@ -2307,30 +2306,38 @@ let get_match pattern gt =
 (* Find the first matches of node_p starting from 
  * from_n in g. On each path to node_p there can 
  * be no occurrences of node_p or (get_val from_n)
+ *
+ * also: if from_node matches an exit-node, there are no successors
  *)
 let get_succ_nodes env node_p from_n g =
   let from_node = get_val from_n g in
-  let res_nodes = ref [] in
-  let f xi node_path =
-    let xi_val = get_val xi g in
-    if xi_val = from_node && node_path != []
-    then STOP (* we encountered the from_node *)
-    else 
-      try
-        let env' = get_match node_p xi_val in
-        begin
-          try
-            let env'' = merge_envs env env' in
-            res_nodes := xi :: !res_nodes;
-            STOP
-          with _ -> NOT_FOUND
-        end
-      with Fatal_error | Nomatch -> 
-        NOT_FOUND
-  in begin 
-    dfs_iter_with_path from_n f g;
-    !res_nodes
-  end
+  if matches_exit from_node
+  then []
+  else 
+    let res_nodes = ref [] in
+    let f xi node_path =
+      let xi_val = get_val xi g in
+      if xi_val = from_node 
+      then 
+        if node_path = []
+        then NOT_FOUND (* skip the initial node that we started in *)
+        else STOP (* we encountered the from_node along some non-empty path*)
+      else 
+        try
+          let env' = get_match node_p xi_val in
+          begin
+            try
+              let env'' = merge_envs env env' in
+              res_nodes := xi :: !res_nodes;
+              STOP
+            with _ -> NOT_FOUND
+          end
+        with Fatal_error | Nomatch -> 
+          NOT_FOUND
+    in begin 
+      dfs_iter_with_path from_n f g;
+      !res_nodes
+    end
 
 
 let cont_match_new_internal (g : gflow) cp n =
@@ -2385,27 +2392,12 @@ let cont_match_new_internal (g : gflow) cp n =
     loop cp n
 
 let cont_match_new g sp n =
+  if !Jconfig.to_print then print_endline ("[Diff] matching " ^ string_of_pattern sp ^ " on node " ^ string_of_int n);
     try 
       match cont_match_new_internal g sp n with
       | [] -> false
-      | r -> 
-          begin
-            (*print_endline "matched ";*)
-            (*r *)
-            (*+> List.map (fun (nodes, env) -> *)
-              (*nodes *)
-              (*+> List.map string_of_int*)
-              (*+> String.concat " "*)
-            (*)*)
-            (*+> String.concat "\n"*)
-            (*+> print_endline;*)
-            (*print_endline "@";*)
-            true
-          end
-    with Fatal_error | Nomatch -> 
-      begin
-        false
-      end
+      | r -> true
+    with Fatal_error | Nomatch -> false
 
 let cont_match_traces_new g sp n =
   try 
@@ -3190,11 +3182,6 @@ let no_calls_dive lhs rhs =
     | C (_,_), C (_,_) -> true
     | _ -> false
 
-let print_diffs ds =
-  print_endline "{{{";
-  List.iter (fun d -> print_endline (string_of_diff d)) ds;
-  print_endline "}}}"
-
 let print_additions d =
   match d with
     | ADD d -> print_endline ("\n+ " ^ string_of_gtree' d)
@@ -3363,6 +3350,7 @@ let seq_of_flow f =
     dfs_iter start_idx add_node f;
     !seq 
     +> List.filter non_phony
+    +> List.filter (fun x -> not (is_head_node x))
     +> List.rev
 
 
@@ -3403,8 +3391,7 @@ let get_flow_changes flows1 flows2 =
     (function f ->
        let fname = get_fun_name_gflow f in
 	 flows2 
-	 +> List.find_all
-	   (function f' -> get_fun_name_gflow f' = fname)
+	 +> List.find_all (function f' -> get_fun_name_gflow f' = fname)
 	 +> List.iter (function f' -> 
 			 let diff = dfs_diff f f' in
 			   flow_changes := diff :: !flow_changes;
@@ -3783,27 +3770,20 @@ let get_patterns subterms_lists unique_subterms env term =
 
 let rec useless_abstraction p = is_meta p || 
   match view p with
-    | C("dlist", [p']) 
+    | C("dlist", inis) ->
+        List.for_all useless_abstraction inis
     | C("stmt", [p']) 
-        when !Jconfig.useless_abs && 
-              useless_abstraction p' -> true
     | C("exprstmt", [p']) 
     | C("exp", [p']) 
     | C("fulltype", [p']) 
         when useless_abstraction p' -> true
-    | C("onedecl",[p_var;p_type;p_storage]) ->
-	[p_var; p_type] +> List.for_all useless_abstraction 
+    | C("onedecl",[p_var;p_type;p_storage]) ->[p_var; p_type] +> List.for_all useless_abstraction 
     | A("stobis", _) | A("inline",_) -> true
     | C("storage", [p1;p2]) | C("itype", [p1;p2]) when is_meta p1 || is_meta p2 -> true
 (*    | C("fulltype", _) (* | C("pointer", _) *) -> true *)
     | C("exp", [{Hashcons.node=A("ident", _)}]) -> true
     | C("exp", [{Hashcons.node=C("const", _)}]) -> true
     | _ -> false
-
-(* The following function is used to decide when an abstraction is infeasible.
- * Either because it simply a meta-variable X or if it is too abstract
- *)
-(* let infeasible p = is_meta p || abstractness p > !default_abstractness  *)
 
 let rec is_nested_meta gt = is_meta gt || match view gt with
   | C(_,es) -> List.for_all is_meta es (* is_nested_meta e *)
@@ -3813,13 +3793,18 @@ let rec contains_infeasible p =
   match view p with
     | C("binary_arith", op :: _) 
     | C("binary_logi",  op :: _) when is_nested_meta op -> true
-    (*| C(_,ts) -> ts +> List.exists contains_infeasible*)
+		| C("call", gt_fname :: _) -> is_nested_meta gt_fname 
+		| C("return", _) -> false
+		| C(_, ts) -> List.exists contains_infeasible ts
     | _ -> false
 
+(* The following function is used to decide when an abstraction is infeasible.
+ * Either because it simply a meta-variable X or if it is too abstract
+ *)
 let infeasible p = 
-  contains_infeasible p 
-    || useless_abstraction p 
-    || is_nested_meta p
+  if !Jconfig.useless_abs
+  then false
+  else useless_abstraction p || contains_infeasible p || is_nested_meta p
 
 let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
   let c_parts = 
@@ -4021,12 +4006,12 @@ let rec merge_patterns p1 p2 =
 
 let all_adds diff = List.for_all (function ADD _ -> true | _ -> false) diff
 
-let chunks_of_diff diff =
+let chunks_of_diff_generic sel diff =
   let rec loop acc_chunks chunk diff = match diff with
     | [] -> List.rev ((List.rev chunk) :: acc_chunks)
     | i :: diff' -> (match i with
 		       | ADD t -> loop acc_chunks (i :: chunk) diff'
-           | ID (t,_) when t == skip -> 
+           | ID tt when (sel tt) == skip -> 
                loop ((List.rev chunk) :: acc_chunks) [] diff'
 		       | ID t | RM t -> _loop acc_chunks (i :: chunk) diff'
 		    ) 
@@ -4034,12 +4019,13 @@ let chunks_of_diff diff =
     | [] -> loop acc_chunks chunk []
     | i :: diff' -> (match i with
 		       | ADD _ -> _loop acc_chunks (i :: chunk) diff'
-           | ID (t,_) when t == skip -> 
+           | ID tt when (sel tt) == skip -> 
                loop ((List.rev chunk) :: acc_chunks) [] diff'
 		       | _ -> loop ((List.rev chunk) :: acc_chunks) [] diff
 		    ) in
     loop [] [] diff
 
+let chunks_of_diff diff = chunks_of_diff_generic (fun (a,b) -> a) diff
 
 (* given a set of patterns and a term that have been identified as
  * belonging to a change, we wish to find the patterns that match the
@@ -4058,12 +4044,11 @@ let get_change_matches spatterns term =
        +> List.exists (function p -> can_match (extract_pat p) term)
     ) 
 
-
-let chunks_of_diff_spatterns spatterns diff =
-  let is_id_chunk ch = match ch with
+let is_id_chunk ch = match ch with
     | [ID _] | [ADD _] | [] -> true
     | _ -> false
-  in
+
+let chunks_of_diff_spatterns spatterns diff =
   let print_chunk chunk =
     if !Jconfig.verbose
     then List.iter (function 
@@ -4162,12 +4147,13 @@ let get_some x = match x with
  *)
 let merge_abstract_terms subterms_lists unique_subterms =
   (* There should be no duplicate subterms in each subterms_list *)
-  let non_dub_subterms_lists =
-    List.rev_map rm_dub subterms_lists in
-
+  let non_dub_subterms_lists = List.rev_map rm_dub subterms_lists in
+  let opt_app ls1 ls2 = match ls1, ls2 with
+    | None, _ -> ls2
+    | _, None -> ls1
+    | Some xs1, Some xs2 -> Some (List.rev_append xs1 xs2) in
   let abs_count = ref 0 in
   let abs_total = ref 0 in
-
   (* Function to compute extension of node-pattern; uses Hashtable for
    * memoization *)
   let pat_extension p = 
@@ -4190,41 +4176,47 @@ let merge_abstract_terms subterms_lists unique_subterms =
 		      else (* t < t' : i.e. pattern matches strictly fewer terms, so it
           might be interesting *) 
             true
-        else 
+        else
           (* t' > t or t is unrelated to t'; we only want to include t if it
            * is unrelated to t' *)
-		      not(tsup)
+          !Jconfig.include_larger || not(tsup)
         )) acc_ts
   in
   (* simple filter used under construction of potential set of node-patterns *)
   let interesting_t t acc_ts = 
-    not(infeasible t)
-    && non_phony t
-    && not(control_true = t)
-    && not(is_head_node t)
-    && not(acc_ts +> List.exists (function t' -> t = t')) 
+    begin
+      not(infeasible t)
+      && non_phony t
+      && not(control_true = t)
+      && not(is_head_node t)
+      && not(acc_ts +> List.exists (function t' -> t = t')) 
+    end
   in
-    non_dub_subterms_lists
-    +> List.fold_left 
-      (fun acc_ts ts_list -> match acc_ts with
-        | None -> ts_list +> some
-        | Some ts -> 
-            begin
-              ts +> List.fold_left 
-                (fun acc_ts t_merged -> 
-		                  ts_list +> List.fold_left 
-                        (fun acc_ts t ->
-                          let t', env = merge_terms t t_merged in
-                          let p = renumber_metas_gtree t' in
-                          if interesting_t p acc_ts
-                          then p +++ acc_ts
-                          else acc_ts
-                        ) acc_ts
-		            ) (List.rev_append ts ts_list)
-              +> some
-            end 
-      ) 
-      None
+  let f ts_list acc_ts =
+      match acc_ts with
+      | None -> ts_list +> some
+      | Some ts -> 
+          begin
+            ts +> List.fold_left 
+              (fun acc_ts t_merged -> 
+                    ts_list +> List.fold_left 
+                      (fun acc_ts t ->
+                        let t', env = merge_terms t t_merged in
+                        let p = renumber_metas_gtree t' in
+                        if interesting_t p acc_ts
+                        then p +++ acc_ts
+                        else acc_ts
+                      ) acc_ts
+              ) (List.rev_append ts ts_list)
+            +> some
+          end
+  in
+  let concat ls1 ls2 = match ls1, ls2 with
+    | None, _ -> ls2
+    | _, None -> ls1
+    | Some ps, _ -> f ps ls2
+  in
+    (pfold f non_dub_subterms_lists None concat)
     +> get_some
     +> (function x -> 
           begin
@@ -4258,7 +4250,7 @@ let merge_abstract_terms subterms_lists unique_subterms =
 		                  ^ ps +> List.length +> string_of_int ^ " patterns");
       List.iter (function p -> print_endline (string_of_gtree' p)) ps;
       let ps = ps
-	      +> List.filter (function t -> not(infeasible t) && non_phony t && not(control_true = t) && not(is_head_node t))
+        +> List.filter (function t -> not(infeasible t) && non_phony t && not(control_true = t) && not(is_head_node t))
 	      +> function ps' ->
               ps' +> List.fold_left 
                 (fun acc t -> if interesting_post t ps'
@@ -4350,60 +4342,56 @@ let get_metas t =
 let find_simple_updates_merge_changeset changeset =
   print_endline ("[Diff] threshold " ^ string_of_int !no_occurs);
   let for_some n f ls = 
-    let rec loop n ls =
-      n = 0 ||
-      match ls with
-	| x :: xs when f x -> loop (n - 1) xs
-	| _ :: xs -> loop n xs
-	| [] -> false in
-      loop n ls
+    let rec loop n ls = n = 0 || match ls with
+	                               | x :: xs when f x -> loop (n - 1) xs
+	                               | _ :: xs -> loop n xs
+	                               | [] -> false in
+    loop n ls
   in
   let interesting_tu (UP (l,r)) acc_tus = 
     not(l = r) &&
-      not(infeasible l) &&
-      let l_metas = get_metas l in
-      let r_metas = get_metas r in
-	sublist r_metas l_metas 
-	&& changeset +> for_some !no_occurs (safe_part (UP(l,r)))
-	&& not(acc_tus +> List.exists (function tu' -> (UP(l,r)) = tu'))
+    not(infeasible l) &&
+	  sublist (get_metas r) (get_metas l)
+	  && changeset +> for_some !no_occurs (safe_part (UP(l,r)))
+	  && not(acc_tus +> List.exists (function tu' -> (UP(l,r)) = tu'))
   in
     changeset
-    +> List.rev_map (function (l,r) -> get_tree_changes l r +> rm_dub)
-    +> (function x -> begin
-	  print_endline ("[Diff] got all non-abstract tree changes ("
-			 ^ x +> List.rev_map List.length +> List.fold_left (+) 0 +> string_of_int
-			 ^ ")");
-	  print_string ("[Diff] possible combinations: ");
-	  x +> List.rev_map List.length +> List.fold_left ( * ) 1 +> string_of_int +> print_endline;
-	  x
-	end)
+    +> List.rev_map (fun (l,r) -> get_tree_changes l r +> rm_dub)
+    +> (fun x -> 
+        begin
+          print_endline ("[Diff] got all non-abstract tree changes (" ^ 
+                          x +> List.rev_map List.length +> List.fold_left (+) 0 +> string_of_int ^ 
+                          ")");
+          print_string ("[Diff] possible combinations: ");
+          x +> List.rev_map List.length +> List.fold_left ( * ) 1 +> string_of_int +> print_endline;
+          x
+	      end)
     +> List.fold_left 
-      (fun acc_tus tu_list ->
-	 match acc_tus with
-	   | None -> tu_list +> some
-	   | Some tus -> 
-	       begin
-		 if !Jconfig.print_abs
-		 then begin
-		   print_endline ("[Diff] acc_tus (" ^ tus +> List.length +> string_of_int ^ ")");
-		   tus +> List.iter (function tu ->
-				       tu 
-				       +> string_of_diff 
-				       +> print_endline);
-		 end;
-		 tus
-		 +> List.fold_left (fun acc_tus tu_merged -> 
-				      tu_list +> List.fold_left 
-					(fun acc_tus tu ->
-					   let tu' = merge_tus tu tu_merged in
-					     if interesting_tu tu' acc_tus
-					     then tu' :: acc_tus
-					     else acc_tus
-					)
-					acc_tus
-				   ) (List.rev_append tus tu_list)
-		 +> some
-	       end 
-      ) 
-      None
+        (fun acc_tus tu_list ->
+          match acc_tus with
+          | None -> tu_list +> some
+          | Some tus -> begin
+              if !Jconfig.print_abs
+              then begin
+                print_endline ("[Diff] acc_tus (" ^ tus +> List.length +> string_of_int ^ ")");
+                tus +> List.iter (fun tu -> tu 
+                 +> string_of_diff 
+                 +> print_endline);
+              end;
+              tus
+              +> List.fold_left 
+                   (fun acc_tus tu_merged -> 
+                     tu_list +> List.fold_left 
+                        (fun acc_tus tu ->
+                            let tu' = merge_tus tu tu_merged in
+                            if interesting_tu tu' acc_tus
+                            then tu' :: acc_tus
+                            else acc_tus
+                        )
+                        acc_tus
+                   ) 
+                   (List.rev_append tus tu_list)
+              +> some
+             end)
+        None
     +> get_some

@@ -1,0 +1,59 @@
+= Notes on ranking of spatches =
+
+There have been discussion as to whether we would like to provide a language
+(or other mechanism) for expressing the ranking we want to do on the returned
+spatches.
+
+There's a distinction we have so far not made: there's a difference between a
+ranking property and a pruning property. A pruning property is used to
+completely discard a result (and it can be optimizing if it closed/preserved
+under extension). A ranking property is a property that allows one to decide
+when a certain pattern is more desirable than another.
+
+
+It would be nice to design a simple language for expressing pruning/ranking
+properties.
+
+Pros:
+- The notion of what a "useful spatch" is becomes clearly evident to others
+- One can come up with other notions of usefulness and rapidly try it out
+- spdiff should be able to take use "optimizing pruning properties" to speed up
+  running time
+- 
+
+Cons:
+- If there really only is *one* good specification of "useful", we have created
+  additional complexity for no apparent good reason
+- 
+
+= Example specifications =
+
+"Any sp should have a context size > 1"
+
+reject: 
+	|sp| = 1
+
+
+
+Uses: "length of list denoted "|sp|" and '=' and number
+
+
+"There should be some sharing in a context"
+
+???
+
+
+"Any sp containing a completely abstract node-pattern is useless"
+
+reject:
+	exists s in sp : csize s = 0
+
+
+Uses: 'exists s in sp' + prop. csize and '=' and number
+
+"It's pretty rare that one wants to require something to be a locally declared variable"
+
+reject:
+  exists s in sp : is_decl s
+
+

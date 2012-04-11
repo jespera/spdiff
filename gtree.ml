@@ -66,6 +66,10 @@ let rec occurs_loc small large =
 let embedded a b =
   occurs_loc a b || occurs_loc b a
 
+(* 
+ * size of tree without metavariables and not 
+ * counting typed expressions
+ *)
 let rec gsize t =
   match view t with
   | A ("meta", _) -> 0
@@ -74,6 +78,13 @@ let rec gsize t =
   | C(ct, ts) -> 1 + List.fold_left 
       (fun a b -> a + gsize b) 1 ts
 
+
+(*
+ * Returns a pair of ints where the first component 
+ * is the concrete size of a tree (including embedded 
+ * types) and the second component is the number of 
+ * distinct metavariables
+ *)
 let pair_size t =
   let rec loop ((c,m),env) t = 
     match view t with
@@ -87,7 +98,8 @@ let pair_size t =
     fst (loop ((0,0),[]) t)
 
 (* return true iff t1 is less than or eq to t2
-   ONLY use this comparison for *equivalent* patterns
+ * should ONLY use this comparison for *equivalent*
+ * patterns; it does not really make sense otherwise
 *)
 let leq_pair_size t1 t2 =
   let (c1,m1) = pair_size t1 in
@@ -99,6 +111,10 @@ let leq_pair_size t1 t2 =
       else true (* t1 < t2 *)
     else false (* t2 < t1 *)
 
+(*
+ * size of tree without metavariables, but including 
+ * embedded types
+ *)
 let rec zsize t =
   match view t with
   | A ("meta", _) -> 0
