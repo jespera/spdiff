@@ -10,3 +10,6 @@
 [submodule "tests/xorg/xbiff"]
 	path = tests/xorg/xbiff
 	url = git://anongit.freedesktop.org/xorg/app/xbiff
+[submodule "spdiff-exp"]
+	path = spdiff-exp
+	url = https://github.com/nacuong/spdiff-exp.git
