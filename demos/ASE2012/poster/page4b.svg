@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="1052.3622"
+   height="744.09448"
+   id="svg8605"
+   version="1.1"
+   inkscape:version="0.48.3.1 r9886"
+   sodipodi:docname="New document 53">
+  <defs
+     id="defs8607" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.35"
+     inkscape:cx="17.857143"
+     inkscape:cy="520"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1600"
+     inkscape:window-height="839"
+     inkscape:window-x="0"
+     inkscape:window-y="27"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata8610">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-308.2677)">
+    <g
+       transform="translate(-389.67338,-3151.6114)"
+       id="g7807">
+      <rect
+         ry="84"
+         transform="translate(-379.14553,-67.364044)"
+         y="3660.4443"
+         x="756"
+         height="568"
+         width="1078"
+         id="rect7685"
+         style="fill:none;stroke:#000000;stroke-opacity:1" />
+      <rect
+         ry="50"
+         transform="translate(-379.14553,-67.364044)"
+         y="4120.4443"
+         x="784"
+         height="100"
+         width="1028"
+         id="rect6894"
+         style="fill:#e6e6e6;fill-opacity:1;stroke:none" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text6828"
+         y="3704.3003"
+         x="767.69446"
+         style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Ubuntu Mono;-inkscape-font-specification:Ubuntu Mono"
+         xml:space="preserve"><tspan
+           style="font-size:40px"
+           y="3704.3003"
+           x="767.69446"
+           id="tspan6830"
+           sodipodi:role="line">pt ≼ (t, t') ⇔ </tspan><tspan
+           id="tspan6840"
+           style="font-size:40px"
+           y="3755.9304"
+           x="767.69446"
+           sodipodi:role="line">   ∃t'': apply(pt, t) = t'' and</tspan><tspan
+           id="tspan6844"
+           style="font-size:40px"
+           y="3807.5603"
+           x="767.69446"
+           sodipodi:role="line">  δ(t,t'') + δ(t'',t') = δ(t,t'')</tspan></text>
+      <text
+         sodipodi:linespacing="125%"
+         id="text6832"
+         y="3637.0803"
+         x="445.85446"
+         style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Ubuntu Mono;-inkscape-font-specification:Ubuntu Mono"
+         xml:space="preserve"><tspan
+           y="3637.0803"
+           x="445.85446"
+           id="tspan6834"
+           sodipodi:role="line">C = {(t1,t1'), (t2,t2'), ..., (tn, tn')}</tspan></text>
+      <text
+         sodipodi:linespacing="125%"
+         id="text6856"
+         y="3865.3403"
+         x="444.85446"
+         style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Ubuntu Mono;-inkscape-font-specification:Ubuntu Mono"
+         xml:space="preserve"><tspan
+           y="3865.3403"
+           x="444.85446"
+           id="tspan6858"
+           sodipodi:role="line">pt ≼ C ⇔ ∀(t,t')∈C : pt ≼ (t,t')</tspan></text>
+      <text
+         sodipodi:linespacing="125%"
+         id="text6860"
+         y="3935.7251"
+         x="547.69446"
+         style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Ubuntu Mono;-inkscape-font-specification:Ubuntu Mono"
+         xml:space="preserve"><tspan
+           id="tspan6868"
+           y="3935.7251"
+           x="547.69446"
+           sodipodi:role="line">pt ≼ pt' ⇔ pt ≼ C and pt' ≼ C and</tspan><tspan
+           id="tspan6864"
+           y="3987.3552"
+           x="547.69446"
+           sodipodi:role="line">  ∀(t,t') ∈ C : ∃t'':</tspan><tspan
+           id="tspan6872"
+           y="4038.9851"
+           x="547.69446"
+           sodipodi:role="line">    apply(pt',t) = t'' implies pt ≼ (t, t'')</tspan></text>
+      <text
+         sodipodi:linespacing="125%"
+         id="text6874"
+         y="4113.0801"
+         x="444.85446"
+         style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Ubuntu Mono;-inkscape-font-specification:Ubuntu Mono"
+         xml:space="preserve"><tspan
+           id="tspan6882"
+           y="4113.0801"
+           x="444.85446"
+           sodipodi:role="line">pt ≼ C and ∀pt'≼ C : pt' ≼ pt</tspan></text>
+      <text
+         sodipodi:linespacing="125%"
+         id="text7681"
+         y="3541.0803"
+         x="402.85446"
+         style="font-size:40px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Ubuntu Mono;-inkscape-font-specification:Ubuntu Mono"
+         xml:space="preserve"><tspan
+           style="font-size:56px"
+           y="3541.0803"
+           x="402.85446"
+           id="tspan7683"
+           sodipodi:role="line">A theory of subpatches</tspan></text>
+    </g>
+  </g>
+</svg>

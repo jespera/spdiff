@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="1488.189"
+   height="1052.3622"
+   id="svg50036"
+   version="1.1"
+   inkscape:version="0.48.3.1 r9886"
+   sodipodi:docname="New document 33">
+  <defs
+     id="defs50038" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.35"
+     inkscape:cx="550.71429"
+     inkscape:cy="520"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1600"
+     inkscape:window-height="839"
+     inkscape:window-x="0"
+     inkscape:window-y="27"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata50041">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,2.988066e-5)">
+    <g
+       transform="translate(-39.841417,115.80806)"
+       id="g49822">
+      <text
+         sodipodi:linespacing="125%"
+         id="text2986"
+         y="236.54221"
+         x="60.177151"
+         style="font-size:500px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+         xml:space="preserve"><tspan
+           id="tspan3090"
+           style="font-size:400px"
+           y="236.54221"
+           x="60.177151"
+           sodipodi:role="line">spdiff</tspan></text>
+      <text
+         sodipodi:linespacing="125%"
+         id="text2990"
+         y="406.98804"
+         x="126.15656"
+         style="font-size:40px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+         xml:space="preserve"><tspan
+           id="tspan3000"
+           style="font-size:130px"
+           y="406.98804"
+           x="126.15656"
+           sodipodi:role="line">SmPL for the masses</tspan></text>
+      <text
+         sodipodi:linespacing="125%"
+         id="text3104"
+         y="588.46167"
+         x="83.927155"
+         style="font-size:40px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#4d4d4d;fill-opacity:1;stroke:none;font-family:Sans"
+         xml:space="preserve"><tspan
+           id="tspan3114"
+           y="588.46167"
+           x="83.927155"
+           sodipodi:role="line"><tspan
+   id="tspan3475"
+   style="fill:#000000">Jesper Andersen</tspan> (jespera@diku.dk)</tspan></text>
+      <text
+         sodipodi:linespacing="125%"
+         id="text3295"
+         y="661.2937"
+         x="81.544342"
+         style="font-size:40px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#4d4d4d;fill-opacity:1;stroke:none;font-family:Sans"
+         xml:space="preserve"><tspan
+           y="661.2937"
+           x="81.544342"
+           id="tspan3297"
+           sodipodi:role="line"><tspan
+   id="tspan3477"
+   style="fill:#000000">Anh Cuong Nguyen</tspan> (anhcuong@comp.nus.edu.sg)</tspan></text>
+      <text
+         sodipodi:linespacing="125%"
+         id="text3299"
+         y="734.12573"
+         x="77.931061"
+         style="font-size:40px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#4d4d4d;fill-opacity:1;stroke:none;font-family:Sans"
+         xml:space="preserve"><tspan
+           y="734.12573"
+           x="77.931061"
+           id="tspan3301"
+           sodipodi:role="line"><tspan
+   id="tspan3479"
+   style="fill:#000000">David Lo</tspan> (davidlo@smu.edu.sg)</tspan></text>
+      <text
+         sodipodi:linespacing="125%"
+         id="text3303"
+         y="806.95776"
+         x="83.927155"
+         style="font-size:40px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#4d4d4d;fill-opacity:1;stroke:none;font-family:Sans"
+         xml:space="preserve"><tspan
+           y="806.95776"
+           x="83.927155"
+           id="tspan3305"
+           sodipodi:role="line"><tspan
+   id="tspan3481"
+   style="fill:#000000">Julia Lawall</tspan> (julia@diku.dk)</tspan></text>
+      <text
+         sodipodi:linespacing="125%"
+         id="text3307"
+         y="879.78973"
+         x="79.220123"
+         style="font-size:40px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#4d4d4d;fill-opacity:1;stroke:none;font-family:Sans"
+         xml:space="preserve"><tspan
+           y="879.78973"
+           x="79.220123"
+           id="tspan3309"
+           sodipodi:role="line"><tspan
+   id="tspan3483"
+   style="fill:#000000">Siau-Cheng Khoo</tspan> (khoosc@comp.nus.edu.sg)</tspan></text>
+    </g>
+  </g>
+</svg>
