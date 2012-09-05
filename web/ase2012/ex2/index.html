@@ -10,6 +10,623 @@
 
 	<body>
 		<h1><span style="color:grey;">[EX]</span> Finding context of change</h1>
+		<h2>The original commit</h2>
+		<p>The commit with git SHA1 identification code
+			9ac7849e35f705830f7b016ff272b0ff1f7ff759 (<a
+					href="http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdiff;h=9ac7849e35f705830f7b016ff272b0ff1f7ff759;hp=77a527eadb425b60db3f5f0aae6a4c51c38e35e5">patch</a>)
+			introduced a device resource management API. The following patch is an
+			except of several pieces of code being converted to use the new 'devres'
+			interface.
+			<pre>
+--- fimc-mdevice.c.orig	2012-09-05 22:39:57.331276736 +0200
++++ fimc-mdevice.c	2012-09-05 22:39:57.334610070 +0200
+@@ -4,7 +4,7 @@
+ 	struct fimc_md *fmd;
+ 	int ret;
+ 
+-	fmd = kzalloc(sizeof(struct fimc_md), GFP_KERNEL);
++	fmd = devm_kzalloc(&pdev->dev, sizeof(struct fimc_md), GFP_KERNEL);
+ 	if (!fmd)
+ 		return -ENOMEM;
+ 
+@@ -25,7 +25,7 @@
+ 	ret = v4l2_device_register(&pdev->dev, &fmd->v4l2_dev);
+ 	if (ret < 0) {
+ 		v4l2_err(v4l2_dev, "Failed to register v4l2_device: %d\n", ret);
+-		goto err1;
++		return ret;
+ 	}
+ 	ret = media_device_register(&fmd->media_dev);
+ 	if (ret < 0) {
+@@ -68,6 +68,5 @@
+ err2:
+ 	v4l2_device_unregister(&fmd->v4l2_dev);
+ err1:
+-	kfree(fmd);
+ 	return ret;
+ }
+--- mixer_drv.c.orig	2012-09-05 22:39:57.327943403 +0200
++++ mixer_drv.c	2012-09-05 22:39:57.334610070 +0200
+@@ -8,7 +8,7 @@
+ 	/* mdev does not exist yet so no mxr_dbg is used */
+ 	dev_info(dev, "probe start\n");
+ 
+-	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
++	mdev = devm_kzalloc(&pdev->dev, sizeof *mdev, GFP_KERNEL);
+ 	if (!mdev) {
+ 		mxr_err(mdev, "not enough memory.\n");
+ 		ret = -ENOMEM;
+@@ -25,7 +25,7 @@
+ 	/* acquire resources: regs, irqs, clocks, regulators */
+ 	ret = mxr_acquire_resources(mdev, pdev);
+ 	if (ret)
+-		goto fail_mem;
++		goto fail;
+ 
+ 	/* configure resources for video output */
+ 	ret = mxr_acquire_video(mdev, mxr_output_conf,
+@@ -50,7 +50,6 @@
+ 	mxr_release_resources(mdev);
+ 
+ fail_mem:
+-	kfree(mdev);
+ 
+ fail:
+ 	dev_info(dev, "probe failed\n");
+--- timblogiw.c.orig	2012-09-05 22:39:57.331276736 +0200
++++ timblogiw.c	2012-09-05 22:39:57.331276736 +0200
+@@ -13,7 +13,7 @@
+ 	if (!pdata->encoder.module_name)
+ 		dev_info(&pdev->dev, "Running without decoder\n");
+ 
+-	lw = kzalloc(sizeof(*lw), GFP_KERNEL);
++	lw = devm_kzalloc(&pdev->dev, sizeof(*lw), GFP_KERNEL);
+ 	if (!lw) {
+ 		err = -ENOMEM;
+ 		goto err;
+@@ -33,7 +33,7 @@
+ 	strlcpy(lw->v4l2_dev.name, DRIVER_NAME, sizeof(lw->v4l2_dev.name));
+ 	err = v4l2_device_register(NULL, &lw->v4l2_dev);
+ 	if (err)
+-		goto err_register;
++		goto err;
+ 
+ 	lw->video_dev.v4l2_dev = &lw->v4l2_dev;
+ 
+@@ -53,7 +53,6 @@
+ 	platform_set_drvdata(pdev, NULL);
+ 	v4l2_device_unregister(&lw->v4l2_dev);
+ err_register:
+-	kfree(lw);
+ err:
+ 	dev_err(&pdev->dev, "Failed to register: %d\n", err);
+ 
+--- vpbe.c.orig	2012-09-05 22:39:57.331276736 +0200
++++ vpbe.c	2012-09-05 22:39:57.331276736 +0200
+@@ -18,7 +18,7 @@
+ 		return ret;
+ 	}
+ 
+-	vpbe_dev = kzalloc(sizeof(*vpbe_dev), GFP_KERNEL);
++	vpbe_dev = devm_kzalloc(&pdev->dev, sizeof(*vpbe_dev), GFP_KERNEL);
+ 	if (vpbe_dev == NULL) {
+ 		v4l2_err(pdev->dev.driver, "Unable to allocate memory"
+ 			 " for vpbe_device\n");
+@@ -31,7 +31,6 @@
+ 	if (cfg->outputs->num_modes > 0)
+ 		vpbe_dev->current_timings = vpbe_dev->cfg->outputs[0].modes[0];
+ 	else {
+-		kfree(vpbe_dev);
+ 		return -ENODEV;
+ 	}
+</pre>
+<h2>The inferred semantic patch</h2>
+<p>Application of spdiff to the set of files before the change and after the
+	change results in the following semantic patch</p>
+<pre>
+@@
+identifier X8;
+X9;
+struct platform_device *  X1;
+X10 *  X11;
+expression X5;
+X0;
+X1;
+@@
+  head:def[signed int X0 ( struct platform_device *  X1) {};]
+  ...
+- X11=kzalloc(X5,GFP_KERNEL);
++ X11=devm_kzalloc(&X1->dev,X5,GFP_KERNEL);
+  ...
+  X11->X8=X9;
+  ...
+- kfree(X11);	
+</pre>
+	<p>The inferred semantic patch includes information about the type of the
+		function it applies in. Namely, functions taking a pointer to a 'struct
+		platform_device' and returning an integer.</p>
+	<p>The inferred semantic patch correctly captures that calls to kzalloc were
+		replaced with a call to devm)kzalloc and subsequent calls to kfree removed.
+	</p>
+	<p>Curiously, there's a statement inbetween the replaced call to kzalloc and
+		the removed kfree:</p>
+<pre>
+  X11->X8=X9;
+</pre>
+<p>From the source-code of the example files, one can see that this statement
+	is related to initialization of the structure of that was allocated in the
+	replaced call to kzalloc.</p>
+<h2>The orignal files</h2>
+<pre>
+static int __devinit fimc_md_probe(struct platform_device *pdev)
+{
+	struct v4l2_device *v4l2_dev;
+	struct fimc_md *fmd;
+	int ret;
 
+	fmd = kzalloc(sizeof(struct fimc_md), GFP_KERNEL);
+	if (!fmd)
+		return -ENOMEM;
+
+	spin_lock_init(&fmd->slock);
+	fmd->pdev = pdev;
+
+	strlcpy(fmd->media_dev.model, "SAMSUNG S5P FIMC",
+		sizeof(fmd->media_dev.model));
+	fmd->media_dev.link_notify = fimc_md_link_notify;
+	fmd->media_dev.dev = &pdev->dev;
+
+	v4l2_dev = &fmd->v4l2_dev;
+	v4l2_dev->mdev = &fmd->media_dev;
+	v4l2_dev->notify = fimc_sensor_notify;
+	snprintf(v4l2_dev->name, sizeof(v4l2_dev->name), "%s",
+		 dev_name(&pdev->dev));
+
+	ret = v4l2_device_register(&pdev->dev, &fmd->v4l2_dev);
+	if (ret < 0) {
+		v4l2_err(v4l2_dev, "Failed to register v4l2_device: %d\n", ret);
+		goto err1;
+	}
+	ret = media_device_register(&fmd->media_dev);
+	if (ret < 0) {
+		v4l2_err(v4l2_dev, "Failed to register media device: %d\n", ret);
+		goto err2;
+	}
+	ret = fimc_md_get_clocks(fmd);
+	if (ret)
+		goto err3;
+
+	fmd->user_subdev_api = false;
+	ret = fimc_md_register_platform_entities(fmd);
+	if (ret)
+		goto err3;
+
+	if (pdev->dev.platform_data) {
+		ret = fimc_md_register_sensor_entities(fmd);
+		if (ret)
+			goto err3;
+	}
+	ret = fimc_md_create_links(fmd);
+	if (ret)
+		goto err3;
+	ret = v4l2_device_register_subdev_nodes(&fmd->v4l2_dev);
+	if (ret)
+		goto err3;
+	ret = fimc_md_register_video_nodes(fmd);
+	if (ret)
+		goto err3;
+
+	ret = device_create_file(&pdev->dev, &dev_attr_subdev_conf_mode);
+	if (!ret) {
+		platform_set_drvdata(pdev, fmd);
+		return 0;
+	}
+err3:
+	media_device_unregister(&fmd->media_dev);
+	fimc_md_put_clocks(fmd);
+	fimc_md_unregister_entities(fmd);
+err2:
+	v4l2_device_unregister(&fmd->v4l2_dev);
+err1:
+	kfree(fmd);
+	return ret;
+}
+static int __devinit mxr_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct mxr_platform_data *pdata = dev->platform_data;
+	struct mxr_device *mdev;
+	int ret;
+
+	/* mdev does not exist yet so no mxr_dbg is used */
+	dev_info(dev, "probe start\n");
+
+	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
+	if (!mdev) {
+		mxr_err(mdev, "not enough memory.\n");
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	/* setup pointer to master device */
+	mdev->dev = dev;
+
+	mutex_init(&mdev->mutex);
+	spin_lock_init(&mdev->reg_slock);
+	init_waitqueue_head(&mdev->event_queue);
+
+	/* acquire resources: regs, irqs, clocks, regulators */
+	ret = mxr_acquire_resources(mdev, pdev);
+	if (ret)
+		goto fail_mem;
+
+	/* configure resources for video output */
+	ret = mxr_acquire_video(mdev, mxr_output_conf,
+		ARRAY_SIZE(mxr_output_conf));
+	if (ret)
+		goto fail_resources;
+
+	/* configure layers */
+	ret = mxr_acquire_layers(mdev, pdata);
+	if (ret)
+		goto fail_video;
+
+	pm_runtime_enable(dev);
+
+	mxr_info(mdev, "probe successful\n");
+	return 0;
+
+fail_video:
+	mxr_release_video(mdev);
+
+fail_resources:
+	mxr_release_resources(mdev);
+
+fail_mem:
+	kfree(mdev);
+
+fail:
+	dev_info(dev, "probe failed\n");
+	return ret;
+}
+static int __devinit timblogiw_probe(struct platform_device *pdev)
+{
+	int err;
+	struct timblogiw *lw = NULL;
+	struct timb_video_platform_data *pdata = pdev->dev.platform_data;
+
+	if (!pdata) {
+		dev_err(&pdev->dev, "No platform data\n");
+		err = -EINVAL;
+		goto err;
+	}
+
+	if (!pdata->encoder.module_name)
+		dev_info(&pdev->dev, "Running without decoder\n");
+
+	lw = kzalloc(sizeof(*lw), GFP_KERNEL);
+	if (!lw) {
+		err = -ENOMEM;
+		goto err;
+	}
+
+	if (pdev->dev.parent)
+		lw->dev = pdev->dev.parent;
+	else
+		lw->dev = &pdev->dev;
+
+	memcpy(&lw->pdata, pdata, sizeof(lw->pdata));
+
+	mutex_init(&lw->lock);
+
+	lw->video_dev = timblogiw_template;
+
+	strlcpy(lw->v4l2_dev.name, DRIVER_NAME, sizeof(lw->v4l2_dev.name));
+	err = v4l2_device_register(NULL, &lw->v4l2_dev);
+	if (err)
+		goto err_register;
+
+	lw->video_dev.v4l2_dev = &lw->v4l2_dev;
+
+	platform_set_drvdata(pdev, lw);
+	video_set_drvdata(&lw->video_dev, lw);
+
+	err = video_register_device(&lw->video_dev, VFL_TYPE_GRABBER, 0);
+	if (err) {
+		dev_err(&pdev->dev, "Error reg video: %d\n", err);
+		goto err_request;
+	}
+
+
+	return 0;
+
+err_request:
+	platform_set_drvdata(pdev, NULL);
+	v4l2_device_unregister(&lw->v4l2_dev);
+err_register:
+	kfree(lw);
+err:
+	dev_err(&pdev->dev, "Failed to register: %d\n", err);
+
+	return err;
+}
+static __devinit int vpbe_probe(struct platform_device *pdev)
+{
+	struct vpbe_device *vpbe_dev;
+	struct vpbe_config *cfg;
+	int ret = -EINVAL;
+
+	if (pdev->dev.platform_data == NULL) {
+		v4l2_err(pdev->dev.driver, "No platform data\n");
+		return -ENODEV;
+	}
+	cfg = pdev->dev.platform_data;
+
+	if (!cfg->module_name[0] ||
+	    !cfg->osd.module_name[0] ||
+	    !cfg->venc.module_name[0]) {
+		v4l2_err(pdev->dev.driver, "vpbe display module names not"
+			 " defined\n");
+		return ret;
+	}
+
+	vpbe_dev = kzalloc(sizeof(*vpbe_dev), GFP_KERNEL);
+	if (vpbe_dev == NULL) {
+		v4l2_err(pdev->dev.driver, "Unable to allocate memory"
+			 " for vpbe_device\n");
+		return -ENOMEM;
+	}
+	vpbe_dev->cfg = cfg;
+	vpbe_dev->ops = vpbe_dev_ops;
+	vpbe_dev->pdev = &pdev->dev;
+
+	if (cfg->outputs->num_modes > 0)
+		vpbe_dev->current_timings = vpbe_dev->cfg->outputs[0].modes[0];
+	else {
+		kfree(vpbe_dev);
+		return -ENODEV;
+	}
+
+	/* set the driver data in platform device */
+	platform_set_drvdata(pdev, vpbe_dev);
+	mutex_init(&vpbe_dev->lock);
+
+	return 0;
+}
+</pre>
+<h2>The modified files</h2>
+<pre>
+static int __devinit fimc_md_probe(struct platform_device *pdev)
+{
+	struct v4l2_device *v4l2_dev;
+	struct fimc_md *fmd;
+	int ret;
+
+	fmd = devm_kzalloc(&pdev->dev, sizeof(struct fimc_md), GFP_KERNEL);
+	if (!fmd)
+		return -ENOMEM;
+
+	spin_lock_init(&fmd->slock);
+	fmd->pdev = pdev;
+
+	strlcpy(fmd->media_dev.model, "SAMSUNG S5P FIMC",
+		sizeof(fmd->media_dev.model));
+	fmd->media_dev.link_notify = fimc_md_link_notify;
+	fmd->media_dev.dev = &pdev->dev;
+
+	v4l2_dev = &fmd->v4l2_dev;
+	v4l2_dev->mdev = &fmd->media_dev;
+	v4l2_dev->notify = fimc_sensor_notify;
+	snprintf(v4l2_dev->name, sizeof(v4l2_dev->name), "%s",
+		 dev_name(&pdev->dev));
+
+	ret = v4l2_device_register(&pdev->dev, &fmd->v4l2_dev);
+	if (ret < 0) {
+		v4l2_err(v4l2_dev, "Failed to register v4l2_device: %d\n", ret);
+		return ret;
+	}
+	ret = media_device_register(&fmd->media_dev);
+	if (ret < 0) {
+		v4l2_err(v4l2_dev, "Failed to register media device: %d\n", ret);
+		goto err2;
+	}
+	ret = fimc_md_get_clocks(fmd);
+	if (ret)
+		goto err3;
+
+	fmd->user_subdev_api = false;
+	ret = fimc_md_register_platform_entities(fmd);
+	if (ret)
+		goto err3;
+
+	if (pdev->dev.platform_data) {
+		ret = fimc_md_register_sensor_entities(fmd);
+		if (ret)
+			goto err3;
+	}
+	ret = fimc_md_create_links(fmd);
+	if (ret)
+		goto err3;
+	ret = v4l2_device_register_subdev_nodes(&fmd->v4l2_dev);
+	if (ret)
+		goto err3;
+	ret = fimc_md_register_video_nodes(fmd);
+	if (ret)
+		goto err3;
+
+	ret = device_create_file(&pdev->dev, &dev_attr_subdev_conf_mode);
+	if (!ret) {
+		platform_set_drvdata(pdev, fmd);
+		return 0;
+	}
+err3:
+	media_device_unregister(&fmd->media_dev);
+	fimc_md_put_clocks(fmd);
+	fimc_md_unregister_entities(fmd);
+err2:
+	v4l2_device_unregister(&fmd->v4l2_dev);
+err1:
+	return ret;
+}
+static int __devinit mxr_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct mxr_platform_data *pdata = dev->platform_data;
+	struct mxr_device *mdev;
+	int ret;
+
+	/* mdev does not exist yet so no mxr_dbg is used */
+	dev_info(dev, "probe start\n");
+
+	mdev = devm_kzalloc(&pdev->dev, sizeof *mdev, GFP_KERNEL);
+	if (!mdev) {
+		mxr_err(mdev, "not enough memory.\n");
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	/* setup pointer to master device */
+	mdev->dev = dev;
+
+	mutex_init(&mdev->mutex);
+	spin_lock_init(&mdev->reg_slock);
+	init_waitqueue_head(&mdev->event_queue);
+
+	/* acquire resources: regs, irqs, clocks, regulators */
+	ret = mxr_acquire_resources(mdev, pdev);
+	if (ret)
+		goto fail;
+
+	/* configure resources for video output */
+	ret = mxr_acquire_video(mdev, mxr_output_conf,
+		ARRAY_SIZE(mxr_output_conf));
+	if (ret)
+		goto fail_resources;
+
+	/* configure layers */
+	ret = mxr_acquire_layers(mdev, pdata);
+	if (ret)
+		goto fail_video;
+
+	pm_runtime_enable(dev);
+
+	mxr_info(mdev, "probe successful\n");
+	return 0;
+
+fail_video:
+	mxr_release_video(mdev);
+
+fail_resources:
+	mxr_release_resources(mdev);
+
+fail_mem:
+
+fail:
+	dev_info(dev, "probe failed\n");
+	return ret;
+}
+static int __devinit timblogiw_probe(struct platform_device *pdev)
+{
+	int err;
+	struct timblogiw *lw = NULL;
+	struct timb_video_platform_data *pdata = pdev->dev.platform_data;
+
+	if (!pdata) {
+		dev_err(&pdev->dev, "No platform data\n");
+		err = -EINVAL;
+		goto err;
+	}
+
+	if (!pdata->encoder.module_name)
+		dev_info(&pdev->dev, "Running without decoder\n");
+
+	lw = devm_kzalloc(&pdev->dev, sizeof(*lw), GFP_KERNEL);
+	if (!lw) {
+		err = -ENOMEM;
+		goto err;
+	}
+
+	if (pdev->dev.parent)
+		lw->dev = pdev->dev.parent;
+	else
+		lw->dev = &pdev->dev;
+
+	memcpy(&lw->pdata, pdata, sizeof(lw->pdata));
+
+	mutex_init(&lw->lock);
+
+	lw->video_dev = timblogiw_template;
+
+	strlcpy(lw->v4l2_dev.name, DRIVER_NAME, sizeof(lw->v4l2_dev.name));
+	err = v4l2_device_register(NULL, &lw->v4l2_dev);
+	if (err)
+		goto err;
+
+	lw->video_dev.v4l2_dev = &lw->v4l2_dev;
+
+	platform_set_drvdata(pdev, lw);
+	video_set_drvdata(&lw->video_dev, lw);
+
+	err = video_register_device(&lw->video_dev, VFL_TYPE_GRABBER, 0);
+	if (err) {
+		dev_err(&pdev->dev, "Error reg video: %d\n", err);
+		goto err_request;
+	}
+
+
+	return 0;
+
+err_request:
+	platform_set_drvdata(pdev, NULL);
+	v4l2_device_unregister(&lw->v4l2_dev);
+err_register:
+err:
+	dev_err(&pdev->dev, "Failed to register: %d\n", err);
+
+	return err;
+}
+static __devinit int vpbe_probe(struct platform_device *pdev)
+{
+	struct vpbe_device *vpbe_dev;
+	struct vpbe_config *cfg;
+	int ret = -EINVAL;
+
+	if (pdev->dev.platform_data == NULL) {
+		v4l2_err(pdev->dev.driver, "No platform data\n");
+		return -ENODEV;
+	}
+	cfg = pdev->dev.platform_data;
+
+	if (!cfg->module_name[0] ||
+	    !cfg->osd.module_name[0] ||
+	    !cfg->venc.module_name[0]) {
+		v4l2_err(pdev->dev.driver, "vpbe display module names not"
+			 " defined\n");
+		return ret;
+	}
+
+	vpbe_dev = devm_kzalloc(&pdev->dev, sizeof(*vpbe_dev), GFP_KERNEL);
+	if (vpbe_dev == NULL) {
+		v4l2_err(pdev->dev.driver, "Unable to allocate memory"
+			 " for vpbe_device\n");
+		return -ENOMEM;
+	}
+	vpbe_dev->cfg = cfg;
+	vpbe_dev->ops = vpbe_dev_ops;
+	vpbe_dev->pdev = &pdev->dev;
+
+	if (cfg->outputs->num_modes > 0)
+		vpbe_dev->current_timings = vpbe_dev->cfg->outputs[0].modes[0];
+	else {
+		return -ENODEV;
+	}
+
+	/* set the driver data in platform device */
+	platform_set_drvdata(pdev, vpbe_dev);
+	mutex_init(&vpbe_dev->lock);
+
+	return 0;
+}
+</pre>
 	</body>
 </html>
