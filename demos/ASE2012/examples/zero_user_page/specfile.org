@@ -1,0 +1,7 @@
+loop.c.orig loop.c.new
+buffer.c.orig buffer.c.new
+direct-io.c.orig direct-io.c.new
+mpage.c.orig mpage.c.new
+highmem.h.orig highmem.h.new
+filemap_xip.c.orig filemap_xip.c.new
+truncate.c.orig truncate.c.new

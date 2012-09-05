@@ -1,0 +1,262 @@
+static int do_direct_IO(struct dio *dio)
+{
+	const unsigned blkbits = dio->blkbits;
+	const unsigned blocks_per_page = PAGE_SIZE >> blkbits;
+	struct page *page;
+	unsigned block_in_page;
+	struct buffer_head *map_bh = &dio->map_bh;
+	int ret = 0;
+
+	/* The I/O can start at any block offset within the first page */
+	block_in_page = dio->first_block_in_page;
+
+	while (dio->block_in_file < dio->final_block_in_request) {
+		page = dio_get_page(dio);
+		if (IS_ERR(page)) {
+			ret = PTR_ERR(page);
+			goto out;
+		}
+
+		while (block_in_page < blocks_per_page) {
+			unsigned offset_in_page = block_in_page << blkbits;
+			unsigned this_chunk_bytes;	/* # of bytes mapped */
+			unsigned this_chunk_blocks;	/* # of blocks */
+			unsigned u;
+
+			if (dio->blocks_available == 0) {
+				/*
+				 * Need to go and map some more disk
+				 */
+				unsigned long blkmask;
+				unsigned long dio_remainder;
+
+				ret = get_more_blocks(dio);
+				if (ret) {
+					page_cache_release(page);
+					goto out;
+				}
+				if (!buffer_mapped(map_bh))
+					goto do_holes;
+
+				dio->blocks_available =
+						map_bh->b_size >> dio->blkbits;
+				dio->next_block_for_io =
+					map_bh->b_blocknr << dio->blkfactor;
+				if (buffer_new(map_bh))
+					clean_blockdev_aliases(dio);
+
+				if (!dio->blkfactor)
+					goto do_holes;
+
+				blkmask = (1 << dio->blkfactor) - 1;
+				dio_remainder = (dio->block_in_file & blkmask);
+
+				/*
+				 * If we are at the start of IO and that IO
+				 * starts partway into a fs-block,
+				 * dio_remainder will be non-zero.  If the IO
+				 * is a read then we can simply advance the IO
+				 * cursor to the first block which is to be
+				 * read.  But if the IO is a write and the
+				 * block was newly allocated we cannot do that;
+				 * the start of the fs block must be zeroed out
+				 * on-disk
+				 */
+				if (!buffer_new(map_bh))
+					dio->next_block_for_io += dio_remainder;
+				dio->blocks_available -= dio_remainder;
+			}
+do_holes:
+			/* Handle holes */
+			if (!buffer_mapped(map_bh)) {
+				loff_t i_size_aligned;
+
+				/* AKPM: eargh, -ENOTBLK is a hack */
+				if (dio->rw & WRITE) {
+					page_cache_release(page);
+					return -ENOTBLK;
+				}
+
+				/*
+				 * Be sure to account for a partial block as the
+				 * last block in the file
+				 */
+				i_size_aligned = ALIGN(i_size_read(dio->inode),
+							1 << blkbits);
+				if (dio->block_in_file >=
+						i_size_aligned >> blkbits) {
+					/* We hit eof */
+					page_cache_release(page);
+					goto out;
+				}
+				zero_user_page(page, block_in_page << blkbits,
+						1 << blkbits, KM_USER0);
+				dio->block_in_file++;
+				block_in_page++;
+				goto next_block;
+			}
+
+			/*
+			 * If we're performing IO which has an alignment which
+			 * is finer than the underlying fs, go check to see if
+			 * we must zero out the start of this block.
+			 */
+			if (unlikely(dio->blkfactor && !dio->start_zero_done))
+				dio_zero_block(dio, 0);
+
+			/*
+			 * Work out, in this_chunk_blocks, how much disk we
+			 * can add to this page
+			 */
+			this_chunk_blocks = dio->blocks_available;
+			u = (PAGE_SIZE - offset_in_page) >> blkbits;
+			if (this_chunk_blocks > u)
+				this_chunk_blocks = u;
+			u = dio->final_block_in_request - dio->block_in_file;
+			if (this_chunk_blocks > u)
+				this_chunk_blocks = u;
+			this_chunk_bytes = this_chunk_blocks << blkbits;
+			BUG_ON(this_chunk_bytes == 0);
+
+			dio->boundary = buffer_boundary(map_bh);
+			ret = submit_page_section(dio, page, offset_in_page,
+				this_chunk_bytes, dio->next_block_for_io);
+			if (ret) {
+				page_cache_release(page);
+				goto out;
+			}
+			dio->next_block_for_io += this_chunk_blocks;
+
+			dio->block_in_file += this_chunk_blocks;
+			block_in_page += this_chunk_blocks;
+			dio->blocks_available -= this_chunk_blocks;
+next_block:
+			BUG_ON(dio->block_in_file > dio->final_block_in_request);
+			if (dio->block_in_file == dio->final_block_in_request)
+				break;
+		}
+
+		/* Drop the ref which was taken in get_user_pages() */
+		page_cache_release(page);
+		block_in_page = 0;
+	}
+out:
+	return ret;
+}
+int
+xip_truncate_page(struct address_space *mapping, loff_t from)
+{
+	pgoff_t index = from >> PAGE_CACHE_SHIFT;
+	unsigned offset = from & (PAGE_CACHE_SIZE-1);
+	unsigned blocksize;
+	unsigned length;
+	struct page *page;
+
+	BUG_ON(!mapping->a_ops->get_xip_page);
+
+	blocksize = 1 << mapping->host->i_blkbits;
+	length = offset & (blocksize - 1);
+
+	/* Block boundary? Nothing to do */
+	if (!length)
+		return 0;
+
+	length = blocksize - length;
+
+	page = mapping->a_ops->get_xip_page(mapping,
+					    index*(PAGE_SIZE/512), 0);
+	if (!page)
+		return -ENOMEM;
+	if (unlikely(IS_ERR(page))) {
+		if (PTR_ERR(page) == -ENODATA)
+			/* Hole? No need to truncate */
+			return 0;
+		else
+			return PTR_ERR(page);
+	}
+	zero_user_page(page, offset, length, KM_USER0);
+	return 0;
+}
+static inline void memclear_highpage_flush(struct page *page,
+			unsigned int offset, unsigned int size)
+{
+	zero_user_page(page, offset, size, KM_USER0);
+}
+static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
+		int bsize, loff_t pos, struct page *page)
+{
+	struct file *file = lo->lo_backing_file; /* kudos to NFsckingS */
+	struct address_space *mapping = file->f_mapping;
+	const struct address_space_operations *aops = mapping->a_ops;
+	pgoff_t index;
+	unsigned offset, bv_offs;
+	int len, ret;
+
+	mutex_lock(&mapping->host->i_mutex);
+	index = pos >> PAGE_CACHE_SHIFT;
+	offset = pos & ((pgoff_t)PAGE_CACHE_SIZE - 1);
+	bv_offs = bvec->bv_offset;
+	len = bvec->bv_len;
+	while (len > 0) {
+		sector_t IV;
+		unsigned size;
+		int transfer_result;
+
+		IV = ((sector_t)index << (PAGE_CACHE_SHIFT - 9))+(offset >> 9);
+		size = PAGE_CACHE_SIZE - offset;
+		if (size > len)
+			size = len;
+		page = grab_cache_page(mapping, index);
+		if (unlikely(!page))
+			goto fail;
+		ret = aops->prepare_write(file, page, offset,
+					  offset + size);
+		if (unlikely(ret)) {
+			if (ret == AOP_TRUNCATED_PAGE) {
+				page_cache_release(page);
+				continue;
+			}
+			goto unlock;
+		}
+		transfer_result = lo_do_transfer(lo, WRITE, page, offset,
+				bvec->bv_page, bv_offs, size, IV);
+		if (unlikely(transfer_result)) {
+			/*
+			 * The transfer failed, but we still write the data to
+			 * keep prepare/commit calls balanced.
+			 */
+			printk(KERN_ERR "loop: transfer error block %llu\n",
+			       (unsigned long long)index);
+			zero_user_page(page, offset, size, KM_USER0);
+		}
+		flush_dcache_page(page);
+		ret = aops->commit_write(file, page, offset,
+					 offset + size);
+		if (unlikely(ret)) {
+			if (ret == AOP_TRUNCATED_PAGE) {
+				page_cache_release(page);
+				continue;
+			}
+			goto unlock;
+		}
+		if (unlikely(transfer_result))
+			goto unlock;
+		bv_offs += size;
+		len -= size;
+		offset = 0;
+		index++;
+		pos += size;
+		unlock_page(page);
+		page_cache_release(page);
+	}
+	ret = 0;
+out:
+	mutex_unlock(&mapping->host->i_mutex);
+	return ret;
+unlock:
+	unlock_page(page);
+	page_cache_release(page);
+fail:
+	ret = -1;
+	goto out;
+}

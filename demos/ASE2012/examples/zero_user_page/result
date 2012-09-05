@@ -1,0 +1,620 @@
+[Main] experimental version using 'exists' semantics for "..."
+[Main] focus fun : 'memclear_highpage_flush'
+[Main] have std.h file: standard.h
+Spec. file is: specfile
+Pair of files: direct-io.c.orig, direct-io.c.new
+Pair of files: filemap_xip.c.orig, filemap_xip.c.new
+Pair of files: highmem.h.orig, highmem.h.new
+Pair of files: loop.c.orig, loop.c.new
+Reading file pair loop.c.orig loop.c.new
+Reading file pair highmem.h.orig highmem.h.new
+Reading file pair filemap_xip.c.orig filemap_xip.c.new
+Reading file pair direct-io.c.orig direct-io.c.new
+[Main] read 4 files
+[Main] getting lhs flows
+[Main] fun do_lo_send_aops changed (91)
+[Main] fun memclear_highpage_flush changed (107)
+[Main] fun xip_truncate_page changed (100)
+[Main] fun do_direct_IO changed (118)
+[Main] threshold is 4 of 4
+[Main] finding lists of subterms
+[Main] finding list of unique subterms
+head:def[signed int do_direct_IO ( struct dio *  dio@do_direct_IO) {};]
+const unsigned int blkbits@do_direct_IO = dio@do_direct_IO->blkbits;
+const unsigned int blocks_per_page@do_direct_IO = PAGE_SIZE >> blkbits@do_direct_IO;
+struct page *  page@do_direct_IO;
+unsigned int block_in_page@do_direct_IO;
+struct buffer_head *  map_bh@do_direct_IO = &dio@do_direct_IO->map_bh;
+signed int ret@do_direct_IO = 0;
+block_in_page@do_direct_IO=dio@do_direct_IO->first_block_in_page;
+page@do_direct_IO=dio_get_page(dio@do_direct_IO);
+ret@do_direct_IO=PTR_ERR(page@do_direct_IO);
+unsigned int offset_in_page@do_direct_IO = block_in_page@do_direct_IO << blkbits@do_direct_IO;
+unsigned int this_chunk_bytes@do_direct_IO;
+unsigned int this_chunk_blocks@do_direct_IO;
+unsigned int u@do_direct_IO;
+unsigned long blkmask@do_direct_IO;
+unsigned long dio_remainder@do_direct_IO;
+ret@do_direct_IO=get_more_blocks(dio@do_direct_IO);
+dio@do_direct_IO->blocks_available=map_bh@do_direct_IO->b_size >> dio@do_direct_IO->blkbits;
+dio@do_direct_IO->next_block_for_io=map_bh@do_direct_IO->b_blocknr << dio@do_direct_IO->blkfactor;
+clean_blockdev_aliases(dio@do_direct_IO);
+goto do_holes;
+blkmask@do_direct_IO=1 << dio@do_direct_IO->blkfactor - 1;
+dio_remainder@do_direct_IO=dio@do_direct_IO->block_in_file & blkmask@do_direct_IO;
+dio@do_direct_IO->next_block_for_io+=dio_remainder@do_direct_IO;
+dio@do_direct_IO->blocks_available-=dio_remainder@do_direct_IO;
+char *  kaddr@do_direct_IO;
+loff_t i_size_aligned@do_direct_IO;
+return -[ENOTBLK];
+i_size_aligned@do_direct_IO=ALIGN(i_size_read(dio@do_direct_IO->inode),1 << blkbits@do_direct_IO);
+kaddr@do_direct_IO=kmap_atomic(page@do_direct_IO,KM_USER0);
+memset(kaddr@do_direct_IO + block_in_page@do_direct_IO << blkbits@do_direct_IO,0,1 << blkbits@do_direct_IO);
+flush_dcache_page(page@do_direct_IO);
+kunmap_atomic(kaddr@do_direct_IO,KM_USER0);
+postfix[++[dio@do_direct_IO->block_in_file]];
+postfix[++[block_in_page@do_direct_IO]];
+goto next_block;
+dio_zero_block(dio@do_direct_IO,0);
+this_chunk_blocks@do_direct_IO=dio@do_direct_IO->blocks_available;
+u@do_direct_IO=PAGE_SIZE - offset_in_page@do_direct_IO >> blkbits@do_direct_IO;
+u@do_direct_IO=dio@do_direct_IO->final_block_in_request - dio@do_direct_IO->block_in_file;
+this_chunk_blocks@do_direct_IO=u@do_direct_IO;
+this_chunk_bytes@do_direct_IO=this_chunk_blocks@do_direct_IO << blkbits@do_direct_IO;
+BUG_ON(this_chunk_bytes@do_direct_IO==0);
+dio@do_direct_IO->boundary=buffer_boundary(map_bh@do_direct_IO);
+ret@do_direct_IO=submit_page_section(dio@do_direct_IO,page@do_direct_IO,offset_in_page@do_direct_IO,this_chunk_bytes@do_direct_IO,dio@do_direct_IO->next_block_for_io);
+dio@do_direct_IO->next_block_for_io+=this_chunk_blocks@do_direct_IO;
+dio@do_direct_IO->block_in_file+=this_chunk_blocks@do_direct_IO;
+block_in_page@do_direct_IO+=this_chunk_blocks@do_direct_IO;
+dio@do_direct_IO->blocks_available-=this_chunk_blocks@do_direct_IO;
+BUG_ON(dio@do_direct_IO->block_in_file>dio@do_direct_IO->final_block_in_request);
+break;
+page_cache_release(page@do_direct_IO);
+block_in_page@do_direct_IO=0;
+return ret@do_direct_IO;
+head:def[void memclear_highpage_flush ( struct page *  page@memclear_highpage_flush,  unsigned int offset@memclear_highpage_flush,  unsigned int size@memclear_highpage_flush) {};]
+void *  kaddr@memclear_highpage_flush;
+kaddr@memclear_highpage_flush=kmap_atomic(page@memclear_highpage_flush,KM_USER0);
+memset((char * )kaddr@memclear_highpage_flush + offset@memclear_highpage_flush,0,size@memclear_highpage_flush);
+flush_dcache_page(page@memclear_highpage_flush);
+kunmap_atomic(kaddr@memclear_highpage_flush,KM_USER0);
+goto out;
+ret@do_lo_send_aops=-[1];
+return ret@do_lo_send_aops;
+mutex_unlock(&mapping@do_lo_send_aops->host->i_mutex);
+ret@do_lo_send_aops=0;
+unlock_page(page@do_lo_send_aops);
+pos@do_lo_send_aops+=size@do_lo_send_aops;
+postfix[++[index@do_lo_send_aops]];
+offset@do_lo_send_aops=0;
+len@do_lo_send_aops-=size@do_lo_send_aops;
+bv_offs@do_lo_send_aops+=size@do_lo_send_aops;
+ret@do_lo_send_aops=aops@do_lo_send_aops->commit_write(file@do_lo_send_aops,page@do_lo_send_aops,offset@do_lo_send_aops,offset@do_lo_send_aops + size@do_lo_send_aops);
+flush_dcache_page(page@do_lo_send_aops);
+kunmap_atomic(kaddr@do_lo_send_aops,KM_USER0);
+memset(kaddr@do_lo_send_aops + offset@do_lo_send_aops,0,size@do_lo_send_aops);
+kaddr@do_lo_send_aops=kmap_atomic(page@do_lo_send_aops,KM_USER0);
+printk(const[multistring[TODO: MultiString]],(unsigned long long)index@do_lo_send_aops);
+char *  kaddr@do_lo_send_aops;
+transfer_result@do_lo_send_aops=lo_do_transfer(lo@do_lo_send_aops,WRITE,page@do_lo_send_aops,offset@do_lo_send_aops,bvec@do_lo_send_aops->bv_page,bv_offs@do_lo_send_aops,size@do_lo_send_aops,IV@do_lo_send_aops);
+goto unlock;
+continue;
+page_cache_release(page@do_lo_send_aops);
+ret@do_lo_send_aops=aops@do_lo_send_aops->prepare_write(file@do_lo_send_aops,page@do_lo_send_aops,offset@do_lo_send_aops,offset@do_lo_send_aops + size@do_lo_send_aops);
+goto fail;
+page@do_lo_send_aops=grab_cache_page(mapping@do_lo_send_aops,index@do_lo_send_aops);
+size@do_lo_send_aops=len@do_lo_send_aops;
+size@do_lo_send_aops=PAGE_CACHE_SIZE - offset@do_lo_send_aops;
+IV@do_lo_send_aops=(sector_t)index@do_lo_send_aops << PAGE_CACHE_SHIFT - 9 + offset@do_lo_send_aops >> 9;
+signed int transfer_result@do_lo_send_aops;
+unsigned int size@do_lo_send_aops;
+sector_t IV@do_lo_send_aops;
+len@do_lo_send_aops=bvec@do_lo_send_aops->bv_len;
+bv_offs@do_lo_send_aops=bvec@do_lo_send_aops->bv_offset;
+offset@do_lo_send_aops=pos@do_lo_send_aops & (pgoff_t)PAGE_CACHE_SIZE - 1;
+index@do_lo_send_aops=pos@do_lo_send_aops >> PAGE_CACHE_SHIFT;
+mutex_lock(&mapping@do_lo_send_aops->host->i_mutex);
+signed int len@do_lo_send_aops, signed int ret@do_lo_send_aops;
+unsigned int offset@do_lo_send_aops, unsigned int bv_offs@do_lo_send_aops;
+pgoff_t index@do_lo_send_aops;
+const struct address_space_operations *  aops@do_lo_send_aops = mapping@do_lo_send_aops->a_ops;
+struct address_space *  mapping@do_lo_send_aops = file@do_lo_send_aops->f_mapping;
+struct file *  file@do_lo_send_aops = lo@do_lo_send_aops->lo_backing_file;
+head:def[signed int do_lo_send_aops ( struct loop_device *  lo@do_lo_send_aops,  struct bio_vec *  bvec@do_lo_send_aops,  signed int bsize@do_lo_send_aops,  loff_t pos@do_lo_send_aops,  struct page *  page@do_lo_send_aops) {};]
+flush_dcache_page(page@xip_truncate_page);
+kunmap_atomic(kaddr@xip_truncate_page,KM_USER0);
+memset(kaddr@xip_truncate_page + offset@xip_truncate_page,0,length@xip_truncate_page);
+kaddr@xip_truncate_page=kmap_atomic(page@xip_truncate_page,KM_USER0);
+return PTR_ERR(page@xip_truncate_page);
+return -[ENOMEM];
+page@xip_truncate_page=mapping@xip_truncate_page->a_ops->get_xip_page(mapping@xip_truncate_page,index@xip_truncate_page * PAGE_SIZE / 512,0);
+length@xip_truncate_page=blocksize@xip_truncate_page - length@xip_truncate_page;
+return 0;
+True
+length@xip_truncate_page=offset@xip_truncate_page & blocksize@xip_truncate_page - 1;
+blocksize@xip_truncate_page=1 << mapping@xip_truncate_page->host->i_blkbits;
+BUG_ON(![mapping@xip_truncate_page->a_ops->get_xip_page]);
+void *  kaddr@xip_truncate_page;
+struct page *  page@xip_truncate_page;
+unsigned int length@xip_truncate_page;
+unsigned int blocksize@xip_truncate_page;
+unsigned int offset@xip_truncate_page = from@xip_truncate_page & PAGE_CACHE_SIZE - 1;
+pgoff_t index@xip_truncate_page = from@xip_truncate_page >> PAGE_CACHE_SHIFT;
+head:def[signed int xip_truncate_page ( struct address_space *  mapping@xip_truncate_page,  loff_t from@xip_truncate_page) {};]
+[Main] finding list of common patterns
+[Diff] found 845 patterns; fixing occurrences... [s[49m0/845[0m[u[s[49m1/845[0m[u[s[49m2/845[0m[u[s[49m3/845[0m[u[s[49m4/845[0m[u[s[49m5/845[0m[u[s[49m6/845[0m[u[s[49m7/845[0m[u[s[49m8/845[0m[u[s[49m9/845[0m[u[s[49m10/845[0m[u[s[49m11/845[0m[u[s[49m12/845[0m[u[s[49m13/845[0m[u[s[49m14/845[0m[u[s[49m15/845[0m[u[s[49m16/845[0m[u[s[49m17/845[0m[u[s[49m18/845[0m[u[s[49m19/845[0m[u[s[49m20/845[0m[u[s[49m21/845[0m[u[s[49m22/845[0m[u[s[49m23/845[0m[u[s[49m24/845[0m[u[s[49m25/845[0m[u[s[49m26/845[0m[u[s[49m27/845[0m[u[s[49m28/845[0m[u[s[49m29/845[0m[u[s[49m30/845[0m[u[s[49m31/845[0m[u[s[49m32/845[0m[u[s[49m33/845[0m[u[s[49m34/845[0m[u[s[49m35/845[0m[u[s[49m36/845[0m[u[s[49m37/845[0m[u[s[49m38/845[0m[u[s[49m39/845[0m[u[s[49m40/845[0m[u[s[49m41/845[0m[u[s[49m42/845[0m[u[s[49m43/845[0m[u[s[49m44/845[0m[u[s[49m45/845[0m[u[s[49m46/845[0m[u[s[49m47/845[0m[u[s[49m48/845[0m[u[s[49m49/845[0m[u[s[49m50/845[0m[u[s[49m51/845[0m[u[s[49m52/845[0m[u[s[49m53/845[0m[u[s[49m54/845[0m[u[s[49m55/845[0m[u[s[49m56/845[0m[u[s[49m57/845[0m[u[s[49m58/845[0m[u[s[49m59/845[0m[u[s[49m60/845[0m[u[s[49m61/845[0m[u[s[49m62/845[0m[u[s[49m63/845[0m[u[s[49m64/845[0m[u[s[49m65/845[0m[u[s[49m66/845[0m[u[s[49m67/845[0m[u[s[49m68/845[0m[u[s[49m69/845[0m[u[s[49m70/845[0m[u[s[49m71/845[0m[u[s[49m72/845[0m[u[s[49m73/845[0m[u[s[49m74/845[0m[u[s[49m75/845[0m[u[s[49m76/845[0m[u[s[49m77/845[0m[u[s[49m78/845[0m[u[s[49m79/845[0m[u[s[49m80/845[0m[u[s[49m81/845[0m[u[s[49m82/845[0m[u[s[49m83/845[0m[u[s[49m84/845[0m[u[s[49m85/845[0m[u[s[49m86/845[0m[u[s[49m87/845[0m[u[s[49m88/845[0m[u[s[49m89/845[0m[u[s[49m90/845[0m[u[s[49m91/845[0m[u[s[49m92/845[0m[u[s[49m93/845[0m[u[s[49m94/845[0m[u[s[49m95/845[0m[u[s[49m96/845[0m[u[s[49m97/845[0m[u[s[49m98/845[0m[u[s[49m99/845[0m[u[s[49m100/845[0m[u[s[49m101/845[0m[u[s[49m102/845[0m[u[s[49m103/845[0m[u[s[49m104/845[0m[u[s[49m105/845[0m[u[s[49m106/845[0m[u[s[49m107/845[0m[u[s[49m108/845[0m[u[s[49m109/845[0m[u[s[49m110/845[0m[u[s[49m111/845[0m[u[s[49m112/845[0m[u[s[49m113/845[0m[u[s[49m114/845[0m[u[s[49m115/845[0m[u[s[49m116/845[0m[u[s[49m117/845[0m[u[s[49m118/845[0m[u[s[49m119/845[0m[u[s[49m120/845[0m[u[s[49m121/845[0m[u[s[49m122/845[0m[u[s[49m123/845[0m[u[s[49m124/845[0m[u[s[49m125/845[0m[u[s[49m126/845[0m[u[s[49m127/845[0m[u[s[49m128/845[0m[u[s[49m129/845[0m[u[s[49m130/845[0m[u[s[49m131/845[0m[u[s[49m132/845[0m[u[s[49m133/845[0m[u[s[49m134/845[0m[u[s[49m135/845[0m[u[s[49m136/845[0m[u[s[49m137/845[0m[u[s[49m138/845[0m[u[s[49m139/845[0m[u[s[49m140/845[0m[u[s[49m141/845[0m[u[s[49m142/845[0m[u[s[49m143/845[0m[u[s[49m144/845[0m[u[s[49m145/845[0m[u[s[49m146/845[0m[u[s[49m147/845[0m[u[s[49m148/845[0m[u[s[49m149/845[0m[u[s[49m150/845[0m[u[s[49m151/845[0m[u[s[49m152/845[0m[u[s[49m153/845[0m[u[s[49m154/845[0m[u[s[49m155/845[0m[u[s[49m156/845[0m[u[s[49m157/845[0m[u[s[49m158/845[0m[u[s[49m159/845[0m[u[s[49m160/845[0m[u[s[49m161/845[0m[u[s[49m162/845[0m[u[s[49m163/845[0m[u[s[49m164/845[0m[u[s[49m165/845[0m[u[s[49m166/845[0m[u[s[49m167/845[0m[u[s[49m168/845[0m[u[s[49m169/845[0m[u[s[49m170/845[0m[u[s[49m171/845[0m[u[s[49m172/845[0m[u[s[49m173/845[0m[u[s[49m174/845[0m[u[s[49m175/845[0m[u[s[49m176/845[0m[u[s[49m177/845[0m[u[s[49m178/845[0m[u[s[49m179/845[0m[u[s[49m180/845[0m[u[s[49m181/845[0m[u[s[49m182/845[0m[u[s[49m183/845[0m[u[s[49m184/845[0m[u[s[49m185/845[0m[u[s[49m186/845[0m[u[s[49m187/845[0m[u[s[49m188/845[0m[u[s[49m189/845[0m[u[s[49m190/845[0m[u[s[49m191/845[0m[u[s[49m192/845[0m[u[s[49m193/845[0m[u[s[49m194/845[0m[u[s[49m195/845[0m[u[s[49m196/845[0m[u[s[49m197/845[0m[u[s[49m198/845[0m[u[s[49m199/845[0m[u[s[49m200/845[0m[u[s[49m201/845[0m[u[s[49m202/845[0m[u[s[49m203/845[0m[u[s[49m204/845[0m[u[s[49m205/845[0m[u[s[49m206/845[0m[u[s[49m207/845[0m[u[s[49m208/845[0m[u[s[49m209/845[0m[u[s[49m210/845[0m[u[s[49m211/845[0m[u[s[49m212/845[0m[u[s[49m213/845[0m[u[s[49m214/845[0m[u[s[49m215/845[0m[u[s[49m216/845[0m[u[s[49m217/845[0m[u[s[49m218/845[0m[u[s[49m219/845[0m[u[s[49m220/845[0m[u[s[49m221/845[0m[u[s[49m222/845[0m[u[s[49m223/845[0m[u[s[49m224/845[0m[u[s[49m225/845[0m[u[s[49m226/845[0m[u[s[49m227/845[0m[u[s[49m228/845[0m[u[s[49m229/845[0m[u[s[49m230/845[0m[u[s[49m231/845[0m[u[s[49m232/845[0m[u[s[49m233/845[0m[u[s[49m234/845[0m[u[s[49m235/845[0m[u[s[49m236/845[0m[u[s[49m237/845[0m[u[s[49m238/845[0m[u[s[49m239/845[0m[u[s[49m240/845[0m[u[s[49m241/845[0m[u[s[49m242/845[0m[u[s[49m243/845[0m[u[s[49m244/845[0m[u[s[49m245/845[0m[u[s[49m246/845[0m[u[s[49m247/845[0m[u[s[49m248/845[0m[u[s[49m249/845[0m[u[s[49m250/845[0m[u[s[49m251/845[0m[u[s[49m252/845[0m[u[s[49m253/845[0m[u[s[49m254/845[0m[u[s[49m255/845[0m[u[s[49m256/845[0m[u[s[49m257/845[0m[u[s[49m258/845[0m[u[s[49m259/845[0m[u[s[49m260/845[0m[u[s[49m261/845[0m[u[s[49m262/845[0m[u[s[49m263/845[0m[u[s[49m264/845[0m[u[s[49m265/845[0m[u[s[49m266/845[0m[u[s[49m267/845[0m[u[s[49m268/845[0m[u[s[49m269/845[0m[u[s[49m270/845[0m[u[s[49m271/845[0m[u[s[49m272/845[0m[u[s[49m273/845[0m[u[s[49m274/845[0m[u[s[49m275/845[0m[u[s[49m276/845[0m[u[s[49m277/845[0m[u[s[49m278/845[0m[u[s[49m279/845[0m[u[s[49m280/845[0m[u[s[49m281/845[0m[u[s[49m282/845[0m[u[s[49m283/845[0m[u[s[49m284/845[0m[u[s[49m285/845[0m[u[s[49m286/845[0m[u[s[49m287/845[0m[u[s[49m288/845[0m[u[s[49m289/845[0m[u[s[49m290/845[0m[u[s[49m291/845[0m[u[s[49m292/845[0m[u[s[49m293/845[0m[u[s[49m294/845[0m[u[s[49m295/845[0m[u[s[49m296/845[0m[u[s[49m297/845[0m[u[s[49m298/845[0m[u[s[49m299/845[0m[u[s[49m300/845[0m[u[s[49m301/845[0m[u[s[49m302/845[0m[u[s[49m303/845[0m[u[s[49m304/845[0m[u[s[49m305/845[0m[u[s[49m306/845[0m[u[s[49m307/845[0m[u[s[49m308/845[0m[u[s[49m309/845[0m[u[s[49m310/845[0m[u[s[49m311/845[0m[u[s[49m312/845[0m[u[s[49m313/845[0m[u[s[49m314/845[0m[u[s[49m315/845[0m[u[s[49m316/845[0m[u[s[49m317/845[0m[u[s[49m318/845[0m[u[s[49m319/845[0m[u[s[49m320/845[0m[u[s[49m321/845[0m[u[s[49m322/845[0m[u[s[49m323/845[0m[u[s[49m324/845[0m[u[s[49m325/845[0m[u[s[49m326/845[0m[u[s[49m327/845[0m[u[s[49m328/845[0m[u[s[49m329/845[0m[u[s[49m330/845[0m[u[s[49m331/845[0m[u[s[49m332/845[0m[u[s[49m333/845[0m[u[s[49m334/845[0m[u[s[49m335/845[0m[u[s[49m336/845[0m[u[s[49m337/845[0m[u[s[49m338/845[0m[u[s[49m339/845[0m[u[s[49m340/845[0m[u[s[49m341/845[0m[u[s[49m342/845[0m[u[s[49m343/845[0m[u[s[49m344/845[0m[u[s[49m345/845[0m[u[s[49m346/845[0m[u[s[49m347/845[0m[u[s[49m348/845[0m[u[s[49m349/845[0m[u[s[49m350/845[0m[u[s[49m351/845[0m[u[s[49m352/845[0m[u[s[49m353/845[0m[u[s[49m354/845[0m[u[s[49m355/845[0m[u[s[49m356/845[0m[u[s[49m357/845[0m[u[s[49m358/845[0m[u[s[49m359/845[0m[u[s[49m360/845[0m[u[s[49m361/845[0m[u[s[49m362/845[0m[u[s[49m363/845[0m[u[s[49m364/845[0m[u[s[49m365/845[0m[u[s[49m366/845[0m[u[s[49m367/845[0m[u[s[49m368/845[0m[u[s[49m369/845[0m[u[s[49m370/845[0m[u[s[49m371/845[0m[u[s[49m372/845[0m[u[s[49m373/845[0m[u[s[49m374/845[0m[u[s[49m375/845[0m[u[s[49m376/845[0m[u[s[49m377/845[0m[u[s[49m378/845[0m[u[s[49m379/845[0m[u[s[49m380/845[0m[u[s[49m381/845[0m[u[s[49m382/845[0m[u[s[49m383/845[0m[u[s[49m384/845[0m[u[s[49m385/845[0m[u[s[49m386/845[0m[u[s[49m387/845[0m[u[s[49m388/845[0m[u[s[49m389/845[0m[u[s[49m390/845[0m[u[s[49m391/845[0m[u[s[49m392/845[0m[u[s[49m393/845[0m[u[s[49m394/845[0m[u[s[49m395/845[0m[u[s[49m396/845[0m[u[s[49m397/845[0m[u[s[49m398/845[0m[u[s[49m399/845[0m[u[s[49m400/845[0m[u[s[49m401/845[0m[u[s[49m402/845[0m[u[s[49m403/845[0m[u[s[49m404/845[0m[u[s[49m405/845[0m[u[s[49m406/845[0m[u[s[49m407/845[0m[u[s[49m408/845[0m[u[s[49m409/845[0m[u[s[49m410/845[0m[u[s[49m411/845[0m[u[s[49m412/845[0m[u[s[49m413/845[0m[u[s[49m414/845[0m[u[s[49m415/845[0m[u[s[49m416/845[0m[u[s[49m417/845[0m[u[s[49m418/845[0m[u[s[49m419/845[0m[u[s[49m420/845[0m[u[s[49m421/845[0m[u[s[49m422/845[0m[u[s[49m423/845[0m[u[s[49m424/845[0m[u[s[49m425/845[0m[u[s[49m426/845[0m[u[s[49m427/845[0m[u[s[49m428/845[0m[u[s[49m429/845[0m[u[s[49m430/845[0m[u[s[49m431/845[0m[u[s[49m432/845[0m[u[s[49m433/845[0m[u[s[49m434/845[0m[u[s[49m435/845[0m[u[s[49m436/845[0m[u[s[49m437/845[0m[u[s[49m438/845[0m[u[s[49m439/845[0m[u[s[49m440/845[0m[u[s[49m441/845[0m[u[s[49m442/845[0m[u[s[49m443/845[0m[u[s[49m444/845[0m[u[s[49m445/845[0m[u[s[49m446/845[0m[u[s[49m447/845[0m[u[s[49m448/845[0m[u[s[49m449/845[0m[u[s[49m450/845[0m[u[s[49m451/845[0m[u[s[49m452/845[0m[u[s[49m453/845[0m[u[s[49m454/845[0m[u[s[49m455/845[0m[u[s[49m456/845[0m[u[s[49m457/845[0m[u[s[49m458/845[0m[u[s[49m459/845[0m[u[s[49m460/845[0m[u[s[49m461/845[0m[u[s[49m462/845[0m[u[s[49m463/845[0m[u[s[49m464/845[0m[u[s[49m465/845[0m[u[s[49m466/845[0m[u[s[49m467/845[0m[u[s[49m468/845[0m[u[s[49m469/845[0m[u[s[49m470/845[0m[u[s[49m471/845[0m[u[s[49m472/845[0m[u[s[49m473/845[0m[u[s[49m474/845[0m[u[s[49m475/845[0m[u[s[49m476/845[0m[u[s[49m477/845[0m[u[s[49m478/845[0m[u[s[49m479/845[0m[u[s[49m480/845[0m[u[s[49m481/845[0m[u[s[49m482/845[0m[u[s[49m483/845[0m[u[s[49m484/845[0m[u[s[49m485/845[0m[u[s[49m486/845[0m[u[s[49m487/845[0m[u[s[49m488/845[0m[u[s[49m489/845[0m[u[s[49m490/845[0m[u[s[49m491/845[0m[u[s[49m492/845[0m[u[s[49m493/845[0m[u[s[49m494/845[0m[u[s[49m495/845[0m[u[s[49m496/845[0m[u[s[49m497/845[0m[u[s[49m498/845[0m[u[s[49m499/845[0m[u[s[49m500/845[0m[u[s[49m501/845[0m[u[s[49m502/845[0m[u[s[49m503/845[0m[u[s[49m504/845[0m[u[s[49m505/845[0m[u[s[49m506/845[0m[u[s[49m507/845[0m[u[s[49m508/845[0m[u[s[49m509/845[0m[u[s[49m510/845[0m[u[s[49m511/845[0m[u[s[49m512/845[0m[u[s[49m513/845[0m[u[s[49m514/845[0m[u[s[49m515/845[0m[u[s[49m516/845[0m[u[s[49m517/845[0m[u[s[49m518/845[0m[u[s[49m519/845[0m[u[s[49m520/845[0m[u[s[49m521/845[0m[u[s[49m522/845[0m[u[s[49m523/845[0m[u[s[49m524/845[0m[u[s[49m525/845[0m[u[s[49m526/845[0m[u[s[49m527/845[0m[u[s[49m528/845[0m[u[s[49m529/845[0m[u[s[49m530/845[0m[u[s[49m531/845[0m[u[s[49m532/845[0m[u[s[49m533/845[0m[u[s[49m534/845[0m[u[s[49m535/845[0m[u[s[49m536/845[0m[u[s[49m537/845[0m[u[s[49m538/845[0m[u[s[49m539/845[0m[u[s[49m540/845[0m[u[s[49m541/845[0m[u[s[49m542/845[0m[u[s[49m543/845[0m[u[s[49m544/845[0m[u[s[49m545/845[0m[u[s[49m546/845[0m[u[s[49m547/845[0m[u[s[49m548/845[0m[u[s[49m549/845[0m[u[s[49m550/845[0m[u[s[49m551/845[0m[u[s[49m552/845[0m[u[s[49m553/845[0m[u[s[49m554/845[0m[u[s[49m555/845[0m[u[s[49m556/845[0m[u[s[49m557/845[0m[u[s[49m558/845[0m[u[s[49m559/845[0m[u[s[49m560/845[0m[u[s[49m561/845[0m[u[s[49m562/845[0m[u[s[49m563/845[0m[u[s[49m564/845[0m[u[s[49m565/845[0m[u[s[49m566/845[0m[u[s[49m567/845[0m[u[s[49m568/845[0m[u[s[49m569/845[0m[u[s[49m570/845[0m[u[s[49m571/845[0m[u[s[49m572/845[0m[u[s[49m573/845[0m[u[s[49m574/845[0m[u[s[49m575/845[0m[u[s[49m576/845[0m[u[s[49m577/845[0m[u[s[49m578/845[0m[u[s[49m579/845[0m[u[s[49m580/845[0m[u[s[49m581/845[0m[u[s[49m582/845[0m[u[s[49m583/845[0m[u[s[49m584/845[0m[u[s[49m585/845[0m[u[s[49m586/845[0m[u[s[49m587/845[0m[u[s[49m588/845[0m[u[s[49m589/845[0m[u[s[49m590/845[0m[u[s[49m591/845[0m[u[s[49m592/845[0m[u[s[49m593/845[0m[u[s[49m594/845[0m[u[s[49m595/845[0m[u[s[49m596/845[0m[u[s[49m597/845[0m[u[s[49m598/845[0m[u[s[49m599/845[0m[u[s[49m600/845[0m[u[s[49m601/845[0m[u[s[49m602/845[0m[u[s[49m603/845[0m[u[s[49m604/845[0m[u[s[49m605/845[0m[u[s[49m606/845[0m[u[s[49m607/845[0m[u[s[49m608/845[0m[u[s[49m609/845[0m[u[s[49m610/845[0m[u[s[49m611/845[0m[u[s[49m612/845[0m[u[s[49m613/845[0m[u[s[49m614/845[0m[u[s[49m615/845[0m[u[s[49m616/845[0m[u[s[49m617/845[0m[u[s[49m618/845[0m[u[s[49m619/845[0m[u[s[49m620/845[0m[u[s[49m621/845[0m[u[s[49m622/845[0m[u[s[49m623/845[0m[u[s[49m624/845[0m[u[s[49m625/845[0m[u[s[49m626/845[0m[u[s[49m627/845[0m[u[s[49m628/845[0m[u[s[49m629/845[0m[u[s[49m630/845[0m[u[s[49m631/845[0m[u[s[49m632/845[0m[u[s[49m633/845[0m[u[s[49m634/845[0m[u[s[49m635/845[0m[u[s[49m636/845[0m[u[s[49m637/845[0m[u[s[49m638/845[0m[u[s[49m639/845[0m[u[s[49m640/845[0m[u[s[49m641/845[0m[u[s[49m642/845[0m[u[s[49m643/845[0m[u[s[49m644/845[0m[u[s[49m645/845[0m[u[s[49m646/845[0m[u[s[49m647/845[0m[u[s[49m648/845[0m[u[s[49m649/845[0m[u[s[49m650/845[0m[u[s[49m651/845[0m[u[s[49m652/845[0m[u[s[49m653/845[0m[u[s[49m654/845[0m[u[s[49m655/845[0m[u[s[49m656/845[0m[u[s[49m657/845[0m[u[s[49m658/845[0m[u[s[49m659/845[0m[u[s[49m660/845[0m[u[s[49m661/845[0m[u[s[49m662/845[0m[u[s[49m663/845[0m[u[s[49m664/845[0m[u[s[49m665/845[0m[u[s[49m666/845[0m[u[s[49m667/845[0m[u[s[49m668/845[0m[u[s[49m669/845[0m[u[s[49m670/845[0m[u[s[49m671/845[0m[u[s[49m672/845[0m[u[s[49m673/845[0m[u[s[49m674/845[0m[u[s[49m675/845[0m[u[s[49m676/845[0m[u[s[49m677/845[0m[u[s[49m678/845[0m[u[s[49m679/845[0m[u[s[49m680/845[0m[u[s[49m681/845[0m[u[s[49m682/845[0m[u[s[49m683/845[0m[u[s[49m684/845[0m[u[s[49m685/845[0m[u[s[49m686/845[0m[u[s[49m687/845[0m[u[s[49m688/845[0m[u[s[49m689/845[0m[u[s[49m690/845[0m[u[s[49m691/845[0m[u[s[49m692/845[0m[u[s[49m693/845[0m[u[s[49m694/845[0m[u[s[49m695/845[0m[u[s[49m696/845[0m[u[s[49m697/845[0m[u[s[49m698/845[0m[u[s[49m699/845[0m[u[s[49m700/845[0m[u[s[49m701/845[0m[u[s[49m702/845[0m[u[s[49m703/845[0m[u[s[49m704/845[0m[u[s[49m705/845[0m[u[s[49m706/845[0m[u[s[49m707/845[0m[u[s[49m708/845[0m[u[s[49m709/845[0m[u[s[49m710/845[0m[u[s[49m711/845[0m[u[s[49m712/845[0m[u[s[49m713/845[0m[u[s[49m714/845[0m[u[s[49m715/845[0m[u[s[49m716/845[0m[u[s[49m717/845[0m[u[s[49m718/845[0m[u[s[49m719/845[0m[u[s[49m720/845[0m[u[s[49m721/845[0m[u[s[49m722/845[0m[u[s[49m723/845[0m[u[s[49m724/845[0m[u[s[49m725/845[0m[u[s[49m726/845[0m[u[s[49m727/845[0m[u[s[49m728/845[0m[u[s[49m729/845[0m[u[s[49m730/845[0m[u[s[49m731/845[0m[u[s[49m732/845[0m[u[s[49m733/845[0m[u[s[49m734/845[0m[u[s[49m735/845[0m[u[s[49m736/845[0m[u[s[49m737/845[0m[u[s[49m738/845[0m[u[s[49m739/845[0m[u[s[49m740/845[0m[u[s[49m741/845[0m[u[s[49m742/845[0m[u[s[49m743/845[0m[u[s[49m744/845[0m[u[s[49m745/845[0m[u[s[49m746/845[0m[u[s[49m747/845[0m[u[s[49m748/845[0m[u[s[49m749/845[0m[u[s[49m750/845[0m[u[s[49m751/845[0m[u[s[49m752/845[0m[u[s[49m753/845[0m[u[s[49m754/845[0m[u[s[49m755/845[0m[u[s[49m756/845[0m[u[s[49m757/845[0m[u[s[49m758/845[0m[u[s[49m759/845[0m[u[s[49m760/845[0m[u[s[49m761/845[0m[u[s[49m762/845[0m[u[s[49m763/845[0m[u[s[49m764/845[0m[u[s[49m765/845[0m[u[s[49m766/845[0m[u[s[49m767/845[0m[u[s[49m768/845[0m[u[s[49m769/845[0m[u[s[49m770/845[0m[u[s[49m771/845[0m[u[s[49m772/845[0m[u[s[49m773/845[0m[u[s[49m774/845[0m[u[s[49m775/845[0m[u[s[49m776/845[0m[u[s[49m777/845[0m[u[s[49m778/845[0m[u[s[49m779/845[0m[u[s[49m780/845[0m[u[s[49m781/845[0m[u[s[49m782/845[0m[u[s[49m783/845[0m[u[s[49m784/845[0m[u[s[49m785/845[0m[u[s[49m786/845[0m[u[s[49m787/845[0m[u[s[49m788/845[0m[u[s[49m789/845[0m[u[s[49m790/845[0m[u[s[49m791/845[0m[u[s[49m792/845[0m[u[s[49m793/845[0m[u[s[49m794/845[0m[u[s[49m795/845[0m[u[s[49m796/845[0m[u[s[49m797/845[0m[u[s[49m798/845[0m[u[s[49m799/845[0m[u[s[49m800/845[0m[u[s[49m801/845[0m[u[s[49m802/845[0m[u[s[49m803/845[0m[u[s[49m804/845[0m[u[s[49m805/845[0m[u[s[49m806/845[0m[u[s[49m807/845[0m[u[s[49m808/845[0m[u[s[49m809/845[0m[u[s[49m810/845[0m[u[s[49m811/845[0m[u[s[49m812/845[0m[u[s[49m813/845[0m[u[s[49m814/845[0m[u[s[49m815/845[0m[u[s[49m816/845[0m[u[s[49m817/845[0m[u[s[49m818/845[0m[u[s[49m819/845[0m[u[s[49m820/845[0m[u[s[49m821/845[0m[u[s[49m822/845[0m[u[s[49m823/845[0m[u[s[49m824/845[0m[u[s[49m825/845[0m[u[s[49m826/845[0m[u[s[49m827/845[0m[u[s[49m828/845[0m[u[s[49m829/845[0m[u[s[49m830/845[0m[u[s[49m831/845[0m[u[s[49m832/845[0m[u[s[49m833/845[0m[u[s[49m834/845[0m[u[s[49m835/845[0m[u[s[49m836/845[0m[u[s[49m837/845[0m[u[s[49m838/845[0m[u[s[49m839/845[0m[u[s[49m840/845[0m[u[s[49m841/845[0m[u[s[49m842/845[0m[u[s[49m843/845[0m[u[s[49m844/845[0m[u
+[Diff] computing interesting patterns from 42 patterns
+X0=X1;
+X1=X2;
+kunmap_atomic(X1,KM_USER0);
+flush_dcache_page(X0);
+X1=kmap_atomic(X2,KM_USER0);
+X0=X1;
+X1=X2;
+X1=X2;
+X1 *  X0;
+head:def[def[X0,X1,{};]]
+memset(X0 + X1,0,X2);
+X0=X1;
+X1=X2;
+kunmap_atomic(X1,KM_USER0);
+flush_dcache_page(X0);
+X1=kmap_atomic(X2,KM_USER0);
+X0=X1;
+X1=X2;
+X1=X2;
+X1 *  X0;
+head:def[def[X0,X1,{};]]
+X0=X1;
+X1=X2;
+kunmap_atomic(X1,KM_USER0);
+flush_dcache_page(X0);
+X1=kmap_atomic(X2,KM_USER0);
+X0=X1;
+X1=X2;
+X1=X2;
+X1 *  X0;
+head:def[def[X0,X1,{};]]
+memset(X0 + X1,0,X2);
+X0=X1;
+X1=X2;
+kunmap_atomic(X1,KM_USER0);
+flush_dcache_page(X0);
+X1=kmap_atomic(X2,KM_USER0);
+X0=X1;
+X1=X2;
+X1=X2;
+X1 *  X0;
+head:def[def[X0,X1,{};]]
+... done
+[Main] refining node_patterns_pool according to focus fun
+[Main] refined node patterns [6]:
+memset(X0 + X1,0,X2);
+head:def[def[X0,X1,{};]]
+X1 *  X0;
+X1=kmap_atomic(X2,KM_USER0);
+flush_dcache_page(X0);
+kunmap_atomic(X1,KM_USER0);
+[Main] finding semantic patterns [s[49m0/6[0m[u[s[49m1/6[0m[u[s[49m2/6[0m[u[s[49m3/6[0m[u[s[49m4/6[0m[u[s[49m5/6[0m[uBefore filter_changed: 14
+changed terms: kunmap_atomic(kaddr@do_lo_send_aops,KM_USER0);
+memset(kaddr@do_lo_send_aops + offset@do_lo_send_aops,0,size@do_lo_send_aops);
+kaddr@do_lo_send_aops=kmap_atomic(page@do_lo_send_aops,KM_USER0);
+char *  kaddr@do_lo_send_aops;
+kunmap_atomic(kaddr@memclear_highpage_flush,KM_USER0);
+flush_dcache_page(page@memclear_highpage_flush);
+memset((char * )kaddr@memclear_highpage_flush + offset@memclear_highpage_flush,0,size@memclear_highpage_flush);
+kaddr@memclear_highpage_flush=kmap_atomic(page@memclear_highpage_flush,KM_USER0);
+void *  kaddr@memclear_highpage_flush;
+flush_dcache_page(page@xip_truncate_page);
+kunmap_atomic(kaddr@xip_truncate_page,KM_USER0);
+memset(kaddr@xip_truncate_page + offset@xip_truncate_page,0,length@xip_truncate_page);
+kaddr@xip_truncate_page=kmap_atomic(page@xip_truncate_page,KM_USER0);
+void *  kaddr@xip_truncate_page;
+kunmap_atomic(kaddr@do_direct_IO,KM_USER0);
+flush_dcache_page(page@do_direct_IO);
+memset(kaddr@do_direct_IO + block_in_page@do_direct_IO << blkbits@do_direct_IO,0,1 << blkbits@do_direct_IO);
+kaddr@do_direct_IO=kmap_atomic(page@do_direct_IO,KM_USER0);
+char *  kaddr@do_direct_IO;
+Checking whether pattern matches a transform: CM[head:def[def[X3,X4,{};]]] ... CM[X6 *  X5;] ... CM[X8=kmap_atomic(X9,KM_USER0);] ... CM[memset(X0 + X1,0,X2);] ... CM[kunmap_atomic(X12,KM_USER0);]
+witness pattern: X6 *  X5;
+witness term   : char *  kaddr@do_lo_send_aops;
+Yes
+Checking whether pattern matches a transform: CM[head:def[def[X3,X4,{};]]] ... CM[X6 *  X5;] ... CM[X8=kmap_atomic(X9,KM_USER0);] ... CM[memset(X0 + X1,0,X2);] ... CM[flush_dcache_page(X10);]
+witness pattern: X6 *  X5;
+witness term   : char *  kaddr@do_lo_send_aops;
+Yes
+Checking whether pattern matches a transform: CM[head:def[def[X3,X4,{};]]] ... CM[X6 *  X5;] ... CM[memset(X0 + X1,0,X2);] ... CM[kunmap_atomic(X12,KM_USER0);]
+witness pattern: X6 *  X5;
+witness term   : char *  kaddr@do_lo_send_aops;
+Yes
+Checking whether pattern matches a transform: CM[head:def[def[X3,X4,{};]]] ... CM[X6 *  X5;] ... CM[memset(X0 + X1,0,X2);] ... CM[flush_dcache_page(X10);]
+witness pattern: X6 *  X5;
+witness term   : char *  kaddr@do_lo_send_aops;
+Yes
+Checking whether pattern matches a transform: CM[head:def[def[X3,X4,{};]]] ... CM[memset(X0 + X1,0,X2);] ... CM[kunmap_atomic(X12,KM_USER0);]
+witness pattern: memset(X0 + X1,0,X2);
+witness term   : memset(kaddr@do_lo_send_aops + offset@do_lo_send_aops,0,size@do_lo_send_aops);
+Yes
+Checking whether pattern matches a transform: CM[head:def[def[X3,X4,{};]]] ... CM[memset(X0 + X1,0,X2);] ... CM[flush_dcache_page(X10);]
+witness pattern: memset(X0 + X1,0,X2);
+witness term   : memset(kaddr@do_lo_send_aops + offset@do_lo_send_aops,0,size@do_lo_send_aops);
+Yes
+Checking whether pattern matches a transform: CM[X6 *  X5;] ... CM[X8=kmap_atomic(X9,KM_USER0);] ... CM[memset(X0 + X1,0,X2);] ... CM[kunmap_atomic(X12,KM_USER0);]
+witness pattern: X6 *  X5;
+witness term   : char *  kaddr@do_lo_send_aops;
+Yes
+Checking whether pattern matches a transform: CM[X6 *  X5;] ... CM[X8=kmap_atomic(X9,KM_USER0);] ... CM[memset(X0 + X1,0,X2);] ... CM[flush_dcache_page(X10);]
+witness pattern: X6 *  X5;
+witness term   : char *  kaddr@do_lo_send_aops;
+Yes
+Checking whether pattern matches a transform: CM[X6 *  X5;] ... CM[memset(X0 + X1,0,X2);] ... CM[kunmap_atomic(X12,KM_USER0);]
+witness pattern: X6 *  X5;
+witness term   : char *  kaddr@do_lo_send_aops;
+Yes
+Checking whether pattern matches a transform: CM[X6 *  X5;] ... CM[memset(X0 + X1,0,X2);] ... CM[flush_dcache_page(X10);]
+witness pattern: X6 *  X5;
+witness term   : char *  kaddr@do_lo_send_aops;
+Yes
+Checking whether pattern matches a transform: CM[X8=kmap_atomic(X9,KM_USER0);] ... CM[memset(X0 + X1,0,X2);] ... CM[kunmap_atomic(X12,KM_USER0);]
+witness pattern: X8=kmap_atomic(X9,KM_USER0);
+witness term   : kaddr@do_lo_send_aops=kmap_atomic(page@do_lo_send_aops,KM_USER0);
+Yes
+Checking whether pattern matches a transform: CM[X8=kmap_atomic(X9,KM_USER0);] ... CM[memset(X0 + X1,0,X2);] ... CM[flush_dcache_page(X10);]
+witness pattern: X8=kmap_atomic(X9,KM_USER0);
+witness term   : kaddr@do_lo_send_aops=kmap_atomic(page@do_lo_send_aops,KM_USER0);
+Yes
+Checking whether pattern matches a transform: CM[flush_dcache_page(X10);]
+witness pattern: flush_dcache_page(X10);
+witness term   : flush_dcache_page(page@memclear_highpage_flush);
+Yes
+Checking whether pattern matches a transform: CM[kunmap_atomic(X12,KM_USER0);]
+witness pattern: kunmap_atomic(X12,KM_USER0);
+witness term   : kunmap_atomic(kaddr@do_lo_send_aops,KM_USER0);
+Yes
+After filter_changed: 14
+[Main] <14> sem_patterns to infer from: 
+head:def[def[X3,X4,{};]]
+...
+X6 *  X5;
+...
+X8=kmap_atomic(X9,KM_USER0);
+...
+memset(X0 + X1,0,X2);
+...
+kunmap_atomic(X12,KM_USER0);
+-------------------
+head:def[def[X3,X4,{};]]
+...
+X6 *  X5;
+...
+X8=kmap_atomic(X9,KM_USER0);
+...
+memset(X0 + X1,0,X2);
+...
+flush_dcache_page(X10);
+-------------------
+head:def[def[X3,X4,{};]]
+...
+X6 *  X5;
+...
+memset(X0 + X1,0,X2);
+...
+kunmap_atomic(X12,KM_USER0);
+-------------------
+head:def[def[X3,X4,{};]]
+...
+X6 *  X5;
+...
+memset(X0 + X1,0,X2);
+...
+flush_dcache_page(X10);
+-------------------
+head:def[def[X3,X4,{};]]
+...
+memset(X0 + X1,0,X2);
+...
+kunmap_atomic(X12,KM_USER0);
+-------------------
+head:def[def[X3,X4,{};]]
+...
+memset(X0 + X1,0,X2);
+...
+flush_dcache_page(X10);
+-------------------
+X6 *  X5;
+...
+X8=kmap_atomic(X9,KM_USER0);
+...
+memset(X0 + X1,0,X2);
+...
+kunmap_atomic(X12,KM_USER0);
+-------------------
+X6 *  X5;
+...
+X8=kmap_atomic(X9,KM_USER0);
+...
+memset(X0 + X1,0,X2);
+...
+flush_dcache_page(X10);
+-------------------
+X6 *  X5;
+...
+memset(X0 + X1,0,X2);
+...
+kunmap_atomic(X12,KM_USER0);
+-------------------
+X6 *  X5;
+...
+memset(X0 + X1,0,X2);
+...
+flush_dcache_page(X10);
+-------------------
+X8=kmap_atomic(X9,KM_USER0);
+...
+memset(X0 + X1,0,X2);
+...
+kunmap_atomic(X12,KM_USER0);
+-------------------
+X8=kmap_atomic(X9,KM_USER0);
+...
+memset(X0 + X1,0,X2);
+...
+flush_dcache_page(X10);
+-------------------
+flush_dcache_page(X10);
+-------------------
+kunmap_atomic(X12,KM_USER0);
+-------------------
+[Main] inferring strongest meta-var bindings [s[49m0/14[0m[u[s[49m1/14[0m[u[s[49m2/14[0m[u[s[49m3/14[0m[u[s[49m4/14[0m[u[s[49m5/14[0m[u[s[49m6/14[0m[u[s[49m7/14[0m[u[s[49m8/14[0m[u[s[49m9/14[0m[u[s[49m10/14[0m[u[s[49m11/14[0m[u[s[49m12/14[0m[u[s[49m13/14[0m[u
+[Main] now removing duplicates
+[Main] looking for changed patterns
+kunmap_atomic(kaddr@do_lo_send_aops,KM_USER0);
+memset(kaddr@do_lo_send_aops + offset@do_lo_send_aops,0,size@do_lo_send_aops);
+kaddr@do_lo_send_aops=kmap_atomic(page@do_lo_send_aops,KM_USER0);
+char *  kaddr@do_lo_send_aops;
+kunmap_atomic(kaddr@memclear_highpage_flush,KM_USER0);
+flush_dcache_page(page@memclear_highpage_flush);
+memset((char * )kaddr@memclear_highpage_flush + offset@memclear_highpage_flush,0,size@memclear_highpage_flush);
+kaddr@memclear_highpage_flush=kmap_atomic(page@memclear_highpage_flush,KM_USER0);
+void *  kaddr@memclear_highpage_flush;
+flush_dcache_page(page@xip_truncate_page);
+kunmap_atomic(kaddr@xip_truncate_page,KM_USER0);
+memset(kaddr@xip_truncate_page + offset@xip_truncate_page,0,length@xip_truncate_page);
+kaddr@xip_truncate_page=kmap_atomic(page@xip_truncate_page,KM_USER0);
+void *  kaddr@xip_truncate_page;
+kunmap_atomic(kaddr@do_direct_IO,KM_USER0);
+flush_dcache_page(page@do_direct_IO);
+memset(kaddr@do_direct_IO + block_in_page@do_direct_IO << blkbits@do_direct_IO,0,1 << blkbits@do_direct_IO);
+kaddr@do_direct_IO=kmap_atomic(page@do_direct_IO,KM_USER0);
+char *  kaddr@do_direct_IO;
+[Main] *Common* patterns found:
+[[[
+X8=kmap_atomic(X10,KM_USER0);
+...
+memset(X0 + X1,0,X2);
+...
+flush_dcache_page(X10);
+]]]
+ do_direct_IO xip_truncate_page memclear_highpage_flush do_lo_send_aops
+[[[
+X12=kmap_atomic(X9,KM_USER0);
+...
+memset(X0 + X1,0,X2);
+...
+kunmap_atomic(X12,KM_USER0);
+]]]
+ do_direct_IO xip_truncate_page memclear_highpage_flush do_lo_send_aops
+[[[
+X6 *  X5;
+...
+memset(X0 + X1,0,X2);
+...
+flush_dcache_page(X10);
+]]]
+ do_direct_IO xip_truncate_page memclear_highpage_flush do_lo_send_aops
+[[[
+X11 *  X12;
+...
+memset(X0 + X1,0,X2);
+...
+kunmap_atomic(X12,KM_USER0);
+]]]
+ do_direct_IO xip_truncate_page memclear_highpage_flush do_lo_send_aops
+[[[
+X6 *  X5;
+...
+X8=kmap_atomic(X10,KM_USER0);
+...
+memset(X0 + X1,0,X2);
+...
+flush_dcache_page(X10);
+]]]
+ do_direct_IO xip_truncate_page memclear_highpage_flush do_lo_send_aops
+[[[
+X6 *  X5;
+...
+X12=kmap_atomic(X9,KM_USER0);
+...
+memset(X0 + X1,0,X2);
+...
+kunmap_atomic(X12,KM_USER0);
+]]]
+ do_direct_IO xip_truncate_page memclear_highpage_flush do_lo_send_aops
+[[[
+head:def[def[X3,X4,{};]]
+...
+memset(X0 + X1,0,X2);
+...
+flush_dcache_page(X10);
+]]]
+ do_direct_IO xip_truncate_page memclear_highpage_flush do_lo_send_aops
+[[[
+head:def[def[X3,X4,{};]]
+...
+memset(X0 + X1,0,X2);
+...
+kunmap_atomic(X12,KM_USER0);
+]]]
+ do_direct_IO xip_truncate_page memclear_highpage_flush do_lo_send_aops
+[[[
+head:def[def[X3,X4,{};]]
+...
+X6 *  X5;
+...
+memset(X0 + X1,0,X2);
+...
+flush_dcache_page(X10);
+]]]
+ do_direct_IO xip_truncate_page memclear_highpage_flush do_lo_send_aops
+[[[
+head:def[def[X3,X4,{};]]
+...
+X6 *  X5;
+...
+X8=kmap_atomic(X10,KM_USER0);
+...
+memset(X0 + X1,0,X2);
+...
+flush_dcache_page(X10);
+]]]
+ do_direct_IO xip_truncate_page memclear_highpage_flush do_lo_send_aops
+[[[
+head:def[def[X3,X4,{};]]
+...
+X6 *  X5;
+...
+X12=kmap_atomic(X9,KM_USER0);
+...
+memset(X0 + X1,0,X2);
+...
+kunmap_atomic(X12,KM_USER0);
+]]]
+ do_direct_IO xip_truncate_page memclear_highpage_flush do_lo_send_aops
+[[[
+flush_dcache_page(X10);
+]]]
+ do_direct_IO xip_truncate_page memclear_highpage_flush do_lo_send_aops
+[[[
+kunmap_atomic(X12,KM_USER0);
+]]]
+ do_direct_IO xip_truncate_page memclear_highpage_flush do_lo_send_aops
+[Main] finding chunks based on 13 patterns
+[Main] getting initial chunks |flow_changes| = 4
+[s[49m0/4[0m[u[s[49m1/4[0m[u[s[49m2/4[0m[u[s[49m3/4[0m[u[Main] extracting the good chunks (initial: 26)
+[Main] good chunks (19)
+[Chunk]
+RM:  kunmap_atomic(kaddr@do_direct_IO,KM_USER0);
+[End]
+[Chunk]
+ADD:  zero_user_page(page@do_direct_IO,block_in_page@do_direct_IO << blkbits@do_direct_IO,1 << blkbits@do_direct_IO,KM_USER0);
+RM:  flush_dcache_page(page@do_direct_IO);
+[End]
+[Chunk]
+RM:  memset(kaddr@do_direct_IO + block_in_page@do_direct_IO << blkbits@do_direct_IO,0,1 << blkbits@do_direct_IO);
+ADD:  zero_user_page(page@do_direct_IO,block_in_page@do_direct_IO << blkbits@do_direct_IO,1 << blkbits@do_direct_IO,KM_USER0);
+[End]
+[Chunk]
+RM:  kaddr@do_direct_IO=kmap_atomic(page@do_direct_IO,KM_USER0);
+[End]
+[Chunk]
+RM:  char *  kaddr@do_direct_IO;
+[End]
+[Chunk]
+RM:  flush_dcache_page(page@xip_truncate_page);
+[End]
+[Chunk]
+ADD:  zero_user_page(page@xip_truncate_page,offset@xip_truncate_page,length@xip_truncate_page,KM_USER0);
+RM:  kunmap_atomic(kaddr@xip_truncate_page,KM_USER0);
+[End]
+[Chunk]
+RM:  memset(kaddr@xip_truncate_page + offset@xip_truncate_page,0,length@xip_truncate_page);
+ADD:  zero_user_page(page@xip_truncate_page,offset@xip_truncate_page,length@xip_truncate_page,KM_USER0);
+[End]
+[Chunk]
+RM:  kaddr@xip_truncate_page=kmap_atomic(page@xip_truncate_page,KM_USER0);
+[End]
+[Chunk]
+RM:  void *  kaddr@xip_truncate_page;
+[End]
+[Chunk]
+RM:  kunmap_atomic(kaddr@memclear_highpage_flush,KM_USER0);
+[End]
+[Chunk]
+ADD:  zero_user_page(page@memclear_highpage_flush,offset@memclear_highpage_flush,size@memclear_highpage_flush,KM_USER0);
+RM:  flush_dcache_page(page@memclear_highpage_flush);
+[End]
+[Chunk]
+RM:  memset((char * )kaddr@memclear_highpage_flush + offset@memclear_highpage_flush,0,size@memclear_highpage_flush);
+ADD:  zero_user_page(page@memclear_highpage_flush,offset@memclear_highpage_flush,size@memclear_highpage_flush,KM_USER0);
+[End]
+[Chunk]
+RM:  kaddr@memclear_highpage_flush=kmap_atomic(page@memclear_highpage_flush,KM_USER0);
+[End]
+[Chunk]
+RM:  void *  kaddr@memclear_highpage_flush;
+[End]
+[Chunk]
+ADD:  zero_user_page(page@do_lo_send_aops,offset@do_lo_send_aops,size@do_lo_send_aops,KM_USER0);
+RM:  kunmap_atomic(kaddr@do_lo_send_aops,KM_USER0);
+[End]
+[Chunk]
+RM:  memset(kaddr@do_lo_send_aops + offset@do_lo_send_aops,0,size@do_lo_send_aops);
+ADD:  zero_user_page(page@do_lo_send_aops,offset@do_lo_send_aops,size@do_lo_send_aops,KM_USER0);
+[End]
+[Chunk]
+RM:  kaddr@do_lo_send_aops=kmap_atomic(page@do_lo_send_aops,KM_USER0);
+[End]
+[Chunk]
+RM:  char *  kaddr@do_lo_send_aops;
+[End]
+[Main] exploding the chunks
+[Main] constructing s.patches
+[main] There are 13 patterns to consider
+[Main] getting missed RHS bindings
+[Main] filtering safe semantic patches (1538) ... [s[49m0/1538[0m[u[s[49m1/1538[0m[u[s[49m2/1538[0m[u[s[49m3/1538[0m[u[s[49m4/1538[0m[u[s[49m5/1538[0m[u[s[49m6/1538[0m[u[s[49m7/1538[0m[u[s[49m8/1538[0m[u[s[49m9/1538[0m[u[s[49m10/1538[0m[u[s[49m11/1538[0m[u[s[49m12/1538[0m[u[s[49m13/1538[0m[u[s[49m14/1538[0m[u[s[49m15/1538[0m[u[s[49m16/1538[0m[u[s[49m17/1538[0m[u[s[49m18/1538[0m[u[s[49m19/1538[0m[u[s[49m20/1538[0m[u[s[49m21/1538[0m[u[s[49m22/1538[0m[u[s[49m23/1538[0m[u[s[49m24/1538[0m[u[s[49m25/1538[0m[u[s[49m26/1538[0m[u[s[49m27/1538[0m[u[s[49m28/1538[0m[u[s[49m29/1538[0m[u[s[49m30/1538[0m[u[s[49m31/1538[0m[u[s[49m32/1538[0m[u[s[49m33/1538[0m[u[s[49m34/1538[0m[u[s[49m35/1538[0m[u[s[49m36/1538[0m[u[s[49m37/1538[0m[u[s[49m38/1538[0m[u[s[49m39/1538[0m[u[s[49m40/1538[0m[u[s[49m41/1538[0m[u[s[49m42/1538[0m[u[s[49m43/1538[0m[u[s[49m44/1538[0m[u[s[49m45/1538[0m[u[s[49m46/1538[0m[u[s[49m47/1538[0m[u[s[49m48/1538[0m[u[s[49m49/1538[0m[u[s[49m50/1538[0m[u[s[49m51/1538[0m[u[s[49m52/1538[0m[u[s[49m53/1538[0m[u[s[49m54/1538[0m[u[s[49m55/1538[0m[u[s[49m56/1538[0m[u[s[49m57/1538[0m[u[s[49m58/1538[0m[u[s[49m59/1538[0m[u[s[49m60/1538[0m[u[s[49m61/1538[0m[u[s[49m62/1538[0m[u[s[49m63/1538[0m[u[s[49m64/1538[0m[u[s[49m65/1538[0m[u[s[49m66/1538[0m[u[s[49m67/1538[0m[u[s[49m68/1538[0m[u[s[49m69/1538[0m[u[s[49m70/1538[0m[u[s[49m71/1538[0m[u[s[49m72/1538[0m[u[s[49m73/1538[0m[u[s[49m74/1538[0m[u[s[49m75/1538[0m[u[s[49m76/1538[0m[u[s[49m77/1538[0m[u[s[49m78/1538[0m[u[s[49m79/1538[0m[u[s[49m80/1538[0m[u[s[49m81/1538[0m[u[s[49m82/1538[0m[u[s[49m83/1538[0m[u[s[49m84/1538[0m[u[s[49m85/1538[0m[u[s[49m86/1538[0m[u[s[49m87/1538[0m[u[s[49m88/1538[0m[u[s[49m89/1538[0m[u[s[49m90/1538[0m[u[s[49m91/1538[0m[u[s[49m92/1538[0m[u[s[49m93/1538[0m[u[s[49m94/1538[0m[u[s[49m95/1538[0m[u[s[49m96/1538[0m[u[s[49m97/1538[0m[u[s[49m98/1538[0m[u[s[49m99/1538[0m[u[s[49m100/1538[0m[u[s[49m101/1538[0m[u[s[49m102/1538[0m[u[s[49m103/1538[0m[u[s[49m104/1538[0m[u[s[49m105/1538[0m[u[s[49m106/1538[0m[u[s[49m107/1538[0m[u[s[49m108/1538[0m[u[s[49m109/1538[0m[u[s[49m110/1538[0m[u[s[49m111/1538[0m[u[s[49m112/1538[0m[u[s[49m113/1538[0m[u[s[49m114/1538[0m[u[s[49m115/1538[0m[u[s[49m116/1538[0m[u[s[49m117/1538[0m[u[s[49m118/1538[0m[u[s[49m119/1538[0m[u[s[49m120/1538[0m[u[s[49m121/1538[0m[u[s[49m122/1538[0m[u[s[49m123/1538[0m[u[s[49m124/1538[0m[u[s[49m125/1538[0m[u[s[49m126/1538[0m[u[s[49m127/1538[0m[u[s[49m128/1538[0m[u[s[49m129/1538[0m[u[s[49m130/1538[0m[u[s[49m131/1538[0m[u[s[49m132/1538[0m[u[s[49m133/1538[0m[u[s[49m134/1538[0m[u[s[49m135/1538[0m[u[s[49m136/1538[0m[u[s[49m137/1538[0m[u[s[49m138/1538[0m[u[s[49m139/1538[0m[u[s[49m140/1538[0m[u[s[49m141/1538[0m[u[s[49m142/1538[0m[u[s[49m143/1538[0m[u[s[49m144/1538[0m[u[s[49m145/1538[0m[u[s[49m146/1538[0m[u[s[49m147/1538[0m[u[s[49m148/1538[0m[u[s[49m149/1538[0m[u[s[49m150/1538[0m[u[s[49m151/1538[0m[u[s[49m152/1538[0m[u[s[49m153/1538[0m[u[s[49m154/1538[0m[u[s[49m155/1538[0m[u[s[49m156/1538[0m[u[s[49m157/1538[0m[u[s[49m158/1538[0m[u[s[49m159/1538[0m[u[s[49m160/1538[0m[u[s[49m161/1538[0m[u[s[49m162/1538[0m[u[s[49m163/1538[0m[u[s[49m164/1538[0m[u[s[49m165/1538[0m[u[s[49m166/1538[0m[u[s[49m167/1538[0m[u[s[49m168/1538[0m[u[s[49m169/1538[0m[u[s[49m170/1538[0m[u[s[49m171/1538[0m[u[s[49m172/1538[0m[u[s[49m173/1538[0m[u[s[49m174/1538[0m[u[s[49m175/1538[0m[u[s[49m176/1538[0m[u[s[49m177/1538[0m[u[s[49m178/1538[0m[u[s[49m179/1538[0m[u[s[49m180/1538[0m[u[s[49m181/1538[0m[u[s[49m182/1538[0m[u[s[49m183/1538[0m[u[s[49m184/1538[0m[u[s[49m185/1538[0m[u[s[49m186/1538[0m[u[s[49m187/1538[0m[u[s[49m188/1538[0m[u[s[49m189/1538[0m[u[s[49m190/1538[0m[u[s[49m191/1538[0m[u[s[49m192/1538[0m[u[s[49m193/1538[0m[u[s[49m194/1538[0m[u[s[49m195/1538[0m[u[s[49m196/1538[0m[u[s[49m197/1538[0m[u[s[49m198/1538[0m[u[s[49m199/1538[0m[u[s[49m200/1538[0m[u[s[49m201/1538[0m[u[s[49m202/1538[0m[u[s[49m203/1538[0m[u[s[49m204/1538[0m[u[s[49m205/1538[0m[u[s[49m206/1538[0m[u[s[49m207/1538[0m[u[s[49m208/1538[0m[u[s[49m209/1538[0m[u[s[49m210/1538[0m[u[s[49m211/1538[0m[u[s[49m212/1538[0m[u[s[49m213/1538[0m[u[s[49m214/1538[0m[u[s[49m215/1538[0m[u[s[49m216/1538[0m[u[s[49m217/1538[0m[u[s[49m218/1538[0m[u[s[49m219/1538[0m[u[s[49m220/1538[0m[u[s[49m221/1538[0m[u[s[49m222/1538[0m[u[s[49m223/1538[0m[u[s[49m224/1538[0m[u[s[49m225/1538[0m[u[s[49m226/1538[0m[u[s[49m227/1538[0m[u[s[49m228/1538[0m[u[s[49m229/1538[0m[u[s[49m230/1538[0m[u[s[49m231/1538[0m[u[s[49m232/1538[0m[u[s[49m233/1538[0m[u[s[49m234/1538[0m[u[s[49m235/1538[0m[u[s[49m236/1538[0m[u[s[49m237/1538[0m[u[s[49m238/1538[0m[u[s[49m239/1538[0m[u[s[49m240/1538[0m[u[s[49m241/1538[0m[u[s[49m242/1538[0m[u[s[49m243/1538[0m[u[s[49m244/1538[0m[u[s[49m245/1538[0m[u[s[49m246/1538[0m[u[s[49m247/1538[0m[u[s[49m248/1538[0m[u[s[49m249/1538[0m[u[s[49m250/1538[0m[u[s[49m251/1538[0m[u[s[49m252/1538[0m[u[s[49m253/1538[0m[u[s[49m254/1538[0m[u[s[49m255/1538[0m[u[s[49m256/1538[0m[u[s[49m257/1538[0m[u[s[49m258/1538[0m[u[s[49m259/1538[0m[u[s[49m260/1538[0m[u[s[49m261/1538[0m[u[s[49m262/1538[0m[u[s[49m263/1538[0m[u[s[49m264/1538[0m[u[s[49m265/1538[0m[u[s[49m266/1538[0m[u[s[49m267/1538[0m[u[s[49m268/1538[0m[u[s[49m269/1538[0m[u[s[49m270/1538[0m[u[s[49m271/1538[0m[u[s[49m272/1538[0m[u[s[49m273/1538[0m[u[s[49m274/1538[0m[u[s[49m275/1538[0m[u[s[49m276/1538[0m[u[s[49m277/1538[0m[u[s[49m278/1538[0m[u[s[49m279/1538[0m[u[s[49m280/1538[0m[u[s[49m281/1538[0m[u[s[49m282/1538[0m[u[s[49m283/1538[0m[u[s[49m284/1538[0m[u[s[49m285/1538[0m[u[s[49m286/1538[0m[u[s[49m287/1538[0m[u[s[49m288/1538[0m[u[s[49m289/1538[0m[u[s[49m290/1538[0m[u[s[49m291/1538[0m[u[s[49m292/1538[0m[u[s[49m293/1538[0m[u[s[49m294/1538[0m[u[s[49m295/1538[0m[u[s[49m296/1538[0m[u[s[49m297/1538[0m[u[s[49m298/1538[0m[u[s[49m299/1538[0m[u[s[49m300/1538[0m[u[s[49m301/1538[0m[u[s[49m302/1538[0m[u[s[49m303/1538[0m[u[s[49m304/1538[0m[u[s[49m305/1538[0m[u[s[49m306/1538[0m[u[s[49m307/1538[0m[u[s[49m308/1538[0m[u[s[49m309/1538[0m[u[s[49m310/1538[0m[u[s[49m311/1538[0m[u[s[49m312/1538[0m[u[s[49m313/1538[0m[u[s[49m314/1538[0m[u[s[49m315/1538[0m[u[s[49m316/1538[0m[u[s[49m317/1538[0m[u[s[49m318/1538[0m[u[s[49m319/1538[0m[u[s[49m320/1538[0m[u[s[49m321/1538[0m[u[s[49m322/1538[0m[u[s[49m323/1538[0m[u[s[49m324/1538[0m[u[s[49m325/1538[0m[u[s[49m326/1538[0m[u[s[49m327/1538[0m[u[s[49m328/1538[0m[u[s[49m329/1538[0m[u[s[49m330/1538[0m[u[s[49m331/1538[0m[u[s[49m332/1538[0m[u[s[49m333/1538[0m[u[s[49m334/1538[0m[u[s[49m335/1538[0m[u[s[49m336/1538[0m[u[s[49m337/1538[0m[u[s[49m338/1538[0m[u[s[49m339/1538[0m[u[s[49m340/1538[0m[u[s[49m341/1538[0m[u[s[49m342/1538[0m[u[s[49m343/1538[0m[u[s[49m344/1538[0m[u[s[49m345/1538[0m[u[s[49m346/1538[0m[u[s[49m347/1538[0m[u[s[49m348/1538[0m[u[s[49m349/1538[0m[u[s[49m350/1538[0m[u[s[49m351/1538[0m[u[s[49m352/1538[0m[u[s[49m353/1538[0m[u[s[49m354/1538[0m[u[s[49m355/1538[0m[u[s[49m356/1538[0m[u[s[49m357/1538[0m[u[s[49m358/1538[0m[u[s[49m359/1538[0m[u[s[49m360/1538[0m[u[s[49m361/1538[0m[u[s[49m362/1538[0m[u[s[49m363/1538[0m[u[s[49m364/1538[0m[u[s[49m365/1538[0m[u[s[49m366/1538[0m[u[s[49m367/1538[0m[u[s[49m368/1538[0m[u[s[49m369/1538[0m[u[s[49m370/1538[0m[u[s[49m371/1538[0m[u[s[49m372/1538[0m[u[s[49m373/1538[0m[u[s[49m374/1538[0m[u[s[49m375/1538[0m[u[s[49m376/1538[0m[u[s[49m377/1538[0m[u[s[49m378/1538[0m[u[s[49m379/1538[0m[u[s[49m380/1538[0m[u[s[49m381/1538[0m[u[s[49m382/1538[0m[u[s[49m383/1538[0m[u[s[49m384/1538[0m[u[s[49m385/1538[0m[u[s[49m386/1538[0m[u[s[49m387/1538[0m[u[s[49m388/1538[0m[u[s[49m389/1538[0m[u[s[49m390/1538[0m[u[s[49m391/1538[0m[u[s[49m392/1538[0m[u[s[49m393/1538[0m[u[s[49m394/1538[0m[u[s[49m395/1538[0m[u[s[49m396/1538[0m[u[s[49m397/1538[0m[u[s[49m398/1538[0m[u[s[49m399/1538[0m[u[s[49m400/1538[0m[u[s[49m401/1538[0m[u[s[49m402/1538[0m[u[s[49m403/1538[0m[u[s[49m404/1538[0m[u[s[49m405/1538[0m[u[s[49m406/1538[0m[u[s[49m407/1538[0m[u[s[49m408/1538[0m[u[s[49m409/1538[0m[u[s[49m410/1538[0m[u[s[49m411/1538[0m[u[s[49m412/1538[0m[u[s[49m413/1538[0m[u[s[49m414/1538[0m[u[s[49m415/1538[0m[u[s[49m416/1538[0m[u[s[49m417/1538[0m[u[s[49m418/1538[0m[u[s[49m419/1538[0m[u[s[49m420/1538[0m[u[s[49m421/1538[0m[u[s[49m422/1538[0m[u[s[49m423/1538[0m[u[s[49m424/1538[0m[u[s[49m425/1538[0m[u[s[49m426/1538[0m[u[s[49m427/1538[0m[u[s[49m428/1538[0m[u[s[49m429/1538[0m[u[s[49m430/1538[0m[u[s[49m431/1538[0m[u[s[49m432/1538[0m[u[s[49m433/1538[0m[u[s[49m434/1538[0m[u[s[49m435/1538[0m[u[s[49m436/1538[0m[u[s[49m437/1538[0m[u[s[49m438/1538[0m[u[s[49m439/1538[0m[u[s[49m440/1538[0m[u[s[49m441/1538[0m[u[s[49m442/1538[0m[u[s[49m443/1538[0m[u[s[49m444/1538[0m[u[s[49m445/1538[0m[u[s[49m446/1538[0m[u[s[49m447/1538[0m[u[s[49m448/1538[0m[u[s[49m449/1538[0m[u[s[49m450/1538[0m[u[s[49m451/1538[0m[u[s[49m452/1538[0m[u[s[49m453/1538[0m[u[s[49m454/1538[0m[u[s[49m455/1538[0m[u[s[49m456/1538[0m[u[s[49m457/1538[0m[u[s[49m458/1538[0m[u[s[49m459/1538[0m[u[s[49m460/1538[0m[u[s[49m461/1538[0m[u[s[49m462/1538[0m[u[s[49m463/1538[0m[u[s[49m464/1538[0m[u[s[49m465/1538[0m[u[s[49m466/1538[0m[u[s[49m467/1538[0m[u[s[49m468/1538[0m[u[s[49m469/1538[0m[u[s[49m470/1538[0m[u[s[49m471/1538[0m[u[s[49m472/1538[0m[u[s[49m473/1538[0m[u[s[49m474/1538[0m[u[s[49m475/1538[0m[u[s[49m476/1538[0m[u[s[49m477/1538[0m[u[s[49m478/1538[0m[u[s[49m479/1538[0m[u[s[49m480/1538[0m[u[s[49m481/1538[0m[u[s[49m482/1538[0m[u[s[49m483/1538[0m[u[s[49m484/1538[0m[u[s[49m485/1538[0m[u[s[49m486/1538[0m[u[s[49m487/1538[0m[u[s[49m488/1538[0m[u[s[49m489/1538[0m[u[s[49m490/1538[0m[u[s[49m491/1538[0m[u[s[49m492/1538[0m[u[s[49m493/1538[0m[u[s[49m494/1538[0m[u[s[49m495/1538[0m[u[s[49m496/1538[0m[u[s[49m497/1538[0m[u[s[49m498/1538[0m[u[s[49m499/1538[0m[u[s[49m500/1538[0m[u[s[49m501/1538[0m[u[s[49m502/1538[0m[u[s[49m503/1538[0m[u[s[49m504/1538[0m[u[s[49m505/1538[0m[u[s[49m506/1538[0m[u[s[49m507/1538[0m[u[s[49m508/1538[0m[u[s[49m509/1538[0m[u[s[49m510/1538[0m[u[s[49m511/1538[0m[u[s[49m512/1538[0m[u[s[49m513/1538[0m[u[s[49m514/1538[0m[u[s[49m515/1538[0m[u[s[49m516/1538[0m[u[s[49m517/1538[0m[u[s[49m518/1538[0m[u[s[49m519/1538[0m[u[s[49m520/1538[0m[u[s[49m521/1538[0m[u[s[49m522/1538[0m[u[s[49m523/1538[0m[u[s[49m524/1538[0m[u[s[49m525/1538[0m[u[s[49m526/1538[0m[u[s[49m527/1538[0m[u[s[49m528/1538[0m[u[s[49m529/1538[0m[u[s[49m530/1538[0m[u[s[49m531/1538[0m[u[s[49m532/1538[0m[u[s[49m533/1538[0m[u[s[49m534/1538[0m[u[s[49m535/1538[0m[u[s[49m536/1538[0m[u[s[49m537/1538[0m[u[s[49m538/1538[0m[u[s[49m539/1538[0m[u[s[49m540/1538[0m[u[s[49m541/1538[0m[u[s[49m542/1538[0m[u[s[49m543/1538[0m[u[s[49m544/1538[0m[u[s[49m545/1538[0m[u[s[49m546/1538[0m[u[s[49m547/1538[0m[u[s[49m548/1538[0m[u[s[49m549/1538[0m[u[s[49m550/1538[0m[u[s[49m551/1538[0m[u[s[49m552/1538[0m[u[s[49m553/1538[0m[u[s[49m554/1538[0m[u[s[49m555/1538[0m[u[s[49m556/1538[0m[u[s[49m557/1538[0m[u[s[49m558/1538[0m[u[s[49m559/1538[0m[u[s[49m560/1538[0m[u[s[49m561/1538[0m[u[s[49m562/1538[0m[u[s[49m563/1538[0m[u[s[49m564/1538[0m[u[s[49m565/1538[0m[u[s[49m566/1538[0m[u[s[49m567/1538[0m[u[s[49m568/1538[0m[u[s[49m569/1538[0m[u[s[49m570/1538[0m[u[s[49m571/1538[0m[u[s[49m572/1538[0m[u[s[49m573/1538[0m[u[s[49m574/1538[0m[u[s[49m575/1538[0m[u[s[49m576/1538[0m[u[s[49m577/1538[0m[u[s[49m578/1538[0m[u[s[49m579/1538[0m[u[s[49m580/1538[0m[u[s[49m581/1538[0m[u[s[49m582/1538[0m[u[s[49m583/1538[0m[u[s[49m584/1538[0m[u[s[49m585/1538[0m[u[s[49m586/1538[0m[u[s[49m587/1538[0m[u[s[49m588/1538[0m[u[s[49m589/1538[0m[u[s[49m590/1538[0m[u[s[49m591/1538[0m[u[s[49m592/1538[0m[u[s[49m593/1538[0m[u[s[49m594/1538[0m[u[s[49m595/1538[0m[u[s[49m596/1538[0m[u[s[49m597/1538[0m[u[s[49m598/1538[0m[u[s[49m599/1538[0m[u[s[49m600/1538[0m[u[s[49m601/1538[0m[u[s[49m602/1538[0m[u[s[49m603/1538[0m[u[s[49m604/1538[0m[u[s[49m605/1538[0m[u[s[49m606/1538[0m[u[s[49m607/1538[0m[u[s[49m608/1538[0m[u[s[49m609/1538[0m[u[s[49m610/1538[0m[u[s[49m611/1538[0m[u[s[49m612/1538[0m[u[s[49m613/1538[0m[u[s[49m614/1538[0m[u[s[49m615/1538[0m[u[s[49m616/1538[0m[u[s[49m617/1538[0m[u[s[49m618/1538[0m[u[s[49m619/1538[0m[u[s[49m620/1538[0m[u[s[49m621/1538[0m[u[s[49m622/1538[0m[u[s[49m623/1538[0m[u[s[49m624/1538[0m[u[s[49m625/1538[0m[u[s[49m626/1538[0m[u[s[49m627/1538[0m[u[s[49m628/1538[0m[u[s[49m629/1538[0m[u[s[49m630/1538[0m[u[s[49m631/1538[0m[u[s[49m632/1538[0m[u[s[49m633/1538[0m[u[s[49m634/1538[0m[u[s[49m635/1538[0m[u[s[49m636/1538[0m[u[s[49m637/1538[0m[u[s[49m638/1538[0m[u[s[49m639/1538[0m[u[s[49m640/1538[0m[u[s[49m641/1538[0m[u[s[49m642/1538[0m[u[s[49m643/1538[0m[u[s[49m644/1538[0m[u[s[49m645/1538[0m[u[s[49m646/1538[0m[u[s[49m647/1538[0m[u[s[49m648/1538[0m[u[s[49m649/1538[0m[u[s[49m650/1538[0m[u[s[49m651/1538[0m[u[s[49m652/1538[0m[u[s[49m653/1538[0m[u[s[49m654/1538[0m[u[s[49m655/1538[0m[u[s[49m656/1538[0m[u[s[49m657/1538[0m[u[s[49m658/1538[0m[u[s[49m659/1538[0m[u[s[49m660/1538[0m[u[s[49m661/1538[0m[u[s[49m662/1538[0m[u[s[49m663/1538[0m[u[s[49m664/1538[0m[u[s[49m665/1538[0m[u[s[49m666/1538[0m[u[s[49m667/1538[0m[u[s[49m668/1538[0m[u[s[49m669/1538[0m[u[s[49m670/1538[0m[u[s[49m671/1538[0m[u[s[49m672/1538[0m[u[s[49m673/1538[0m[u[s[49m674/1538[0m[u[s[49m675/1538[0m[u[s[49m676/1538[0m[u[s[49m677/1538[0m[u[s[49m678/1538[0m[u[s[49m679/1538[0m[u[s[49m680/1538[0m[u[s[49m681/1538[0m[u[s[49m682/1538[0m[u[s[49m683/1538[0m[u[s[49m684/1538[0m[u[s[49m685/1538[0m[u[s[49m686/1538[0m[u[s[49m687/1538[0m[u[s[49m688/1538[0m[u[s[49m689/1538[0m[u[s[49m690/1538[0m[u[s[49m691/1538[0m[u[s[49m692/1538[0m[u[s[49m693/1538[0m[u[s[49m694/1538[0m[u[s[49m695/1538[0m[u[s[49m696/1538[0m[u[s[49m697/1538[0m[u[s[49m698/1538[0m[u[s[49m699/1538[0m[u[s[49m700/1538[0m[u[s[49m701/1538[0m[u[s[49m702/1538[0m[u[s[49m703/1538[0m[u[s[49m704/1538[0m[u[s[49m705/1538[0m[u[s[49m706/1538[0m[u[s[49m707/1538[0m[u[s[49m708/1538[0m[u[s[49m709/1538[0m[u[s[49m710/1538[0m[u[s[49m711/1538[0m[u[s[49m712/1538[0m[u[s[49m713/1538[0m[u[s[49m714/1538[0m[u[s[49m715/1538[0m[u[s[49m716/1538[0m[u[s[49m717/1538[0m[u[s[49m718/1538[0m[u[s[49m719/1538[0m[u[s[49m720/1538[0m[u[s[49m721/1538[0m[u[s[49m722/1538[0m[u[s[49m723/1538[0m[u[s[49m724/1538[0m[u[s[49m725/1538[0m[u[s[49m726/1538[0m[u[s[49m727/1538[0m[u[s[49m728/1538[0m[u[s[49m729/1538[0m[u[s[49m730/1538[0m[u[s[49m731/1538[0m[u[s[49m732/1538[0m[u[s[49m733/1538[0m[u[s[49m734/1538[0m[u[s[49m735/1538[0m[u[s[49m736/1538[0m[u[s[49m737/1538[0m[u[s[49m738/1538[0m[u[s[49m739/1538[0m[u[s[49m740/1538[0m[u[s[49m741/1538[0m[u[s[49m742/1538[0m[u[s[49m743/1538[0m[u[s[49m744/1538[0m[u[s[49m745/1538[0m[u[s[49m746/1538[0m[u[s[49m747/1538[0m[u[s[49m748/1538[0m[u[s[49m749/1538[0m[u[s[49m750/1538[0m[u[s[49m751/1538[0m[u[s[49m752/1538[0m[u[s[49m753/1538[0m[u[s[49m754/1538[0m[u[s[49m755/1538[0m[u[s[49m756/1538[0m[u[s[49m757/1538[0m[u[s[49m758/1538[0m[u[s[49m759/1538[0m[u[s[49m760/1538[0m[u[s[49m761/1538[0m[u[s[49m762/1538[0m[u[s[49m763/1538[0m[u[s[49m764/1538[0m[u[s[49m765/1538[0m[u[s[49m766/1538[0m[u[s[49m767/1538[0m[u[s[49m768/1538[0m[u[s[49m769/1538[0m[u[s[49m770/1538[0m[u[s[49m771/1538[0m[u[s[49m772/1538[0m[u[s[49m773/1538[0m[u[s[49m774/1538[0m[u[s[49m775/1538[0m[u[s[49m776/1538[0m[u[s[49m777/1538[0m[u[s[49m778/1538[0m[u[s[49m779/1538[0m[u[s[49m780/1538[0m[u[s[49m781/1538[0m[u[s[49m782/1538[0m[u[s[49m783/1538[0m[u[s[49m784/1538[0m[u[s[49m785/1538[0m[u[s[49m786/1538[0m[u[s[49m787/1538[0m[u[s[49m788/1538[0m[u[s[49m789/1538[0m[u[s[49m790/1538[0m[u[s[49m791/1538[0m[u[s[49m792/1538[0m[u[s[49m793/1538[0m[u[s[49m794/1538[0m[u[s[49m795/1538[0m[u[s[49m796/1538[0m[u[s[49m797/1538[0m[u[s[49m798/1538[0m[u[s[49m799/1538[0m[u[s[49m800/1538[0m[u[s[49m801/1538[0m[u[s[49m802/1538[0m[u[s[49m803/1538[0m[u[s[49m804/1538[0m[u[s[49m805/1538[0m[u[s[49m806/1538[0m[u[s[49m807/1538[0m[u[s[49m808/1538[0m[u[s[49m809/1538[0m[u[s[49m810/1538[0m[u[s[49m811/1538[0m[u[s[49m812/1538[0m[u[s[49m813/1538[0m[u[s[49m814/1538[0m[u[s[49m815/1538[0m[u[s[49m816/1538[0m[u[s[49m817/1538[0m[u[s[49m818/1538[0m[u[s[49m819/1538[0m[u[s[49m820/1538[0m[u[s[49m821/1538[0m[u[s[49m822/1538[0m[u[s[49m823/1538[0m[u[s[49m824/1538[0m[u[s[49m825/1538[0m[u[s[49m826/1538[0m[u[s[49m827/1538[0m[u[s[49m828/1538[0m[u[s[49m829/1538[0m[u[s[49m830/1538[0m[u[s[49m831/1538[0m[u[s[49m832/1538[0m[u[s[49m833/1538[0m[u[s[49m834/1538[0m[u[s[49m835/1538[0m[u[s[49m836/1538[0m[u[s[49m837/1538[0m[u[s[49m838/1538[0m[u[s[49m839/1538[0m[u[s[49m840/1538[0m[u[s[49m841/1538[0m[u[s[49m842/1538[0m[u[s[49m843/1538[0m[u[s[49m844/1538[0m[u[s[49m845/1538[0m[u[s[49m846/1538[0m[u[s[49m847/1538[0m[u[s[49m848/1538[0m[u[s[49m849/1538[0m[u[s[49m850/1538[0m[u[s[49m851/1538[0m[u[s[49m852/1538[0m[u[s[49m853/1538[0m[u[s[49m854/1538[0m[u[s[49m855/1538[0m[u[s[49m856/1538[0m[u[s[49m857/1538[0m[u[s[49m858/1538[0m[u[s[49m859/1538[0m[u[s[49m860/1538[0m[u[s[49m861/1538[0m[u[s[49m862/1538[0m[u[s[49m863/1538[0m[u[s[49m864/1538[0m[u[s[49m865/1538[0m[u[s[49m866/1538[0m[u[s[49m867/1538[0m[u[s[49m868/1538[0m[u[s[49m869/1538[0m[u[s[49m870/1538[0m[u[s[49m871/1538[0m[u[s[49m872/1538[0m[u[s[49m873/1538[0m[u[s[49m874/1538[0m[u[s[49m875/1538[0m[u[s[49m876/1538[0m[u[s[49m877/1538[0m[u[s[49m878/1538[0m[u[s[49m879/1538[0m[u[s[49m880/1538[0m[u[s[49m881/1538[0m[u[s[49m882/1538[0m[u[s[49m883/1538[0m[u[s[49m884/1538[0m[u[s[49m885/1538[0m[u[s[49m886/1538[0m[u[s[49m887/1538[0m[u[s[49m888/1538[0m[u[s[49m889/1538[0m[u[s[49m890/1538[0m[u[s[49m891/1538[0m[u[s[49m892/1538[0m[u[s[49m893/1538[0m[u[s[49m894/1538[0m[u[s[49m895/1538[0m[u[s[49m896/1538[0m[u[s[49m897/1538[0m[u[s[49m898/1538[0m[u[s[49m899/1538[0m[u[s[49m900/1538[0m[u[s[49m901/1538[0m[u[s[49m902/1538[0m[u[s[49m903/1538[0m[u[s[49m904/1538[0m[u[s[49m905/1538[0m[u[s[49m906/1538[0m[u[s[49m907/1538[0m[u[s[49m908/1538[0m[u[s[49m909/1538[0m[u[s[49m910/1538[0m[u[s[49m911/1538[0m[u[s[49m912/1538[0m[u[s[49m913/1538[0m[u[s[49m914/1538[0m[u[s[49m915/1538[0m[u[s[49m916/1538[0m[u[s[49m917/1538[0m[u[s[49m918/1538[0m[u[s[49m919/1538[0m[u[s[49m920/1538[0m[u[s[49m921/1538[0m[u[s[49m922/1538[0m[u[s[49m923/1538[0m[u[s[49m924/1538[0m[u[s[49m925/1538[0m[u[s[49m926/1538[0m[u[s[49m927/1538[0m[u[s[49m928/1538[0m[u[s[49m929/1538[0m[u[s[49m930/1538[0m[u[s[49m931/1538[0m[u[s[49m932/1538[0m[u[s[49m933/1538[0m[u[s[49m934/1538[0m[u[s[49m935/1538[0m[u[s[49m936/1538[0m[u[s[49m937/1538[0m[u[s[49m938/1538[0m[u[s[49m939/1538[0m[u[s[49m940/1538[0m[u[s[49m941/1538[0m[u[s[49m942/1538[0m[u[s[49m943/1538[0m[u[s[49m944/1538[0m[u[s[49m945/1538[0m[u[s[49m946/1538[0m[u[s[49m947/1538[0m[u[s[49m948/1538[0m[u[s[49m949/1538[0m[u[s[49m950/1538[0m[u[s[49m951/1538[0m[u[s[49m952/1538[0m[u[s[49m953/1538[0m[u[s[49m954/1538[0m[u[s[49m955/1538[0m[u[s[49m956/1538[0m[u[s[49m957/1538[0m[u[s[49m958/1538[0m[u[s[49m959/1538[0m[u[s[49m960/1538[0m[u[s[49m961/1538[0m[u[s[49m962/1538[0m[u[s[49m963/1538[0m[u[s[49m964/1538[0m[u[s[49m965/1538[0m[u[s[49m966/1538[0m[u[s[49m967/1538[0m[u[s[49m968/1538[0m[u[s[49m969/1538[0m[u[s[49m970/1538[0m[u[s[49m971/1538[0m[u[s[49m972/1538[0m[u[s[49m973/1538[0m[u[s[49m974/1538[0m[u[s[49m975/1538[0m[u[s[49m976/1538[0m[u[s[49m977/1538[0m[u[s[49m978/1538[0m[u[s[49m979/1538[0m[u[s[49m980/1538[0m[u[s[49m981/1538[0m[u[s[49m982/1538[0m[u[s[49m983/1538[0m[u[s[49m984/1538[0m[u[s[49m985/1538[0m[u[s[49m986/1538[0m[u[s[49m987/1538[0m[u[s[49m988/1538[0m[u[s[49m989/1538[0m[u[s[49m990/1538[0m[u[s[49m991/1538[0m[u[s[49m992/1538[0m[u[s[49m993/1538[0m[u[s[49m994/1538[0m[u[s[49m995/1538[0m[u[s[49m996/1538[0m[u[s[49m997/1538[0m[u[s[49m998/1538[0m[u[s[49m999/1538[0m[u[s[49m1000/1538[0m[u[s[49m1001/1538[0m[u[s[49m1002/1538[0m[u[s[49m1003/1538[0m[u[s[49m1004/1538[0m[u[s[49m1005/1538[0m[u[s[49m1006/1538[0m[u[s[49m1007/1538[0m[u[s[49m1008/1538[0m[u[s[49m1009/1538[0m[u[s[49m1010/1538[0m[u[s[49m1011/1538[0m[u[s[49m1012/1538[0m[u[s[49m1013/1538[0m[u[s[49m1014/1538[0m[u[s[49m1015/1538[0m[u[s[49m1016/1538[0m[u[s[49m1017/1538[0m[u[s[49m1018/1538[0m[u[s[49m1019/1538[0m[u[s[49m1020/1538[0m[u[s[49m1021/1538[0m[u[s[49m1022/1538[0m[u[s[49m1023/1538[0m[u[s[49m1024/1538[0m[u[s[49m1025/1538[0m[u[s[49m1026/1538[0m[u[s[49m1027/1538[0m[u[s[49m1028/1538[0m[u[s[49m1029/1538[0m[u[s[49m1030/1538[0m[u[s[49m1031/1538[0m[u[s[49m1032/1538[0m[u[s[49m1033/1538[0m[u[s[49m1034/1538[0m[u[s[49m1035/1538[0m[u[s[49m1036/1538[0m[u[s[49m1037/1538[0m[u[s[49m1038/1538[0m[u[s[49m1039/1538[0m[u[s[49m1040/1538[0m[u[s[49m1041/1538[0m[u[s[49m1042/1538[0m[u[s[49m1043/1538[0m[u[s[49m1044/1538[0m[u[s[49m1045/1538[0m[u[s[49m1046/1538[0m[u[s[49m1047/1538[0m[u[s[49m1048/1538[0m[u[s[49m1049/1538[0m[u[s[49m1050/1538[0m[u[s[49m1051/1538[0m[u[s[49m1052/1538[0m[u[s[49m1053/1538[0m[u[s[49m1054/1538[0m[u[s[49m1055/1538[0m[u[s[49m1056/1538[0m[u[s[49m1057/1538[0m[u[s[49m1058/1538[0m[u[s[49m1059/1538[0m[u[s[49m1060/1538[0m[u[s[49m1061/1538[0m[u[s[49m1062/1538[0m[u[s[49m1063/1538[0m[u[s[49m1064/1538[0m[u[s[49m1065/1538[0m[u[s[49m1066/1538[0m[u[s[49m1067/1538[0m[u[s[49m1068/1538[0m[u[s[49m1069/1538[0m[u[s[49m1070/1538[0m[u[s[49m1071/1538[0m[u[s[49m1072/1538[0m[u[s[49m1073/1538[0m[u[s[49m1074/1538[0m[u[s[49m1075/1538[0m[u[s[49m1076/1538[0m[u[s[49m1077/1538[0m[u[s[49m1078/1538[0m[u[s[49m1079/1538[0m[u[s[49m1080/1538[0m[u[s[49m1081/1538[0m[u[s[49m1082/1538[0m[u[s[49m1083/1538[0m[u[s[49m1084/1538[0m[u[s[49m1085/1538[0m[u[s[49m1086/1538[0m[u[s[49m1087/1538[0m[u[s[49m1088/1538[0m[u[s[49m1089/1538[0m[u[s[49m1090/1538[0m[u[s[49m1091/1538[0m[u[s[49m1092/1538[0m[u[s[49m1093/1538[0m[u[s[49m1094/1538[0m[u[s[49m1095/1538[0m[u[s[49m1096/1538[0m[u[s[49m1097/1538[0m[u[s[49m1098/1538[0m[u[s[49m1099/1538[0m[u[s[49m1100/1538[0m[u[s[49m1101/1538[0m[u[s[49m1102/1538[0m[u[s[49m1103/1538[0m[u[s[49m1104/1538[0m[u[s[49m1105/1538[0m[u[s[49m1106/1538[0m[u[s[49m1107/1538[0m[u[s[49m1108/1538[0m[u[s[49m1109/1538[0m[u[s[49m1110/1538[0m[u[s[49m1111/1538[0m[u[s[49m1112/1538[0m[u[s[49m1113/1538[0m[u[s[49m1114/1538[0m[u[s[49m1115/1538[0m[u[s[49m1116/1538[0m[u[s[49m1117/1538[0m[u[s[49m1118/1538[0m[u[s[49m1119/1538[0m[u[s[49m1120/1538[0m[u[s[49m1121/1538[0m[u[s[49m1122/1538[0m[u[s[49m1123/1538[0m[u[s[49m1124/1538[0m[u[s[49m1125/1538[0m[u[s[49m1126/1538[0m[u[s[49m1127/1538[0m[u[s[49m1128/1538[0m[u[s[49m1129/1538[0m[u[s[49m1130/1538[0m[u[s[49m1131/1538[0m[u[s[49m1132/1538[0m[u[s[49m1133/1538[0m[u[s[49m1134/1538[0m[u[s[49m1135/1538[0m[u[s[49m1136/1538[0m[u[s[49m1137/1538[0m[u[s[49m1138/1538[0m[u[s[49m1139/1538[0m[u[s[49m1140/1538[0m[u[s[49m1141/1538[0m[u[s[49m1142/1538[0m[u[s[49m1143/1538[0m[u[s[49m1144/1538[0m[u[s[49m1145/1538[0m[u[s[49m1146/1538[0m[u[s[49m1147/1538[0m[u[s[49m1148/1538[0m[u[s[49m1149/1538[0m[u[s[49m1150/1538[0m[u[s[49m1151/1538[0m[u[s[49m1152/1538[0m[u[s[49m1153/1538[0m[u[s[49m1154/1538[0m[u[s[49m1155/1538[0m[u[s[49m1156/1538[0m[u[s[49m1157/1538[0m[u[s[49m1158/1538[0m[u[s[49m1159/1538[0m[u[s[49m1160/1538[0m[u[s[49m1161/1538[0m[u[s[49m1162/1538[0m[u[s[49m1163/1538[0m[u[s[49m1164/1538[0m[u[s[49m1165/1538[0m[u[s[49m1166/1538[0m[u[s[49m1167/1538[0m[u[s[49m1168/1538[0m[u[s[49m1169/1538[0m[u[s[49m1170/1538[0m[u[s[49m1171/1538[0m[u[s[49m1172/1538[0m[u[s[49m1173/1538[0m[u[s[49m1174/1538[0m[u[s[49m1175/1538[0m[u[s[49m1176/1538[0m[u[s[49m1177/1538[0m[u[s[49m1178/1538[0m[u[s[49m1179/1538[0m[u[s[49m1180/1538[0m[u[s[49m1181/1538[0m[u[s[49m1182/1538[0m[u[s[49m1183/1538[0m[u[s[49m1184/1538[0m[u[s[49m1185/1538[0m[u[s[49m1186/1538[0m[u[s[49m1187/1538[0m[u[s[49m1188/1538[0m[u[s[49m1189/1538[0m[u[s[49m1190/1538[0m[u[s[49m1191/1538[0m[u[s[49m1192/1538[0m[u[s[49m1193/1538[0m[u[s[49m1194/1538[0m[u[s[49m1195/1538[0m[u[s[49m1196/1538[0m[u[s[49m1197/1538[0m[u[s[49m1198/1538[0m[u[s[49m1199/1538[0m[u[s[49m1200/1538[0m[u[s[49m1201/1538[0m[u[s[49m1202/1538[0m[u[s[49m1203/1538[0m[u[s[49m1204/1538[0m[u[s[49m1205/1538[0m[u[s[49m1206/1538[0m[u[s[49m1207/1538[0m[u[s[49m1208/1538[0m[u[s[49m1209/1538[0m[u[s[49m1210/1538[0m[u[s[49m1211/1538[0m[u[s[49m1212/1538[0m[u[s[49m1213/1538[0m[u[s[49m1214/1538[0m[u[s[49m1215/1538[0m[u[s[49m1216/1538[0m[u[s[49m1217/1538[0m[u[s[49m1218/1538[0m[u[s[49m1219/1538[0m[u[s[49m1220/1538[0m[u[s[49m1221/1538[0m[u[s[49m1222/1538[0m[u[s[49m1223/1538[0m[u[s[49m1224/1538[0m[u[s[49m1225/1538[0m[u[s[49m1226/1538[0m[u[s[49m1227/1538[0m[u[s[49m1228/1538[0m[u[s[49m1229/1538[0m[u[s[49m1230/1538[0m[u[s[49m1231/1538[0m[u[s[49m1232/1538[0m[u[s[49m1233/1538[0m[u[s[49m1234/1538[0m[u[s[49m1235/1538[0m[u[s[49m1236/1538[0m[u[s[49m1237/1538[0m[u[s[49m1238/1538[0m[u[s[49m1239/1538[0m[u[s[49m1240/1538[0m[u[s[49m1241/1538[0m[u[s[49m1242/1538[0m[u[s[49m1243/1538[0m[u[s[49m1244/1538[0m[u[s[49m1245/1538[0m[u[s[49m1246/1538[0m[u[s[49m1247/1538[0m[u[s[49m1248/1538[0m[u[s[49m1249/1538[0m[u[s[49m1250/1538[0m[u[s[49m1251/1538[0m[u[s[49m1252/1538[0m[u[s[49m1253/1538[0m[u[s[49m1254/1538[0m[u[s[49m1255/1538[0m[u[s[49m1256/1538[0m[u[s[49m1257/1538[0m[u[s[49m1258/1538[0m[u[s[49m1259/1538[0m[u[s[49m1260/1538[0m[u[s[49m1261/1538[0m[u[s[49m1262/1538[0m[u[s[49m1263/1538[0m[u[s[49m1264/1538[0m[u[s[49m1265/1538[0m[u[s[49m1266/1538[0m[u[s[49m1267/1538[0m[u[s[49m1268/1538[0m[u[s[49m1269/1538[0m[u[s[49m1270/1538[0m[u[s[49m1271/1538[0m[u[s[49m1272/1538[0m[u[s[49m1273/1538[0m[u[s[49m1274/1538[0m[u[s[49m1275/1538[0m[u[s[49m1276/1538[0m[u[s[49m1277/1538[0m[u[s[49m1278/1538[0m[u[s[49m1279/1538[0m[u[s[49m1280/1538[0m[u[s[49m1281/1538[0m[u[s[49m1282/1538[0m[u[s[49m1283/1538[0m[u[s[49m1284/1538[0m[u[s[49m1285/1538[0m[u[s[49m1286/1538[0m[u[s[49m1287/1538[0m[u[s[49m1288/1538[0m[u[s[49m1289/1538[0m[u[s[49m1290/1538[0m[u[s[49m1291/1538[0m[u[s[49m1292/1538[0m[u[s[49m1293/1538[0m[u[s[49m1294/1538[0m[u[s[49m1295/1538[0m[u[s[49m1296/1538[0m[u[s[49m1297/1538[0m[u[s[49m1298/1538[0m[u[s[49m1299/1538[0m[u[s[49m1300/1538[0m[u[s[49m1301/1538[0m[u[s[49m1302/1538[0m[u[s[49m1303/1538[0m[u[s[49m1304/1538[0m[u[s[49m1305/1538[0m[u[s[49m1306/1538[0m[u[s[49m1307/1538[0m[u[s[49m1308/1538[0m[u[s[49m1309/1538[0m[u[s[49m1310/1538[0m[u[s[49m1311/1538[0m[u[s[49m1312/1538[0m[u[s[49m1313/1538[0m[u[s[49m1314/1538[0m[u[s[49m1315/1538[0m[u[s[49m1316/1538[0m[u[s[49m1317/1538[0m[u[s[49m1318/1538[0m[u[s[49m1319/1538[0m[u[s[49m1320/1538[0m[u[s[49m1321/1538[0m[u[s[49m1322/1538[0m[u[s[49m1323/1538[0m[u[s[49m1324/1538[0m[u[s[49m1325/1538[0m[u[s[49m1326/1538[0m[u[s[49m1327/1538[0m[u[s[49m1328/1538[0m[u[s[49m1329/1538[0m[u[s[49m1330/1538[0m[u[s[49m1331/1538[0m[u[s[49m1332/1538[0m[u[s[49m1333/1538[0m[u[s[49m1334/1538[0m[u[s[49m1335/1538[0m[u[s[49m1336/1538[0m[u[s[49m1337/1538[0m[u[s[49m1338/1538[0m[u[s[49m1339/1538[0m[u[s[49m1340/1538[0m[u[s[49m1341/1538[0m[u[s[49m1342/1538[0m[u[s[49m1343/1538[0m[u[s[49m1344/1538[0m[u[s[49m1345/1538[0m[u[s[49m1346/1538[0m[u[s[49m1347/1538[0m[u[s[49m1348/1538[0m[u[s[49m1349/1538[0m[u[s[49m1350/1538[0m[u[s[49m1351/1538[0m[u[s[49m1352/1538[0m[u[s[49m1353/1538[0m[u[s[49m1354/1538[0m[u[s[49m1355/1538[0m[u[s[49m1356/1538[0m[u[s[49m1357/1538[0m[u[s[49m1358/1538[0m[u[s[49m1359/1538[0m[u[s[49m1360/1538[0m[u[s[49m1361/1538[0m[u[s[49m1362/1538[0m[u[s[49m1363/1538[0m[u[s[49m1364/1538[0m[u[s[49m1365/1538[0m[u[s[49m1366/1538[0m[u[s[49m1367/1538[0m[u[s[49m1368/1538[0m[u[s[49m1369/1538[0m[u[s[49m1370/1538[0m[u[s[49m1371/1538[0m[u[s[49m1372/1538[0m[u[s[49m1373/1538[0m[u[s[49m1374/1538[0m[u[s[49m1375/1538[0m[u[s[49m1376/1538[0m[u[s[49m1377/1538[0m[u[s[49m1378/1538[0m[u[s[49m1379/1538[0m[u[s[49m1380/1538[0m[u[s[49m1381/1538[0m[u[s[49m1382/1538[0m[u[s[49m1383/1538[0m[u[s[49m1384/1538[0m[u[s[49m1385/1538[0m[u[s[49m1386/1538[0m[u[s[49m1387/1538[0m[u[s[49m1388/1538[0m[u[s[49m1389/1538[0m[u[s[49m1390/1538[0m[u[s[49m1391/1538[0m[u[s[49m1392/1538[0m[u[s[49m1393/1538[0m[u[s[49m1394/1538[0m[u[s[49m1395/1538[0m[u[s[49m1396/1538[0m[u[s[49m1397/1538[0m[u[s[49m1398/1538[0m[u[s[49m1399/1538[0m[u[s[49m1400/1538[0m[u[s[49m1401/1538[0m[u[s[49m1402/1538[0m[u[s[49m1403/1538[0m[u[s[49m1404/1538[0m[u[s[49m1405/1538[0m[u[s[49m1406/1538[0m[u[s[49m1407/1538[0m[u[s[49m1408/1538[0m[u[s[49m1409/1538[0m[u[s[49m1410/1538[0m[u[s[49m1411/1538[0m[u[s[49m1412/1538[0m[u[s[49m1413/1538[0m[u[s[49m1414/1538[0m[u[s[49m1415/1538[0m[u[s[49m1416/1538[0m[u[s[49m1417/1538[0m[u[s[49m1418/1538[0m[u[s[49m1419/1538[0m[u[s[49m1420/1538[0m[u[s[49m1421/1538[0m[u[s[49m1422/1538[0m[u[s[49m1423/1538[0m[u[s[49m1424/1538[0m[u[s[49m1425/1538[0m[u[s[49m1426/1538[0m[u[s[49m1427/1538[0m[u[s[49m1428/1538[0m[u[s[49m1429/1538[0m[u[s[49m1430/1538[0m[u[s[49m1431/1538[0m[u[s[49m1432/1538[0m[u[s[49m1433/1538[0m[u[s[49m1434/1538[0m[u[s[49m1435/1538[0m[u[s[49m1436/1538[0m[u[s[49m1437/1538[0m[u[s[49m1438/1538[0m[u[s[49m1439/1538[0m[u[s[49m1440/1538[0m[u[s[49m1441/1538[0m[u[s[49m1442/1538[0m[u[s[49m1443/1538[0m[u[s[49m1444/1538[0m[u[s[49m1445/1538[0m[u[s[49m1446/1538[0m[u[s[49m1447/1538[0m[u[s[49m1448/1538[0m[u[s[49m1449/1538[0m[u[s[49m1450/1538[0m[u[s[49m1451/1538[0m[u[s[49m1452/1538[0m[u[s[49m1453/1538[0m[u[s[49m1454/1538[0m[u[s[49m1455/1538[0m[u[s[49m1456/1538[0m[u[s[49m1457/1538[0m[u[s[49m1458/1538[0m[u[s[49m1459/1538[0m[u[s[49m1460/1538[0m[u[s[49m1461/1538[0m[u[s[49m1462/1538[0m[u[s[49m1463/1538[0m[u[s[49m1464/1538[0m[u[s[49m1465/1538[0m[u[s[49m1466/1538[0m[u[s[49m1467/1538[0m[u[s[49m1468/1538[0m[u[s[49m1469/1538[0m[u[s[49m1470/1538[0m[u[s[49m1471/1538[0m[u[s[49m1472/1538[0m[u[s[49m1473/1538[0m[u[s[49m1474/1538[0m[u[s[49m1475/1538[0m[u[s[49m1476/1538[0m[u[s[49m1477/1538[0m[u[s[49m1478/1538[0m[u[s[49m1479/1538[0m[u[s[49m1480/1538[0m[u[s[49m1481/1538[0m[u[s[49m1482/1538[0m[u[s[49m1483/1538[0m[u[s[49m1484/1538[0m[u[s[49m1485/1538[0m[u[s[49m1486/1538[0m[u[s[49m1487/1538[0m[u[s[49m1488/1538[0m[u[s[49m1489/1538[0m[u[s[49m1490/1538[0m[u[s[49m1491/1538[0m[u[s[49m1492/1538[0m[u[s[49m1493/1538[0m[u[s[49m1494/1538[0m[u[s[49m1495/1538[0m[u[s[49m1496/1538[0m[u[s[49m1497/1538[0m[u[s[49m1498/1538[0m[u[s[49m1499/1538[0m[u[s[49m1500/1538[0m[u[s[49m1501/1538[0m[u[s[49m1502/1538[0m[u[s[49m1503/1538[0m[u[s[49m1504/1538[0m[u[s[49m1505/1538[0m[u[s[49m1506/1538[0m[u[s[49m1507/1538[0m[u[s[49m1508/1538[0m[u[s[49m1509/1538[0m[u[s[49m1510/1538[0m[u[s[49m1511/1538[0m[u[s[49m1512/1538[0m[u[s[49m1513/1538[0m[u[s[49m1514/1538[0m[u[s[49m1515/1538[0m[u[s[49m1516/1538[0m[u[s[49m1517/1538[0m[u[s[49m1518/1538[0m[u[s[49m1519/1538[0m[u[s[49m1520/1538[0m[u[s[49m1521/1538[0m[u[s[49m1522/1538[0m[u[s[49m1523/1538[0m[u[s[49m1524/1538[0m[u[s[49m1525/1538[0m[u[s[49m1526/1538[0m[u[s[49m1527/1538[0m[u[s[49m1528/1538[0m[u[s[49m1529/1538[0m[u[s[49m1530/1538[0m[u[s[49m1531/1538[0m[u[s[49m1532/1538[0m[u[s[49m1533/1538[0m[u[s[49m1534/1538[0m[u[s[49m1535/1538[0m[u[s[49m1536/1538[0m[u[s[49m1537/1538[0m[u
+[Main] filtering largest semantic patches (38)
+[Main] applying spatches [s[49m0/38[0m[u[s[49m1/38[0m[u[s[49m2/38[0m[u[s[49m3/38[0m[u[s[49m4/38[0m[u[s[49m5/38[0m[u[s[49m6/38[0m[u[s[49m7/38[0m[u[s[49m8/38[0m[u[s[49m9/38[0m[u[s[49m10/38[0m[u[s[49m11/38[0m[u[s[49m12/38[0m[u[s[49m13/38[0m[u[s[49m14/38[0m[u[s[49m15/38[0m[u[s[49m16/38[0m[u[s[49m17/38[0m[u[s[49m18/38[0m[u[s[49m19/38[0m[u[s[49m20/38[0m[u[s[49m21/38[0m[u[s[49m22/38[0m[u[s[49m23/38[0m[u[s[49m24/38[0m[u[s[49m25/38[0m[u[s[49m26/38[0m[u[s[49m27/38[0m[u[s[49m28/38[0m[u[s[49m29/38[0m[u[s[49m30/38[0m[u[s[49m31/38[0m[u[s[49m32/38[0m[u[s[49m33/38[0m[u[s[49m34/38[0m[u[s[49m35/38[0m[u[s[49m36/38[0m[u[s[49m37/38[0m[u[Main] filtering largest [s[49m0/38[0m[u[s[49m1/38[0m[u[s[49m2/38[0m[u[s[49m3/38[0m[u[s[49m4/38[0m[u[s[49m5/38[0m[u[s[49m6/38[0m[u[s[49m7/38[0m[u[s[49m8/38[0m[u[s[49m9/38[0m[u[s[49m10/38[0m[u[s[49m11/38[0m[u[s[49m12/38[0m[u[s[49m13/38[0m[u[s[49m14/38[0m[u[s[49m15/38[0m[u[s[49m16/38[0m[u[s[49m17/38[0m[u[s[49m18/38[0m[u[s[49m19/38[0m[u[s[49m20/38[0m[u[s[49m21/38[0m[u[s[49m22/38[0m[u[s[49m23/38[0m[u[s[49m24/38[0m[u[s[49m25/38[0m[u[s[49m26/38[0m[u[s[49m27/38[0m[u[s[49m28/38[0m[u[s[49m29/38[0m[u[s[49m30/38[0m[u[s[49m31/38[0m[u[s[49m32/38[0m[u[s[49m33/38[0m[u[s[49m34/38[0m[u[s[49m35/38[0m[u[s[49m36/38[0m[u[s[49m37/38[0m[u[Main] *REAL* semantic patches inferred: 2
+[spatch:]
+@@
+X11 *  X12;
+X0;
+X1;
+expression X2;
+expression X12;
+X11;
+@@
+- X11 *  X12;
+  ...
+  memset(X0 + X1,0,X2);
+  ...
+- kunmap_atomic(X12,KM_USER0);
+supporting functions (4/4)
+< do_direct_IO xip_truncate_page memclear_highpage_flush do_lo_send_aops  >
+
+[spatch:]
+@@
+expression X1;
+X0;
+X1;
+expression X2;
+X11 *  X12;
+struct page *  X9;
+expression X5;
+X6;
+X3;
+X4;
+@@
+  head:def[def[X3,X4,{};]]
+  ...
+  X6 *  X5;
+  ...
+- X12=kmap_atomic(X9,KM_USER0);
+  ...
+- memset(X0 + X1,0,X2);
++ zero_user_page(X9,X1,X2,KM_USER0);
+  ...
+- kunmap_atomic(X12,KM_USER0);
+supporting functions (4/4)
+< do_direct_IO xip_truncate_page memclear_highpage_flush do_lo_send_aops  >
+

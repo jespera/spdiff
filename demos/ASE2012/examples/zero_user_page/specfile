@@ -1,0 +1,7 @@
+#loop.c.orig loop.c.new
+#mpage.c.orig mpage.c.new
+#filemap_xip.c.orig filemap_xip.c.new
+direct-io.c.orig  direct-io.c.new
+filemap_xip.c.orig  filemap_xip.c.new
+highmem.h.orig  highmem.h.new
+loop.c.orig  loop.c.new
