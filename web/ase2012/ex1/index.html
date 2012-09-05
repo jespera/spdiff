@@ -1,0 +1,94 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta name="generator" content="HTML Tidy for Linux (vers 19 September 2007), see www.w3.org" />
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+
+		<title>spdiff -- A tool for Semantic Patch Inference</title>
+	</head>
+
+	<body>
+		<h1><span style="color:grey;">[EX]</span> Inferring API change summary</h1>
+		<h2>The original commit</h2>
+		<p>The commit with git SHA1 identification code
+			01f2705daf5a36208e69d7cf95db9c330f843af6 (<a href="#">patch</a>) was the
+			first in a series of standard patches committed starting in May 2007 to
+			the Linux version control system that implemented a refactoring of a
+			commonly occurring pattern for clearing pages found in filesystem code.
+			</p>
+			<p>
+				This pattern consisted of the following operations: 
+			</p>
+			<ol>
+				<li> map a page into the kernel virtual memory using kmap_atomic,</li>
+				<li>clear this page using memset, </li>
+				<li>call flush_dcache_page to ensure that the cleared memory gets
+					written to disk, and</li>
+				<li>unmap the memory region using kunmap_atomic.</li>
+			</ol>
+			<p>
+			The refactoring introduced a new function, zero_user_page that does all
+			of these operations. Core kernel locations where memory was cleared in
+			this way were modified to use the new function. In subsequent commits,
+			the remaining locations were updated to use the new function. 
+		</p>
+		<h2>The inferred semantic patch</h2>
+		<p>
+			Running spdiff with a change set that consists of 4 pairs of the original
+			and updated versions of some function that was modified by the above
+			commit produces the semantic patch below:</p>
+		<pre>
+      @@
+        expression X0, X1;
+        struct page *X2;
+        char *X3;
+      @@
+        - X3 = kmap_atomic(X2, KM_USER0);
+        ...
+        - memset(X3 + X0, 0, X1);
+        ...
+        - kunmap_atomic(X3, KM_USER0);
+        + zero_user_page(X2, X0, X1, KM_USER0);
+		</pre>
+		<p> Note that the generated semantic patch does not include the call to
+			flush_dcache_page. As this call occurs in varying positions relative to
+			the call to kunmap_atomic – and it even absent in one case, it is
+			therefore excluded from the initial semantic pattern, and subsequently
+			never occurs in the generated semantic patch.  </p>
+	
+		<p>Applying the inferred semantic patch to the files mentioned in the
+			original commit causes it to perform a safe part of the changes that were
+			made by hand, in all but one case. This case is represented by the
+			following excerpt of the standard patch:</p>	
+		<pre>
+      @@ -2108,10 +2100,8 @@ int cont_prepare_write(
+      - kaddr = kmap_atomic(new_page, KM_USER0);
+      - memset(kaddr+zerofrom, 0, PAGE_CACHE_SIZE-zerofrom);
+      - flush_dcache_page(new_page);
+      - kunmap_atomic(kaddr, KM_USER0); 
+      + zero_user_page(page, zerofrom, PAGE_CACHE_SIZE - zerofrom, KM_USER0); 
+		</pre>
+		<p> This standard patch code contains a small bug, that is not detected at
+			compile time and thus only manifests itself at run-time. The error is
+			that in the added code at the end of the standard patch, the first
+			argument to zero_user_page is page, while, as shown by the other calls,
+			it should have been new_page. The updated function can still be compiled
+			because the variable page is a parameter of the function being modified.
+			At run-time, however a file system corruption occurs, as described in the
+			log message associated with commit
+			ff1be9ad61e3e17ba83702d8ed0b534e5b8ee15c (<a href="#">patch</a>). </p>
+		<p>This error would have been avoided if the change were made using the
+			semantic patch, because the semantic patch specifies that the first
+			argument to the newly inserted function call should be the same as the
+			first argument to the call to kmap_atomic. Since in all other updated
+			functions the name of the variable given as the first argument to
+			kmap_atomic is indeed page, the bug is probably a result of  copy-paste
+			editing. Linux code frequently but not always uses stereotypical names
+			for values of a given type, and thus there is a high potential for this
+			sort of copy-paste editing error.
+		</p>
+
+
+	</body>
+</html>
