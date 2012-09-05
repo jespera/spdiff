@@ -1,0 +1,102 @@
+--- fimc-mdevice.c.orig	2012-09-05 22:39:57.331276736 +0200
++++ fimc-mdevice.c	2012-09-05 22:39:57.334610070 +0200
+@@ -4,7 +4,7 @@
+ 	struct fimc_md *fmd;
+ 	int ret;
+ 
+-	fmd = kzalloc(sizeof(struct fimc_md), GFP_KERNEL);
++	fmd = devm_kzalloc(&pdev->dev, sizeof(struct fimc_md), GFP_KERNEL);
+ 	if (!fmd)
+ 		return -ENOMEM;
+ 
+@@ -25,7 +25,7 @@
+ 	ret = v4l2_device_register(&pdev->dev, &fmd->v4l2_dev);
+ 	if (ret < 0) {
+ 		v4l2_err(v4l2_dev, "Failed to register v4l2_device: %d\n", ret);
+-		goto err1;
++		return ret;
+ 	}
+ 	ret = media_device_register(&fmd->media_dev);
+ 	if (ret < 0) {
+@@ -68,6 +68,5 @@
+ err2:
+ 	v4l2_device_unregister(&fmd->v4l2_dev);
+ err1:
+-	kfree(fmd);
+ 	return ret;
+ }
+--- mixer_drv.c.orig	2012-09-05 22:39:57.327943403 +0200
++++ mixer_drv.c	2012-09-05 22:39:57.334610070 +0200
+@@ -8,7 +8,7 @@
+ 	/* mdev does not exist yet so no mxr_dbg is used */
+ 	dev_info(dev, "probe start\n");
+ 
+-	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
++	mdev = devm_kzalloc(&pdev->dev, sizeof *mdev, GFP_KERNEL);
+ 	if (!mdev) {
+ 		mxr_err(mdev, "not enough memory.\n");
+ 		ret = -ENOMEM;
+@@ -25,7 +25,7 @@
+ 	/* acquire resources: regs, irqs, clocks, regulators */
+ 	ret = mxr_acquire_resources(mdev, pdev);
+ 	if (ret)
+-		goto fail_mem;
++		goto fail;
+ 
+ 	/* configure resources for video output */
+ 	ret = mxr_acquire_video(mdev, mxr_output_conf,
+@@ -50,7 +50,6 @@
+ 	mxr_release_resources(mdev);
+ 
+ fail_mem:
+-	kfree(mdev);
+ 
+ fail:
+ 	dev_info(dev, "probe failed\n");
+--- timblogiw.c.orig	2012-09-05 22:39:57.331276736 +0200
++++ timblogiw.c	2012-09-05 22:39:57.331276736 +0200
+@@ -13,7 +13,7 @@
+ 	if (!pdata->encoder.module_name)
+ 		dev_info(&pdev->dev, "Running without decoder\n");
+ 
+-	lw = kzalloc(sizeof(*lw), GFP_KERNEL);
++	lw = devm_kzalloc(&pdev->dev, sizeof(*lw), GFP_KERNEL);
+ 	if (!lw) {
+ 		err = -ENOMEM;
+ 		goto err;
+@@ -33,7 +33,7 @@
+ 	strlcpy(lw->v4l2_dev.name, DRIVER_NAME, sizeof(lw->v4l2_dev.name));
+ 	err = v4l2_device_register(NULL, &lw->v4l2_dev);
+ 	if (err)
+-		goto err_register;
++		goto err;
+ 
+ 	lw->video_dev.v4l2_dev = &lw->v4l2_dev;
+ 
+@@ -53,7 +53,6 @@
+ 	platform_set_drvdata(pdev, NULL);
+ 	v4l2_device_unregister(&lw->v4l2_dev);
+ err_register:
+-	kfree(lw);
+ err:
+ 	dev_err(&pdev->dev, "Failed to register: %d\n", err);
+ 
+--- vpbe.c.orig	2012-09-05 22:39:57.331276736 +0200
++++ vpbe.c	2012-09-05 22:39:57.331276736 +0200
+@@ -18,7 +18,7 @@
+ 		return ret;
+ 	}
+ 
+-	vpbe_dev = kzalloc(sizeof(*vpbe_dev), GFP_KERNEL);
++	vpbe_dev = devm_kzalloc(&pdev->dev, sizeof(*vpbe_dev), GFP_KERNEL);
+ 	if (vpbe_dev == NULL) {
+ 		v4l2_err(pdev->dev.driver, "Unable to allocate memory"
+ 			 " for vpbe_device\n");
+@@ -31,7 +31,6 @@
+ 	if (cfg->outputs->num_modes > 0)
+ 		vpbe_dev->current_timings = vpbe_dev->cfg->outputs[0].modes[0];
+ 	else {
+-		kfree(vpbe_dev);
+ 		return -ENODEV;
+ 	}
+ 
