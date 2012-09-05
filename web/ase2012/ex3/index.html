@@ -10,5 +10,98 @@
 
 	<body>
 		<h1><span style="color:grey;">[EX]</span> Auto-backporting in Linux</h1>
+		<p>The Linux kernel backporting project (<a
+					href="https://backports.wiki.kernel.org/index.php/Main_Page">website</a>
+			provides drivers released on newer kernels backported for usage on older
+			kernels.
+		</p>
+		<p>the project aims to optimize the backporting process by not only
+			providing backported drivers but by also aiming to automatically backport
+			the linux kernel (<a
+					href="http://www.do-not-panic.com/2012/08/automatically-backporting-linux-kernel.html">blog post</a>)
+			by optimizing backporting collateral evolutions (<a
+					href="http://www.do-not-panic.com/2012/08/optimizing-backporting-collateral.html">another
+				blog post</a>).</p>
+		<h2>Components</h2>
+		<p>The two components of the backport project are 
+		</p>
+			<ul>
+				<li>a compatibility module that implements newer kernel features for usage on older kernels, and</li>
+				<li>a framework for compiling drivers for older kernels using the compatibility module as well as a selected patches for features that could not be backported using the compatibility module.</li>
+			</ul>
+		<p>The selected standard patches need to be maintained with respect to newer releases of the Linux kernel.</p>
+		<h2>A selected patch</h2>
+		<p>An excerpt of a patch from the driver compilation framework is given
+			below (<a
+					href="https://github.com/mcgrof/compat-drivers/blob/master/patches/network/0001-netdev_ops.patch">github</a>).
+<pre>
+--- a/drivers/net/usb/rndis_host.c
++++ b/drivers/net/usb/rndis_host.c
+@@ -358,7 +358,7 @@ generic_rndis_bind(struct usbnet *dev, s
+ 	dev->rx_urb_size &= ~(dev->maxpacket - 1);
+ 	u.init->max_transfer_size = cpu_to_le32(dev->rx_urb_size);
+ 
+-	net->netdev_ops = &rndis_netdev_ops;
++	netdev_attach_ops(net, &rndis_netdev_ops);
+ 
+ 	retval = rndis_command(dev, u.header, CONTROL_BUFFER_SIZE);
+ 	if (unlikely(retval < 0)) {
+--- a/drivers/net/usb/usbnet.c
++++ b/drivers/net/usb/usbnet.c
+@@ -1417,7 +1417,7 @@ usbnet_probe (struct usb_interface *udev
+ 		net->features |= NETIF_F_HIGHDMA;
+ #endif
+ 
+-	net->netdev_ops = &usbnet_netdev_ops;
++	netdev_attach_ops(net, &usbnet_netdev_ops);
+ 	net->watchdog_timeo = TX_TIMEOUT_JIFFIES;
+ 	net->ethtool_ops = &usbnet_ethtool_ops;
+ 
+--- a/drivers/net/wireless/ath/ath6kl/main.c
++++ b/drivers/net/wireless/ath/ath6kl/main.c
+@@ -1285,7 +1285,7 @@ static const struct net_device_ops ath6k
+ 
+ void init_netdev(struct net_device *dev)
+ {
+-	dev->netdev_ops = &ath6kl_netdev_ops;
++	netdev_attach_ops(dev, &ath6kl_netdev_ops);
+ 	dev->destructor = free_netdev;
+ 	dev->watchdog_timeo = ATH6KL_TX_TIMEOUT;
+ 
+--- a/drivers/net/wireless/rndis_wlan.c
++++ b/drivers/net/wireless/rndis_wlan.c
+@@ -3439,7 +3439,7 @@ static int rndis_wlan_bind(struct usbnet
+ 	 * rndis_host wants to avoid all OID as much as possible
+ 	 * so do promisc/multicast handling in rndis_wlan.
+ 	 */
+-	usbdev->net->netdev_ops = &rndis_wlan_netdev_ops;
++	netdev_attach_ops(usbdev->net, &rndis_wlan_netdev_ops);
+ 
+ 	tmp = cpu_to_le32(RNDIS_PACKET_TYPE_DIRECTED | RNDIS_PACKET_TYPE_BROADCAST);
+ 	retval = rndis_set_oid(usbdev,
+--- a/drivers/net/ethernet/broadcom/b44.c
++++ b/drivers/net/ethernet/broadcom/b44.c
+@@ -2175,7 +2175,7 @@ static int __devinit b44_init_one(struct
+ 	bp->rx_pending = B44_DEF_RX_RING_PENDING;
+ 	bp->tx_pending = B44_DEF_TX_RING_PENDING;
+ 
+-	dev->netdev_ops = &b44_netdev_ops;
++	netdev_attach_ops(dev, &b44_netdev_ops);
+ 	netif_napi_add(dev, &bp->napi, b44_poll, 64);
+ 	dev->watchdog_timeo = B44_TX_TIMEOUT;
+ 	dev->irq = sdev->irq;
+
+</pre>
+<h2>Abstracting the patch using spdiff</h2>
+<p>Applying the (full version of the) standard patch shown above one gets a set of updated files. One can now apply spdiff to the old and new versions of the files to obtain the following patch:</p>
+<pre>
+@@
+  const struct net_device_ops X1;
+  struct net_device * X0;
+@@
+  - X0->netdev_ops=&X1;
+  + netdev_attach_ops(X0, &X1);
+</pre>
+<p>The inferred patch is much more concise than the standard patch and should therefore also be more easy to maintain.</p>
 	</body>
 </html>
