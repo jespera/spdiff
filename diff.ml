@@ -1109,28 +1109,26 @@ let tail_flatten lss =
   lss +> List.fold_left List.rev_append []
 
 let get_tree_changes gt1 gt2 =
-        let is_up op = match op with UP _ -> true | _ -> false in
-        let get_ups up = match up with
+  let is_up op = match op with UP _ -> true | _ -> false in
+  let get_ups up = match up with
           | (UP(gt1,gt2)) ->
                 if gt1 = gt2 then []
                 else (match view gt1, view gt2 with
-                | C(t1, gts1), C(t2, gts2) when t1 = t2 ->
+                      | C(t1, gts1), C(t2, gts2) when t1 = t2 ->
                                 (patience_diff gts1 gts2
                                 +> correlate_diffs_new
                                 +> List.filter is_up)
-                | _, _ -> [])
-          | _ -> raise (Fail "get_tree_changes get_ups")
-        in
-        let (@@) ls1 ls2 = ls1 +> 
-        List.fold_left (fun acc_ls e -> e +++ acc_ls) ls2 in
-        let rec loop work acc =
-                match work with 
+                      | _, _ -> [])
+          | _ -> raise (Fail "get_tree_changes get_ups") in
+  let (@@) ls1 ls2 = ls1 +> List.fold_left (fun acc_ls e -> e +++ acc_ls) ls2 in
+  let rec loop work acc = match work with 
                 | [] -> acc
                 | up :: work ->
-                                let new_work = get_ups up in
-                                loop (new_work @@ work) (up :: acc)
-                                in
-                                loop [UP(gt1,gt2)] []
+                    let new_work = get_ups up in
+                    loop (new_work @@ work) (up :: acc) in
+  if gt1 = gt2
+  then []
+  else loop [UP(gt1,gt2)] []
 
 
 let editht = PT.create 1000001
@@ -4369,7 +4367,7 @@ let find_simple_updates_merge_changeset changeset =
     +> List.fold_left 
         (fun acc_tus tu_list ->
           match acc_tus with
-          | None -> tu_list +> some
+          | None -> tu_list +> List.filter (fun tu -> interesting_tu tu []) +> some
           | Some tus -> begin
               if !Jconfig.print_abs
               then begin
