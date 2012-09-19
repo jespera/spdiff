@@ -5,7 +5,8 @@ let metactx = ref 0
 let reset_meta () = metactx := 0
 let inc x = let v = !x in (x := v + 1; v)
 let ref_meta () = inc metactx
-let mkM () = mkA("meta", "X" ^ string_of_int(ref_meta()))
+let mkM_name () = "X" ^ string_of_int(ref_meta())
+let mkM () = mkA("meta", mkM_name())
 let meta_name m = match view m with
   | A("meta", n) -> n
   | _ -> raise (failwith "trying to fetch metaname of non-meta value")
@@ -41,4 +42,25 @@ let merge_terms t1 t2 =
   in
     loop [] t1 t2
 
+(* apply a tree-update function 'upfun' to a tree in a bottom-up fashion;
+ * collects an accumulated value as the upfun is applied; there is no
+ * well-defined order in which one can rely one children are visited and so the
+ * accumulated value should not depend on the _order_ in which children are
+ * visited
+ *)
+let fold_botup term upfun initial_result =
+  let rec loop t acc_result =
+    match view t with
+      | A _ -> upfun t acc_result
+      | C (ct, ts) -> 
+          let new_terms, new_acc_result = 
+            List.fold_left 
+            (fun (ts, acc_res) t ->
+                  let new_t, new_acc = loop t acc_res in
+          	      new_t :: ts, new_acc
+            ) ([], acc_result) ts
+          in
+            upfun (mkC(ct, List.rev new_terms)) new_acc_result
+  in
+    loop term initial_result
 

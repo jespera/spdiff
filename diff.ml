@@ -2845,47 +2845,34 @@ let rec gen_perms lists =
 
 let renumber_metas t metas =
   match view t with
-    | A ("meta", mvar) -> (try 
-    	  let v = List.assoc mvar metas in
-  	    mkA ("meta", v), metas
-      with _ -> 
-        let nm = "X" ^ string_of_int (ref_meta ()) in
-	  mkA ("meta", nm), (mvar, nm) :: metas)
+    | A ("meta", mvar) -> 
+        (try 
+          let v = List.assoc mvar metas in
+          mkA ("meta", v), metas
+         with _ -> 
+          let nm = mkM_name() in
+	        mkA ("meta", nm), (mvar, nm) :: metas
+        )
     | _ -> t, metas
 
 let renumber_metas_pure t (metas, next_meta) =
   match view t with
     | A ("meta", x) -> 
-	(try
-	   let v = List.assoc x metas in
-	     mkA("meta", v), (metas, next_meta)
-	 with Not_found ->
-	   let nm = "X" ^ string_of_int next_meta in
-	     mkA ("meta", nm), ((x,nm) :: metas, next_meta + 1)
-	)
+        (try
+          let v = List.assoc x metas 
+          in mkA("meta", v), (metas, next_meta)
+	      with Not_found ->
+	        let nm = "X" ^ string_of_int next_meta 
+          in mkA ("meta", nm), ((x,nm) :: metas, next_meta + 1)
+	      )
     | _ -> t, (metas, next_meta)
 
-let fold_botup term upfun initial_result =
-  let rec loop t acc_result =
-    match view t with
-      | A _ -> upfun t acc_result
-      | C (ct, ts) -> 
-          let new_terms, new_acc_result = List.fold_left
-            (fun (ts, acc_res) t ->
-              let new_t, new_acc = loop t acc_res in
-          	new_t :: ts, new_acc
-            ) ([], acc_result) ts
-          in
-            upfun (mkC(ct, List.rev new_terms)) new_acc_result
-  in
-    loop term initial_result
-
 let renumber_metas_gtree gt_pattern =
-  fold_botup gt_pattern renumber_metas_pure ([],0)
-  +> fst
+  fst(
+    fold_botup gt_pattern renumber_metas_pure ([],0)
+  )
 
 let renumber_metas_up up =
-  (*print_endline "[Diff] renumbering metas";*)
   reset_meta ();
   match up with
     | UP(lhs, rhs) -> 
@@ -3369,49 +3356,6 @@ let filter_safe (gt1, gt2) parts =
   ) parts
 
     
-
-(* two patches commute with respect to a changeset if the order in
-   which they are applied does not matter (and the combined version is a
-   safe part)
-*)
-let commutes chgset bp bp' =
-  let bp1 = SEQ(bp,bp') in
-  let bp2 = SEQ(bp',bp) in
-    eq_changeset chgset bp1 bp2
-
-let make_abs terms_changed fixf (gt1, gt2) =
-  (* first make the list of concrete safe parts *)
-  
-  let c_parts = 
-    if !malign_mode
-    then (
-      print_string "[Diff] getting concrete parts ...";
-      let cs = get_tree_changes gt1 gt2 in
-	print_endline (cs +> List.length +> string_of_int ^ " found");
-	print_endline ("[Diff] filtering " ^ 
-			 cs +> List.length +> string_of_int ^ " safe parts");
-	(*List.iter (function d -> print_endline (string_of_diff d)) cs;*)
-	List.filter (function up -> 
-		       print_endline "[Diff] filtering cpart:";
-		       up +> string_of_diff +> print_endline;
-		       safe_part up (gt1, gt2)
-		    ) cs
-    ) else get_ctf_diffs_safe [] gt1 gt2 
-  in
-    print_endline ("[Diff] number of concrete parts: " ^ string_of_int (List.length c_parts));
-    (* new generalize each such part and add it to our resulting list in case it
-     * is not already there and in case it is still a safe part
-     *)
-    print_endline "[Diff] finding abstract parts";
-    let a_parts = List.flatten (
-      List.map (function c_up ->
-		  let cand_abs = abs_term_noenv 
-		    terms_changed fixf
-		    should_abs_depth c_up in
-		    (filter_safe (gt1, gt2) cand_abs)
-	       )
-  	c_parts) in
-      a_parts
 
 let sub_term env t =
   if env = [] then t else
