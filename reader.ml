@@ -31,7 +31,6 @@
 
 open Hashcons
 open Gtree
-open Db
 open Difftype
 
 type term = gtree

@@ -34,7 +34,6 @@ open Hashcons
 open Gtree
 open Gtree_util
 open Env
-open Db
 open Difftype
 
 type term = gtree
@@ -72,8 +71,6 @@ let pfold fold_f l opid concat =
  *  end
  *
  *)
-module DBM = Db(GT)
-module DBD = Db(DiffT)
 
 (* user definable references here ! *)
   (* copy from main.ml initialized in main-function *)
@@ -3236,36 +3233,6 @@ let make_fixed_list term_pairs =
       filter_some subterms
     else 
       filter_all subterms
-
-let make_fixed_list_old updates =
-  let subterms_list =
-    List.fold_left (fun acc_list (gt1, gt2) ->
-      ((make_all_subterms gt1) % (make_all_subterms gt2)) :: acc_list
-    ) [] updates in
-  let empty_db = DBM.makeEmpty () in
-  let subterm_db = List.fold_left DBM.add_itemset empty_db subterms_list in
-  let db_size = DBM.sizeOf subterm_db in
-    DBM.fold_itemset subterm_db 
-      (fun () is -> print_string ("[" ^ string_of_int
-				     (List.length is) ^"]")) ();
-    print_newline ();
-    print_string "Finding frequent subterms...";
-    flush stdout;
-    let mdb = DBM.dmine subterm_db db_size in
-    let cdb = mdb in (* DBM.close_db subterm_db mdb in *)
-      print_endline "done.";
-      (*DBM.print_db (string_of_gtree str_of_ctype str_of_catom) cdb;*)
-      (*let itemset = DBM.fold_itemset cdb select_max [] in*)
-      let itemset = DBM.fold_itemset cdb union_lists [] in
-	print_endline "Frequent items selected:";
-	List.iter (fun e -> 
-	  print_endline 
-	    (string_of_gtree str_of_ctype str_of_catom e)) 
-	  itemset;
-	list_fixed itemset
-
-(*let jlist = [s;f;h;w]*)
-(*let jfix  = list_fixed jlist*)
 
 
 

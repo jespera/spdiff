@@ -25,7 +25,6 @@ TARGET=spdiff
 
 SRC=ANSITerminal.ml \
 		hashcons.ml \
-		db.ml \
 		jconfig.ml \
 		gtree.ml \
 		env.ml \

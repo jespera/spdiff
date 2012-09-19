@@ -179,29 +179,6 @@ let print_patch_lists pl =
     )
     pl
 
-let get_best_itemset_old ndb =
-  print_endline ("[Main] getting best itemset of " ^ 
-                 string_of_int (Diff.DBD.sizeOf ndb) ^ " possible");
-  let supp b = Diff.DBD.get_support_itemset ndb b in
-  let f acc_itemset itemset =
-    if acc_itemset = [] ||
-    (supp itemset >= supp acc_itemset &&
-     List.length itemset >= List.length acc_itemset)
-    then itemset
-    else acc_itemset in
-  Diff.DBD.fold_itemset ndb f []
-
-let get_best_itemset ndb =
-  let items = Diff.DBD.getItems ndb in
-  print_endline ("[Main] there are " ^ string_of_int (List.length items) ^ " unique items");
-  Diff.DBD.fold_unique ndb (
-  fun item freq () ->
-    print_endline ("[Main db] " ^ 
-       Diff.string_of_diff item ^ ", " ^
-       string_of_int freq)
- ) ();
-  items
-
 let list_at_least n f ls =
   (List.fold_left (fun acc_n e -> 
     if f e
