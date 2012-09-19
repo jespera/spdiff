@@ -28,6 +28,9 @@ SRC=ANSITerminal.ml \
 		db.ml \
 		jconfig.ml \
 		gtree.ml \
+		env.ml \
+		gtree_util.ml \
+		util.ml \
 		genericparser.ml \
 		genericlexer.ml \
 		difftype.ml \

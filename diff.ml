@@ -32,6 +32,8 @@ exception Impossible of int
 
 open Hashcons
 open Gtree
+open Gtree_util
+open Env
 open Db
 open Difftype
 
@@ -774,47 +776,9 @@ let merge_update env (m, t) =
 let merge_envs env1 env2 =
   List.fold_left (fun env (m,t) -> merge_update env (m,t)) env2 env1
 
-let mk_env (m, t) = [(m, t)]
-let empty_env = ([] : ((string * gtree) list))
-
-let rev_lookup env t =
-  let rec loop env = match env with 
-  | [] -> None
-  | (m,t') :: env when t = t' -> Some m
-  | _ :: env -> loop env
-  in
-  loop env 
 
 
-(* replace subterms of t that are bound in env with the binding metavariable
-   so subterm becomes m if m->subterm is in env
-   assumes that m1->st & m2->st then m1 = m2
-   i.e. each metavariable denote DIFFERENT subterms
-*)
-let rec rev_sub env t =
-  match rev_lookup env t with
-  | Some m -> mkA("meta", m)
-  | None -> (match view t with 
-    | C(ty, ts) -> mkC(ty, ts +> List.fold_left
-		      (fun acc_ts t -> rev_sub env t :: acc_ts) []
-		      +> List.rev)
-    | _ -> t)
 
-
-let rec sub env t =
-  if env = [] then t else
-    let rec loop t' = match view t' with
-      | C (ct, ts) ->
-          mkC(ct, List.rev (
-            List.fold_left (fun b a -> (loop a) :: b) [] ts
-          ))
-      | A ("meta", mvar) -> (try 
-			       List.assoc mvar env with Not_found ->
-				 mkA ("meta", mvar)
-			    )
-      | _ -> t'
-    in
-      loop t
 
 (* try to see if a term st matches another term t
 *)
@@ -2830,26 +2794,7 @@ let make_compat_pairs lhs rhs_list acc =
     else pairs
   ) acc rhs_list
 
-let make_gmeta name = mkA ("meta", name)
 
-
-let metactx = ref 0
-let reset_meta () = metactx := 0
-let inc x = let v = !x in (x := v + 1; v)
-let ref_meta () = inc metactx
-let mkM () = mkA("meta", "X" ^ ref_meta() +> string_of_int)
-let meta_name m = match view m with
-  | A("meta", n) -> n
-  | _ -> raise (Impossible 42)
-let new_meta env t =
-  let m = "X" ^ string_of_int (ref_meta ()) in
-    (*print_endline *)
-    (*("binding " ^ m ^ "->" ^ *)
-    (*string_of_gtree str_of_ctype str_of_catom t);*)
-    [make_gmeta m], [(m,t)]
-let is_meta v = match view v with | A("meta", _) -> true | _ -> false
-
-let rev_assoc a l = List.find (function (m,b) -> b = a) l +> fst
 
 let get_metas build_mode org_env t = 
   let rec loop env =
@@ -4107,27 +4052,6 @@ let chunks_of_diff_spatterns spatterns diff =
       +> List.filter (function chunk -> not(chunk = []))
       +> List.filter (fun c -> not(all_adds c))
 
-let merge_terms t1 t2 =
-  let rec loop env t1 t2 = 
-    if t1 == t2 
-    then (t1, env)
-    else match view t1, view t2 with
-      | C(ty1, ts1), C(ty2, ts2) when 
-	  ty1 = ty2 && List.length ts1 = List.length ts2
-	  -> let ts1, env' = List.fold_left2 
-	    (fun (acc_ts, env') t1' t2' -> 
-	       let t'', env'' = loop env' t1' t2'
-	       in (t'' :: acc_ts, env'')
-	    ) ([],env) ts1 ts2
-	  in (mkC(ty1, List.rev ts1), env')
-      | _ -> (match rev_lookup env (t1, t2) with
-		| None -> let metaName = "X" ^ ref_meta () +> string_of_int in
-		    (mkA ("meta", metaName), (metaName, (t1,t2)) :: env)
-		| Some name -> (mkA ("meta", name), env)
-	     )					
-  in
-    loop [] t1 t2
-
 
 let some x = Some x
 let get_some x = match x with
@@ -4199,7 +4123,7 @@ let merge_abstract_terms subterms_lists unique_subterms =
               (fun acc_ts t_merged -> 
                     ts_list +> List.fold_left 
                       (fun acc_ts t ->
-                        let t', env = merge_terms t t_merged in
+                        let t', env = Gtree_util.merge_terms t t_merged in
                         let p = renumber_metas_gtree t' in
                         if interesting_t p acc_ts
                         then p +++ acc_ts

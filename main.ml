@@ -2577,9 +2577,9 @@ let construct_spatches_new chunks safe_part_loc patterns =
     end in
 
   let rev_sub_diff env dt = match dt with
-  | Difftype.ADD p -> Difftype.ADD (Diff.rev_sub env p)
-  | Difftype.ID p -> Difftype.ID (Diff.rev_sub env p)
-  | Difftype.RM p -> Difftype.ID (Diff.rev_sub env p)
+  | Difftype.ADD p -> Difftype.ADD (Env.rev_sub env p)
+  | Difftype.ID p -> Difftype.ID (Env.rev_sub env p)
+  | Difftype.RM p -> Difftype.ID (Env.rev_sub env p)
   | _ -> raise (Impossible 90) in
 
   let rec get_before chunk =
@@ -3255,7 +3255,7 @@ let perform_pending pending_term =
       match view emiop with
       | C("=", [p]) -> (orig :: res_ts) (* should be able to assert(Diff.rev_sub env p = orig *)
       | C("-", [p]) -> (res_ts) (* should be able to assert(Diff.rev_sub env p = orig *)
-      | C("+", [p]) -> (let interm = Diff.sub env p 
+      | C("+", [p]) -> (let interm = Env.sub env p 
       in interm :: res_ts)
       | _ -> raise (Impossible 17)
         ) embs []
@@ -3308,9 +3308,9 @@ let apply_spatch_fixed spatch (term, flow) =
   (* use env to replace metavars with the corresponding subterms *)
   let instantiate spatch env = 
     let f spatch = match spatch with
-    | Difftype.ID  (t, ann) -> Difftype.ID  (Diff.sub env t, ann)
-    | Difftype.RM  (t, ann) -> Difftype.RM  (Diff.sub env t, ann)
-    | Difftype.ADD (t, ann) -> Difftype.ADD (Diff.sub env t, ann)
+    | Difftype.ID  (t, ann) -> Difftype.ID  (Env.sub env t, ann)
+    | Difftype.RM  (t, ann) -> Difftype.RM  (Env.sub env t, ann)
+    | Difftype.ADD (t, ann) -> Difftype.ADD (Env.sub env t, ann)
     | _ -> raise (Impossible 1990) in
     List.map f spatch in
   (* annotate elements of spatch with the nodei matched *)
@@ -4195,7 +4195,7 @@ let find_merged_from_sets terms_lists =
     +> List.fold_left
     (fun acc_patterns'' t ->
       (* let p' = find_embedded p_merged t *)
-      let p' = Diff.merge_terms p_merged t 
+      let p' = Gtree_util.merge_terms p_merged t 
           +> fst +> renumber_metas_gtree in
       if interesting p' acc_patterns''
       then p' :: acc_patterns''
