@@ -276,11 +276,6 @@ let filter_smaller chgset solutions =
   (*List.map list_of_bp *)
   (List.filter keep_sol solutions)
 
-let remove_disj found_nxt bp =
-  if List.exists (fun bp' -> Diff.disjoint_domains (bp,bp')) found_nxt
-  then found_nxt
-  else bp :: found_nxt
-
 let generate_sols chgset_orig simple_patches =
   (*Diff.no_occurs := List.length chgset_orig - !exceptions;*)
   print_endline ("[Main] min sup = " ^ string_of_int !Diff.no_occurs);
