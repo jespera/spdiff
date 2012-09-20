@@ -555,8 +555,6 @@ and trans_top top =
     | EmptyDef _ -> mkA("edef", "N/H")
     | NotParsedCorrectly _ -> mkA("NCP","N/H")
     | FinalDef _ -> mkA("fdef", "N/H")
-    | _ -> mkA("top", "N/H")
-	(* and trans_include (inc_f, inc_pos) = *)
 
 and trans_include { i_include = inc_f} =
   let ie s = mkA("inc_elem", s) in
@@ -574,7 +572,6 @@ let trans_prg2 prg =
     (List.map (fun (a, _) -> a)
     (List.filter (fun a -> match a with (FinalDef _, _) -> false | _ -> true)
     prg))
-    (*List.map (fun (tl,_) -> trans_top tl) prg *)
   in
   let tops_envs = 
     Type_annoter_c.annotate_program 
