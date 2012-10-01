@@ -35,7 +35,8 @@ module SpdiffImpl : Spdiff =
      * for each subterm, try to anti-unify with all subterms in other
      * term-pairs
      *) 
-    let get_term_patterns cset = 
+    let get_term_patterns cset = []
+    (*
       let lhs_terms = List.rev_map fst cset in
       let lhs_subterm_sets = List.rev_map get_subterms lhs_terms in
       let g subterm acc_term_patterns =
@@ -47,6 +48,6 @@ module SpdiffImpl : Spdiff =
       TermSet.elements (
         List.fold_left f TermSet.empty lhs_subterm_sets
       )
-
+*)
     let get_term_patches cset = []
   end
