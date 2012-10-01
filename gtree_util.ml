@@ -18,6 +18,12 @@ let new_meta env t =
     [make_gmeta m], [(m,t)]
 let is_meta v = match view v with | A("meta", _) -> true | _ -> false
 
+(** 
+ * Anti-unification of two terms into the most specific generalization
+ * I.e. given t1 and t2 compute a t3 such that
+ * - there exists env1 and env2 where env1(t3) = t1 and env2(t3) = t2
+ * - t3 is the most specific  
+ *)
 let merge_terms t1 t2 =
   let rec loop env t1 t2 = 
     if t1 == t2 

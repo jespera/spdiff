@@ -31,9 +31,9 @@ module SpdiffImpl : Spdiff =
      * LHS terms.
      *
      * The näive approach:
-       * compute all subterms for all LHS terms;
-       * for each subterm, try to anti-unify with all subterms in other
-       * term-pairs
+     * compute all subterms for all LHS terms;
+     * for each subterm, try to anti-unify with all subterms in other
+     * term-pairs
      *) 
     let get_term_patterns cset = 
       let lhs_terms = List.rev_map fst cset in
