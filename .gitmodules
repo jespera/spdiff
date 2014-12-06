@@ -13,3 +13,6 @@
 [submodule "spdiff-exp"]
 	path = spdiff-exp
 	url = https://github.com/nacuong/spdiff-exp.git
+[submodule "coccinelle"]
+	path = coccinelle
+	url = https://github.com/coccinelle/coccinelle.git
