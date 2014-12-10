@@ -41,7 +41,7 @@ SRC=ANSITerminal.ml \
 		reader.ml \
 		main.ml
 
-COCCI=localcocci
+COCCI=coccinelle
 SYSDIR=/usr/lib/ocaml
 
 SYSLIBS=str.cma unix.cma bigarray.cma 
@@ -49,7 +49,7 @@ LIBS=$(COCCI)/commons/commons.cma $(COCCI)/globals/globals.cma $(COCCI)/parsing_
 #LIBS=$(COCCI)/commons/commons.cma $(COCCI)/globals/globals.cma $(COCCI)/parsing_c/parsing_c.cma $(COCCI)/parsing_c/pretty_print_c.cmx hashcons.cmx db.cmx gtree.cmx difftype.cmx visitor_j.cmx ast_to_flow2.cmx diff.cmx main.cmx
 #LIBS=$(COCCI)/commons/commons.cma $(COCCI)/globals/globals.cma $(COCCI)/parsing_c/parsing_c.cma $(COCCI)/parsing_c/pretty_print_c.cmo hashcons.cmo db.cmo gtree.cmo difftype.cmo visitor_j.cmo diff.cmo main.cmo
 
-MAKESUBDIRS=$(COCCI)/commons $(COCCI)/globals $(COCCI)/menhirlib $(COCCI)/parsing_cocci $(COCCI)/parsing_c
+MAKESUBDIRS=$(COCCI)/commons $(COCCI)/globals $(COCCI)/parsing_cocci $(COCCI)/parsing_c
 INCLUDEDIRS=$(COCCI)/commons $(COCCI)/commons/ocamlextra $(COCCI)/globals $(COCCI)/commons/ocollection $(COCCI)/globals $(COCCI)/parsing_c 
 
 ##############################################################################
@@ -67,7 +67,7 @@ EXEC=$(TARGET)
 # Generic ocaml variables
 ##############################################################################
 
-OCAMLCFLAGS=-g -dtypes -custom # -w A
+OCAMLCFLAGS=-g -dtypes -custom -annot # -w A
 
 # for profiling add  -p -inline 0
 # but 'make forprofiling' below does that for you.

@@ -32,36 +32,52 @@ open Type_annoter_c
    file *)
 let offset (_,(ty,iis)) =
   match iis with
-      ii::_ -> ii.Ast_c.pinfo
-    | _ -> failwith "type has no text; need to think again"
-
+    ii::_ -> ii.Ast_c.pinfo
+  | _ -> failwith "type has no text; need to think again"
+									
 
 let (+>) o f = f o
 
+let rec stmt_elems_of_sequencable xs =
+  xs +>
+		Common.map (fun x ->
+								match x with
+								| Ast_c.StmtElem e -> [e]
+								| Ast_c.CppDirectiveStmt _
+								| Ast_c.IfdefStmt _
+									->
+									 []
+								| Ast_c.IfdefStmt2 (_ifdef, xxs) ->
+									 xxs +> List.map (fun xs ->
+																		let xs' = stmt_elems_of_sequencable xs in
+																		xs'
+																	 ) +> List.flatten
+							 ) +> List.flatten
+											
+											
 exception Fail of string
-
+										
 let type_c_term ty te = mkC(ty, [te])
 let type_a_term ty a  = mkA(ty, a)
 let make_type_expl t  = mkA("grammar",t)
-let (<<) a b = make_type_expl a :: b
-let (@@) a b' = match view b' with
-    (*| C(b,l) -> C(a^":"^b,l)*)
-  (*| C(b,l) -> C(a, b << l)*)
-  | C(b,_)
+
+let (@@) a b' =
+	match view b' with
+	| C(b,_)
   | A(b,_) -> mkC(a, [b'])
 let (@@@) a b = mkC(a, b)
 let (%%) a b = type_a_term a b
 let (!!) a = mkA(a, "N/H")
-
+								
 let id_hash = Hashtbl.create 4097
-
+														 
 let id_cnt = ref 0
-
+								 
 let reset_cnt () = id_cnt := 0
-
+															 
 let bind_id (id_info, id_name) value =
   Hashtbl.replace id_hash (id_info, id_name) value
-
+									
 let current_fun = ref "TOP"
 
 let mk_id (x,y,filename) id_name =
@@ -69,102 +85,106 @@ let mk_id (x,y,filename) id_name =
     Hashtbl.find id_hash ((x,y), id_name)
   with Not_found ->
     let uniq_id = id_name ^ "@" ^ !current_fun in
-(*    let uniq_id = id_name ^ "@" ^ !id_cnt +> string_of_int in *)
     begin
       id_cnt := !id_cnt + 1;
       bind_id ((x,y), id_name) uniq_id;
       uniq_id
     end
-      
+
+let id_of_name name =
+	match name with
+	| RegularName(s, il) -> s
+	| _ -> "NOT SUPPORTED"
+					 
 let rec trans_expr exp = 
   let (unwrap_e, typ), ii = exp in
   match unwrap_e with
-      | Ident s -> 
-          (* "exp" @@ "ident" %% s *)
-          (match !typ with
-             | None, _ -> "exp" @@ "ident" %% s
-             | Some (ft, LocalVar (OriginTok {Common.line=l;Common.column=c;Common.file=f})), _ -> 
-                 let new_s = if !Jconfig.uniq_local then mk_id (l,c,f) s else s in
-                 (*let new_s = s in*)
-                 "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% new_s]
-             | Some (ft, _), _ -> "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% s]
-          )
-      | Constant (String (s, _)) -> 
-	  "exp" @@ "const" @@ "string" %% s
-      | Constant (Int s) -> 
-	  "exp" @@ "const" @@ "int" %% s
-      | Constant (Char (s, _)) ->
-	  "exp" @@ "const" @@ "char" %% s
-      | Constant (Float (s, flT)) ->
-	  "exp" @@ "const" @@ "float" %% s
-      | Constant (MultiString str_list) ->
-	  "exp" @@ "const" @@ "multistring" @@@ (
-	    List.map (function s -> "string" %% s) str_list
-	  )
-      | FunCall (f, args) ->
-	  let gt_f = trans_expr f in
-	  let gt_args = List.map (fun (e, ii) ->
-				    trans_arg e
-				 ) args in
-	    "exp" @@ "call" @@@ gt_f :: gt_args
-      | CondExpr (e1, None, e3) ->
-	  let gt_e1 = trans_expr e1 in
-	  let gt_e3 = trans_expr e3 in
-	    "exp" @@ "cond2" @@@ [gt_e1; gt_e3]
-      | CondExpr (e1, Some e2, e3) ->
-	  let gt_e1 = trans_expr e1 in
-	  let gt_e2 = trans_expr e2 in
-	  let gt_e3 = trans_expr e3 in
-	    "exp" @@ "cond3" @@@ [gt_e1; gt_e2; gt_e3]
-      | Assignment (e1, op, e2) ->
-	  let gt_e1 = trans_expr e1 in
-	  let gt_e2 = trans_expr e2 in
-	    (*      let gt_op = trans_assi op in *)
-	  let op_str = trans_assi op in
-	    "exp" @@ ("assign"^op_str) @@@ [gt_e1;gt_e2]
-      | ArrayAccess (e1, e2) ->
-	  let gt_e1 = trans_expr e1 in
-	  let gt_e2 = trans_expr e2 in
-	    "exp" @@ "array_acc" @@@ [gt_e1;gt_e2]
-      | RecordAccess (e1, str) -> 
-	  let gt_e1 = trans_expr e1 in
-	  let gt_e2 = "ident" %% str in
-	    "exp" @@ "record_acc" @@@ [gt_e1;gt_e2]
-      | RecordPtAccess (e1, str) -> 
-	  let gt_e1 = trans_expr e1 in
-	  let gt_e2 = "ident" %% str in
-	    "exp" @@ "record_ptr" @@@ [gt_e1;gt_e2]
-      | Postfix (e1, fOp) ->
-	  let gt_fop = trans_fop fOp in
-	  let gt_e1 = trans_expr e1 in
-	    "exp" @@ "postfix" @@ gt_fop @@ gt_e1
-      | Infix (e1, fOp) ->
-	  let gt_fop = trans_fop fOp in
-	  let gt_e1 = trans_expr e1 in
-	    "exp" @@ "infix" @@ gt_fop @@ gt_e1
-      | Unary (e1, unop) ->
-	  let gt_e1 = trans_expr e1 in
-	  let gt_up = trans_unary unop in
-	    "exp" @@ gt_up @@ gt_e1
-      | Binary (e1, bop, e2) ->
-	  "exp" @@ (trans_binary e1 bop e2)
-      | SizeOfType (ft) ->
-	  let gt_e1 = trans_type ft in
-	    "exp" @@ "sizeoftype" @@ gt_e1
-      | SizeOfExpr (e) ->
-	  let gt_e1 = trans_expr e in
-	    "exp" @@ "sizeof" @@ gt_e1
-      | ParenExpr e -> trans_expr e
-      | Sequence (e1, e2) ->
-	  "exp" @@ ",seq" @@@ [
-            trans_expr e1;
-            trans_expr e2
-	  ]
-      | Cast (ftype, e) -> "exp" @@ "cast" @@@ [trans_type ftype; trans_expr e] 
-      | StatementExpr (comp, _)  -> 
-	  let comp' = stmt_elems_of_sequencable comp in
-	    "exp" @@ "stmtexp" @@@ List.map trans_statement comp'
-      | Constructor (ft, initw2) -> "exp" %% "constr"
+  | Ident (RegularName (s, _)) -> 
+     (* "exp" @@ "ident" %% s *)
+     (match !typ with
+      | None, _ -> "exp" @@ "ident" %% s
+      | Some (ft, LocalVar (OriginTok {Common.line=l;Common.column=c;Common.file=f})), _ -> 
+         let new_s = if !Jconfig.uniq_local then mk_id (l,c,f) s else s in
+         (*let new_s = s in*)
+         "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% new_s]
+      | Some (ft, _), _ -> "exp" @@@ [ "TYPEDEXP" @@ trans_type ft; "ident" %% s]
+     )
+  | Constant (String (s, _)) -> 
+		 "exp" @@ "const" @@ "string" %% s
+  | Constant (Int (s,_)) -> 
+		 "exp" @@ "const" @@ "int" %% s
+  | Constant (Char (s, _)) ->
+		 "exp" @@ "const" @@ "char" %% s
+  | Constant (Float (s, flT)) ->
+		 "exp" @@ "const" @@ "float" %% s
+  | Constant (MultiString str_list) ->
+		 "exp" @@ "const" @@ "multistring" @@@ (
+			 List.map (function s -> "string" %% s) str_list
+		 )
+  | FunCall (f, args) ->
+	   let gt_f = trans_expr f in
+	   let gt_args = List.map (fun (e, ii) ->
+														 trans_arg e
+														) args in
+	   "exp" @@ "call" @@@ gt_f :: gt_args
+  | CondExpr (e1, None, e3) ->
+	   let gt_e1 = trans_expr e1 in
+	   let gt_e3 = trans_expr e3 in
+	   "exp" @@ "cond2" @@@ [gt_e1; gt_e3]
+  | CondExpr (e1, Some e2, e3) ->
+	   let gt_e1 = trans_expr e1 in
+	   let gt_e2 = trans_expr e2 in
+	   let gt_e3 = trans_expr e3 in
+	   "exp" @@ "cond3" @@@ [gt_e1; gt_e2; gt_e3]
+  | Assignment (e1, op, e2) ->
+	   let gt_e1 = trans_expr e1 in
+	   let gt_e2 = trans_expr e2 in
+	   (*      let gt_op = trans_assi op in *)
+	   let op_str = trans_assi op in
+	   "exp" @@ ("assign"^op_str) @@@ [gt_e1;gt_e2]
+  | ArrayAccess (e1, e2) ->
+	   let gt_e1 = trans_expr e1 in
+	   let gt_e2 = trans_expr e2 in
+	   "exp" @@ "array_acc" @@@ [gt_e1;gt_e2]
+  | RecordAccess (e1, str) -> 
+		 let gt_e1 = trans_expr e1 in
+		 let gt_e2 = "ident" %% (id_of_name str) in
+		 "exp" @@ "record_acc" @@@ [gt_e1;gt_e2]
+  | RecordPtAccess (e1, str) -> 
+	   let gt_e1 = trans_expr e1 in
+	   let gt_e2 = "ident" %% (id_of_name str) in
+	   "exp" @@ "record_ptr" @@@ [gt_e1;gt_e2]
+  | Postfix (e1, fOp) ->
+	   let gt_fop = trans_fop fOp in
+	   let gt_e1 = trans_expr e1 in
+	   "exp" @@ "postfix" @@ gt_fop @@ gt_e1
+  | Infix (e1, fOp) ->
+	   let gt_fop = trans_fop fOp in
+	   let gt_e1 = trans_expr e1 in
+	   "exp" @@ "infix" @@ gt_fop @@ gt_e1
+  | Unary (e1, unop) ->
+	   let gt_e1 = trans_expr e1 in
+	   let gt_up = trans_unary unop in
+	   "exp" @@ gt_up @@ gt_e1
+  | Binary (e1, bop, e2) ->
+	   "exp" @@ (trans_binary e1 bop e2)
+  | SizeOfType (ft) ->
+	   let gt_e1 = trans_type ft in
+	   "exp" @@ "sizeoftype" @@ gt_e1
+  | SizeOfExpr (e) ->
+	   let gt_e1 = trans_expr e in
+	   "exp" @@ "sizeof" @@ gt_e1
+  | ParenExpr e -> trans_expr e
+  | Sequence (e1, e2) ->
+	   "exp" @@ ",seq" @@@ [
+         trans_expr e1;
+         trans_expr e2
+			 ]
+  | Cast (ftype, e) -> "exp" @@ "cast" @@@ [trans_type ftype; trans_expr e] 
+  | StatementExpr (comp, _)  -> 
+	   let comp' = stmt_elems_of_sequencable comp in
+	   "exp" @@ "stmtexp" @@@ List.map trans_statement comp'
+  | Constructor (ft, initw2) -> "exp" %% "constr"
 
 and trans_binary e1 bop e2 = 
   let gt_e1 = trans_expr e1 in
@@ -276,7 +296,7 @@ and trans_statement (sta : statement) =
       | _ -> !! "stmt"
 
 and trans_labeled lab = match lab with
-  | Label (s, stat) -> "labeled" @@@ ["lname" %% s; trans_statement stat]
+  | Label (s, stat) -> "labeled" @@@ ["lname" %% (id_of_name s); trans_statement stat]
   | Case (e, stat) -> "case" @@@ [trans_expr e; trans_statement stat]
   | CaseRange (e1, e2, st) -> "caseRange" @@@ [
       trans_expr e1; trans_expr e2;
@@ -285,28 +305,28 @@ and trans_labeled lab = match lab with
 
 and trans_iter i = 
   match i with
-    | While (e, s) -> "while" @@@ [
-	trans_expr e;
-	trans_statement s]
-    | DoWhile (s, e) -> "dowhile" @@@ [
-	trans_statement s;
-	trans_expr e]
-    | For (es1, es2, es3, st) -> 
-	let handle_empty x = match unwrap x with
-	  | None -> "expr" %% "empty"
-	  | Some e -> trans_expr e in
-	  "for" @@@ [
-            handle_empty es1;
-            handle_empty es2;
-            handle_empty es3;
-            trans_statement st]
-    | MacroIteration (s, awrap, st) -> 
-	"macroit" @@ s @@@ [
-	  "macroargs" @@@ 
-	    awrap +> List.map (function (e,ii) -> trans_arg e);
-          trans_statement st
-	]
-	  (*raise (Fail "macroiterator not yet supported")*)
+  | While (e, s) -> "while" @@@ [
+				trans_expr e;
+				trans_statement s]
+  | DoWhile (s, e) -> "dowhile" @@@ [
+				trans_statement s;
+				trans_expr e]
+  | For (es1, es2, es3, st) -> 
+		 let handle_empty x = match unwrap x with
+			 | None -> "expr" %% "empty"
+			 | Some e -> trans_expr e in
+	   "for" @@@ [
+				 handle_empty es1;
+				 handle_empty es2;
+				 handle_empty es3;
+         trans_statement st]
+  | MacroIteration (s, awrap, st) -> 
+		 "macroit" @@ s @@@ [
+				 "macroargs" @@@ 
+					 awrap +> List.map (function (e,ii) -> trans_arg e);
+         trans_statement st
+			 ]
+(*raise (Fail "macroiterator not yet supported")*)
 
 and trans_select s = 
   match s with
