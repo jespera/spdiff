@@ -315,8 +315,13 @@ and trans_iter i =
 		 let handle_empty x = match unwrap x with
 			 | None -> "expr" %% "empty"
 			 | Some e -> trans_expr e in
+		 let handle_forDeclOrExp x =
+			 match x with
+			 | ForDecl decl -> trans_decl decl
+			 | ForExp exprWrap -> handle_empty exprWrap
+		 in
 	   "for" @@@ [
-				 handle_empty es1;
+				 handle_forDeclOrExp es1;
 				 handle_empty es2;
 				 handle_empty es3;
          trans_statement st]
@@ -345,7 +350,7 @@ and trans_select s =
 
 and trans_jump j =
   match j with
-    | Goto s -> "goto" %% s
+    | Goto s -> "goto" %% (id_of_name s)
     | Continue -> "jump" %% "continue" 
     | Break -> "jump" %% "break"
     | Return -> "jump" %% "return"
@@ -364,60 +369,62 @@ and trans_qual tq =
 
 and trans_typec tc =
   match unwrap tc with
-    | BaseType bt -> trans_basetype bt
-    | Pointer ft -> "pointer" @@ trans_type ft
-    | Array (cexpOpt, ft) -> 
-	let ft_gt = trans_type ft in
-	let cexp_gt = (match cexpOpt with
-			 | None -> "constExp" %% "none"
-			 | Some e -> "constExp" @@ trans_expr e) in
-	  "array" @@@ [cexp_gt; ft_gt]
-    | FunctionType funt -> trans_funtype funt
-    | Enum (sOpt, enumT) -> 
-	let enum_name = (match sOpt with
-			   | None -> "anon_enum"
-			   | Some s -> s) in
-	let enumt_gt = trans_enumtype_list enumT in
-	  "enum" @@@ ["ename" %% enum_name; enumt_gt]
-    | StructUnion (strun, sOpt, sType) -> 
-	let su_str = string_of_structunion strun in
-	let stype = trans_struct_type sType in
-	let sname = (match sOpt with
-		       | None -> "anon_structunion"
-		       | Some s -> s) in
-	  su_str @@ sname @@ stype
-    | EnumName name -> "enumname" %% name
-    | StructUnionName (su, name) -> string_of_structunion su %% name
-    | TypeName (name, ftOpt) -> 
-	let ft_gt = (match ftOpt with
-		       | None -> "fullType" %% "unknown"
-		       | Some ft -> trans_type ft) in
-	  "typeName" @@@ ["ident" %% name; ft_gt]
-    | ParenType ft -> trans_type ft
-    | TypeOfExpr ex -> "typeOfExp" @@ trans_expr ex
-    | TypeOfType ft -> "typeOfType" @@ trans_type ft
-
+  | BaseType bt -> trans_basetype bt
+  | Pointer ft -> "pointer" @@ trans_type ft
+  | Array (cexpOpt, ft) -> 
+		 let ft_gt = trans_type ft in
+		 let cexp_gt = (match cexpOpt with
+										| None -> "constExp" %% "none"
+										| Some e -> "constExp" @@ trans_expr e) in
+	   "array" @@@ [cexp_gt; ft_gt]
+  | FunctionType funt -> trans_funtype funt
+  | Enum (sOpt, enumT) -> 
+		 let enum_name = (match sOpt with
+											| None -> "anon_enum"
+											| Some s -> s) in
+		 let enumt_gt = trans_enumtype_list enumT in
+	   "enum" @@@ ["ename" %% enum_name; enumt_gt]
+  | StructUnion (strun, sOpt, sType) -> 
+		 let su_str = string_of_structunion strun in
+		 let stype = trans_struct_type sType in
+		 let sname = (match sOpt with
+									| None -> "anon_structunion"
+									| Some s -> s) in
+		 su_str @@ sname @@ stype
+  | EnumName name -> "enumname" %% name
+  | StructUnionName (su, name) -> string_of_structunion su %% name
+  | TypeName (name, ftOpt) -> 
+		 let ft_gt = (match ftOpt with
+									| None -> "fullType" %% "unknown"
+									| Some ft -> trans_type ft) in
+		 "typeName" @@@ ["ident" %% (id_of_name name); ft_gt]
+  | ParenType ft -> trans_type ft
+  | TypeOfExpr ex -> "typeOfExp" @@ trans_expr ex
+  | TypeOfType ft -> "typeOfType" @@ trans_type ft
+																								
 and trans_struct_type st = "fields" @@@
   List.map trans_field_type st
 
-and trans_field_type f = match unwrap f with
-  | DeclarationField (FieldDeclList (fkinds, _)) -> "fdecls" @@@ List.map (function fkwrap -> 
-									     (match unwrap (unwrap fkwrap) with
-										| Simple (varOpt, ftype) -> 
-										    (match varOpt with 
-										       | None -> "field" @@@ 
-											   ["fieldname" %% "anon"; "fieldtype" @@ trans_type ftype]
-										       | Some v -> "field" @@@
-											   ["fieldname" %% v; "fieldtype" @@ trans_type ftype])
-										| BitField (varOpt, ftype, cExp) -> 
-										    let fn = (match varOpt with 
-												| None -> "fieldname" %% "anon"
-												| Some v -> "fieldname" %% v) in
-										    let ft_gt = trans_type ftype in
-										    let bits  = trans_expr cExp in
-										      "bitfield" @@@ [fn; ft_gt; bits])
-									  ) fkinds
-  | EmptyField -> "field" %% "empty"
+and trans_field_type f = match f with
+  | DeclarationField (FieldDeclList (fkindsWrapped, _)) ->
+		 "fdecls" @@@ List.map
+										(function fkwrap -> 
+															(match (unwrap fkwrap) with
+															 | Simple (varOpt, ftype) -> 
+																	(match varOpt with 
+																	 | None -> "field" @@@ 
+																							 ["fieldname" %% "anon"; "fieldtype" @@ trans_type ftype]
+																	 | Some v -> "field" @@@
+																								 ["fieldname" %% (id_of_name v); "fieldtype" @@ trans_type ftype])
+															 | BitField (varOpt, ftype, _, cExp) -> 
+																	let fn = (match varOpt with 
+																						| None -> "fieldname" %% "anon"
+																						| Some v -> "fieldname" %% (id_of_name v)) in
+																	let ft_gt = trans_type ftype in
+																	let bits  = trans_expr cExp in
+																	"bitfield" @@@ [fn; ft_gt; bits])
+									  ) fkindsWrapped
+  | EmptyField info -> "field" %% "empty"
   | _ -> "field_type" %% "N/A"
 
 and string_of_structunion su = match su with
@@ -428,11 +435,11 @@ and trans_enumtype_list enT =
   let en_gts = List.map trans_enum_type enT in
     "enumTypes" @@@ en_gts
 
-and trans_enum_type (((enum_val, cExpOpt), _), _) =
-  let enum_val_name = "enum_val" %% enum_val in
+and trans_enum_type ((name, cExpOpt), _) =
+  let enum_val_name = "enum_val" %% id_of_name name in
   let enum_val_val  = (match cExpOpt with
 			 | None -> "enum_const" %% "unset"
-			 | Some e -> "enum_exp" @@ trans_expr e) in
+			 | Some (_,e) -> "enum_exp" @@ trans_expr e) in
     "enum_entry" @@@ [enum_val_name; enum_val_val]
 
 and trans_basetype bt =
@@ -471,31 +478,31 @@ and trans_floattype ft =
 and trans_decl decl = match decl with
   | DeclList (odecls,_) -> "dlist" @@@ 
       List.map trans_odecl odecls
-  | MacroDecl ((s, args), _) ->
+  | MacroDecl ((s, args, _), _) ->
       "mdecl" @@ s @@@ List.map (function a -> trans_arg (unwrap a)) args
 	(*and trans_odecl ((fopt, ftype, stor, _), _) = match fopt with *)
 
 and trans_odecl ({v_namei = fopt; v_type = ftype; v_storage = stor; v_local = local}, _) = 
   match fopt with
   | None -> "onedecl" %% "()"
-      (*raise (Fail "decl_spec with no init_decl")*)
-  | Some ((var, initOpt), _) -> 
-      let new_var = 
-        match local with
-        | Ast_c.LocalDecl -> begin
-            match offset ftype with
-            | OriginTok {Common.line=l;Common.column=c;Common.file=f} -> mk_id (l,c,f) var
-            | _ -> var
-          end
-        | _ -> var in
-      let gt_var = "exp" @@ "ident" %% new_var in
-      let gt_ft  = trans_type ftype in
-      let gt_sto = trans_storage stor in
-	match initOpt with
-	  | None -> "onedecl" @@@ [gt_var;gt_ft;gt_sto]
-	  | Some ini -> "onedecl_ini" @@@ 
-	      [gt_var; trans_ini ini; gt_ft; gt_sto]
-
+  (*raise (Fail "decl_spec with no init_decl")*)
+  | Some (var, initOpt) -> 
+     let new_var = 
+       match local with
+       | Ast_c.LocalDecl -> begin
+           match offset ftype with
+           | OriginTok {Common.line=l;Common.column=c;Common.file=f} -> mk_id (l,c,f) (id_of_name var)
+           | _ -> id_of_name var
+         end
+       | _ -> id_of_name var in
+     let gt_var = "exp" @@ "ident" %% new_var in
+     let gt_ft  = trans_type ftype in
+     let gt_sto = trans_storage stor in
+		 match initOpt with
+	   | NoInit -> "onedecl" @@@ [gt_var;gt_ft;gt_sto]
+	   | ValInit (_, ini) -> "onedecl_ini" @@@ 
+														 [gt_var; trans_ini ini; gt_ft; gt_sto]
+											 
 and trans_storage (sto, inl) =
   let inl_gt = "inline" %% if inl then "inline" else "notinline" in
   let sto_gt = "stobis" %% match sto with
@@ -528,18 +535,17 @@ and trans_ini (ini, _) = match ini with
 						  ) deslist))
 	  (* and trans_def def =  *)
 
-and trans_def ({
-		 f_name = name;
-		 f_type = ty;
-		 f_storage = sto;
-		 f_body = body;
-	       }, _) = 
+and trans_def ({f_name = name;
+								f_type = ty;
+								f_storage = sto;
+								f_body = body;
+							 }, _) = 
   (*  let (name, ty, (sto, _), body) = unwrap def in(*{{{*) *)
-  current_fun := name;
+  current_fun := id_of_name name;
   let gt_funty = trans_funtype ty in
   let gt_comp  = List.map trans_statement (stmt_elems_of_sequencable body) in
   let gt_body  = "stmt" @@ "comp{}" @@@ gt_comp in
-  let gt_name  = "fname" %% name in
+  let gt_name  = "fname" %% (id_of_name name) in
     mkC("def", [gt_name; gt_funty; gt_body])(*}}}*)
 
 and trans_funtype (rettype, (params, hasdots)) =
@@ -547,14 +553,14 @@ and trans_funtype (rettype, (params, hasdots)) =
   let par_types = List.map trans_param params in
     "funtype" @@@ (gt_ret :: par_types)
 
-and trans_param p = 
-  match unwrap (unwrap p) with
-    | (reg, name, ft) ->
-	let reg  = mkA("reg", if reg then "register" else "") in
-	let name = mkA("ident", match name with Some n -> n ^"@"^ !current_fun| _ -> "") in
+and trans_param ({p_namei = p_name; p_register = (p_reg,_); p_type = ft}, _) = 
+	let reg  = mkA("reg", if p_reg then "register" else "") in
+	let name = mkA("ident", match p_name with
+													| Some n -> (id_of_name n) ^"@"^ !current_fun
+													| _ -> "") in
 	let ft = trans_type ft in
-	  mkC("param",[reg;name;ft])
-
+	mkC("param",[reg;name;ft])
+		 
 and trans_define def = mkA("define", "N/H")
 
 and trans_ccp cpp_dir =
@@ -581,7 +587,7 @@ and trans_include { i_include = inc_f} =
     match unwrap inc_f with
       | Local ies -> mkC("includeL", List.map ie ies)
       | NonLocal ies -> mkC("includeN", List.map ie ies)
-      | Wierd s -> mkC("include", [mkA("winc", s)])
+      | Weird s -> mkC("include", [mkA("winc", s)])
 
 let trans_prg prg = 
   let tops = List.map trans_top prg in
