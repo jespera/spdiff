@@ -69,7 +69,22 @@ exception Error of error
 (*****************************************************************************)
 (* Helpers *)
 (*****************************************************************************)
-
+let rec stmt_elems_of_sequencable xs =
+  xs +>
+		Common.map (fun x ->
+								match x with
+								| Ast_c.StmtElem e -> [e]
+								| Ast_c.CppDirectiveStmt _
+								| Ast_c.IfdefStmt _
+									->
+									 []
+								| Ast_c.IfdefStmt2 (_ifdef, xxs) ->
+									 xxs +> List.map (fun xs ->
+																		let xs' = stmt_elems_of_sequencable xs in
+																		xs'
+																	 ) +> List.flatten
+							 ) +> List.flatten
+											
 let add_node node labels nodestr g = 
    g#add_node (Control_flow_c2.mk_node node labels [] nodestr)
 let add_bc_node node labels parent_labels nodestr g = 
@@ -169,34 +184,40 @@ let counter_for_switch = ref 0
 (*****************************************************************************)
 (* helpers *)
 (*****************************************************************************)
+let id_of_name name =
+	match name with
+	| RegularName(s, il) -> s
+	| _ -> "NOT SUPPORTED"
 
 (* alt: do via a todo list, so can do all in one pass (but more complex) 
  * todo: can also count the depth level and associate it to the node, for 
  * the ctl_braces: 
  *)
 let compute_labels_and_create_them st = 
-
+	
   (* map C label to index number in graph *)
   let (h: (string, nodei) oassoc ref) = ref (new oassocb []) in
-
+	
   begin
     st +> Visitor_c.vk_statement { Visitor_c.default_visitor_c with 
-      Visitor_c.kstatement = (fun (k, bigf) st -> 
-        match st with
-        | Labeled (Ast_c.Label (s, _st)),ii -> 
-            (* at this point I put a lbl_0, but later I will put the
-             * good labels. *)
-            let newi = !g +> add_node (Label (st,(s,ii))) lbl_0  (s^":") in
-            begin
-              (* the C label already exists ? *)
-              if (!h#haskey s) then raise (Error (DuplicatedLabel s));
-              h := !h#add (s, newi);
-              (* not k _st !!! otherwise in lbl1: lbl2: i++; we miss lbl2 *)
-              k st; 
-            end
-        | st -> k st
-      )
-    };
+																	 Visitor_c.kstatement =
+																		 (fun (k, bigf) st -> 
+																			match st with
+																			| Labeled (Ast_c.Label (s, _st)),ii -> 
+																				 (* at this point I put a lbl_0, but later I will put the
+																					* good labels. *)
+																				 let id = id_of_name s in
+																				 let newi = !g +> add_node (Label (st,(id,ii))) lbl_0  (id^":") in
+																				 begin
+																					 (* the C label already exists ? *)
+																					 if (!h#haskey id) then raise (Error (DuplicatedLabel id));
+																					 h := !h#add (id, newi);
+																					 (* not k _st !!! otherwise in lbl1: lbl2: i++; we miss lbl2 *)
+																					 k st; 
+																				 end
+																			| st -> k st
+																		 )
+																 };
     !h;
   end
 
@@ -351,19 +372,21 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
 
 
    (* ------------------------- *)        
-  | Labeled (Ast_c.Label (s, st)), ii -> 
-      let ilabel = xi.labels_assoc#find s in
-      let node = mk_node (unwrap (!g#nodes#find ilabel)) lbl [] (s ^ ":") in
-      !g#replace_node (ilabel, node);
-      !g +> add_arc_opt (starti, ilabel);
-      aux_statement (Some ilabel, xi_lbl) st
-
-
-  | Jump (Ast_c.Goto s), ii -> 
+  | Labeled (Ast_c.Label (id, st)), ii ->
+		 let s = id_of_name id in
+		 let ilabel = xi.labels_assoc#find s in
+		 let node = mk_node (unwrap (!g#nodes#find ilabel)) lbl [] (s ^ ":") in
+		 !g#replace_node (ilabel, node);
+     !g +> add_arc_opt (starti, ilabel);
+     aux_statement (Some ilabel, xi_lbl) st
+									 
+									 
+	| Jump (Ast_c.Goto id), ii ->
+		 let s = id_of_name id in
      (* special_cfg_ast: *)
      let newi = !g +> add_node (Goto (stmt, (s,ii))) lbl ("goto " ^ s ^ ":") in
      !g +> add_arc_opt (starti, newi);
-
+		 
      let ilabel = 
        try xi.labels_assoc#find s 
        with Not_found -> 
@@ -395,15 +418,15 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
             let ((unwrap_e, typ), ii) = e in
             (match unwrap_e with
             | FunCall (((Ident f, _typ), _ii), _args) -> 
-                f ^ "(...)"
+                (id_of_name f) ^ "(...)"
             | Assignment (((Ident var, _typ), _ii), SimpleAssign, e) -> 
-                var ^ " = ... ;"
+                (id_of_name var) ^ " = ... ;"
             | Assignment 
                 (((RecordAccess (((Ident var, _typ), _ii), field), _typ2), 
                   _ii2),
                  SimpleAssign, 
                  e) -> 
-                   var ^ "." ^ field ^ " = ... ;"
+                   (id_of_name var) ^ "." ^ (id_of_name field) ^ " = ... ;"
                    
             | _ -> "statement"
         )
@@ -461,7 +484,7 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
       let (iiheader, iielse, iifakeend) = 
         match ii with
         | [i1;i2;i3;i4;i5] -> [i1;i2;i3], i4, i5
-        | _ -> raise Impossible
+        | _ -> raise (Impossible 42)
       in
       let newi = !g +> add_node (IfHeader (stmt, (e, iiheader))) lbl "if" in
       !g +> add_arc_opt (starti, newi);
@@ -558,7 +581,7 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
              } 
              in
              aux_statement (None (* no starti *), newxi) st
-         | x -> raise Impossible
+         | x -> raise (Impossible 42)
        in
        !g +> add_arc_opt (finalthen, newendswitch);
 
@@ -610,7 +633,7 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
             (Case (stmt, (e, ii))),  st
         | Labeled (Ast_c.CaseRange  (e, e2, st)), ii -> 
             (CaseRange (stmt, ((e, e2), ii))), st
-        | _ -> raise Impossible
+        | _ -> raise (Impossible 42)
       in
 
       let newi = !g +> add_node node  lbl "case:" in
@@ -710,7 +733,7 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
       let (iido, iiwhiletail, iifakeend) = 
         match ii with
         | [i1;i2;i3;i4;i5;i6] -> i1, [i2;i3;i4;i5], i6
-        | _ -> raise Impossible
+        | _ -> raise (Impossible 42)
       in
       let doi = !g +> add_node (DoHeader (stmt, e, iido))  lbl "do" in
       !g +> add_arc_opt (starti, doi);
@@ -837,7 +860,7 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
 	match context_info with
 	  LoopInfo (loopstarti, loopendi, braces, parent_lbl) -> parent_lbl
 	| SwitchInfo (startbrace, loopendi, braces, parent_lbl) -> parent_lbl
-	| NoInfo -> raise Impossible in
+	| NoInfo -> raise (Impossible 42) in
 
       (* flow_to_ast: *)
       let (node_info, string) =
@@ -850,7 +873,7 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
           | Ast_c.Break    ->
 	      (Break    (stmt, ((), ii)),
 	       Printf.sprintf "break; [%s]" parent_string)
-          | _ -> raise Impossible
+          | _ -> raise (Impossible 42)
           ) in
 
       (* idea: break or continue records the label of its parent loop or
@@ -866,7 +889,7 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
             (match x with 
             | Ast_c.Break -> loopendi 
             | Ast_c.Continue -> loopstarti 
-            | x -> raise Impossible
+            | x -> raise (Impossible 42)
             ) in
           let difference = List.length xi.braces - List.length braces in
           assert (difference >= 0);
@@ -883,7 +906,7 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
           let newi = insert_all_braces toend newi in
           !g#add_arc ((newi, loopendi), Direct);
           None
-      | NoInfo -> raise Impossible
+      | NoInfo -> raise (Impossible 42)
       )
 
   | Jump ((Ast_c.Return | Ast_c.ReturnExpr _) as kind), ii -> 
@@ -896,14 +919,14 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
         match kind with
         | Ast_c.Return -> "return"
         | Ast_c.ReturnExpr _ -> "return ..."
-        | _ -> raise Impossible
+        | _ -> raise (Impossible 42)
       in
       let newi = 
         !g +> add_node 
           (match kind with
           | Ast_c.Return ->       Return (stmt, ((),ii))
           | Ast_c.ReturnExpr e -> ReturnExpr (stmt, (e, ii))
-          | _ -> raise Impossible
+          | _ -> raise (Impossible 42)
           )
           lbl s
       in
@@ -915,7 +938,7 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
       else !g#add_arc ((newi, exiti), Direct)
       ;
       None
-     | _ -> raise Impossible
+     | _ -> raise (Impossible 42)
      )
 
 
@@ -1027,7 +1050,7 @@ let (aux_definition: nodei -> definition -> unit) = fun topi funcdef ->
     | is::ioparen::icparen::iobrace::icbrace::iifake::isto -> 
         is::ioparen::icparen::iifake::isto,     
         [iobrace;icbrace]
-    | _ -> raise Impossible
+    | _ -> raise (Impossible 42)
     )
   in
 
@@ -1117,7 +1140,7 @@ let ast_to_control_flow e =
             let (st, (e, ii)) = specialdeclmacro_to_stmt (s, args, ii) in
             (Control_flow_c2.ExprStatement (st, (Some e, ii))), "macrotoplevel"
           (*(Control_flow_c2.MacroTop (s, args,ii), "macrotoplevel") *)
-        | _ -> raise Impossible
+        | _ -> raise (Impossible 42)
       in
       let ei =   !g +> add_node elem    lbl_0 str in
       let endi = !g +> add_node EndNode lbl_0 "[end]" in
