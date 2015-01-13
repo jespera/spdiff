@@ -538,7 +538,7 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
        let finalthen = 
          match st with
          | Ast_c.Compound statxs, ii -> 
-             let statxs = Ast_c.stmt_elems_of_sequencable statxs in
+             let statxs = stmt_elems_of_sequencable statxs in
              
              (* todo? we should not allow to match a stmt that corresponds
               * to a compound of a switch, so really SeqStart (stmt, ...)
@@ -726,7 +726,7 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
       *)
       let is_zero = 
         match Ast_c.unwrap_expr e with
-        | Constant (Int "0") -> true
+        | Constant (Int ("0", intType)) -> true
         | _ -> false
       in
 
