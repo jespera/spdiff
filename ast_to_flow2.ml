@@ -776,7 +776,7 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
           
 
 
-  | Iteration  (Ast_c.For (e1opt, e2opt, e3opt, st)), ii -> 
+  | Iteration  (Ast_c.For (ForExp e1opt, e2opt, e3opt, st)), ii -> 
       let (i1,i2,i3, iifakeend) = tuple_of_list4 ii in
       let ii = [i1;i2;i3] in
 
@@ -947,8 +947,8 @@ let rec (aux_statement: (nodei option * xinfo) -> statement -> nodei option) =
      let s = 
        match decl with
        | (Ast_c.DeclList 
-             ([{v_namei = Some ((s, _),_); v_type = typ; v_storage = sto}, _], _)) ->
-	   "decl:" ^ s
+            ([{v_namei = Some (name,_); v_type = typ; v_storage = sto}, _], _)) ->
+					"decl:" ^ (id_of_name name)
        | _ -> "decl_novar_or_multivar"
      in
             
@@ -1065,7 +1065,7 @@ let (aux_definition: nodei -> definition -> unit) = fun topi funcdef ->
       f_body = [] (* empty body *);
       f_old_c_style = oldstyle;
       }, iifunheader))
-    lbl_start ("function " ^ funcs) in
+    lbl_start ("function " ^ (id_of_name funcs)) in
   let enteri     = !g +> add_node Enter     lbl_0 "[enter]"     in
   let exiti      = !g +> add_node Exit      lbl_0 "[exit]"      in
   let errorexiti = !g +> add_node ErrorExit lbl_0 "[errorexit]" in
@@ -1137,7 +1137,7 @@ let ast_to_control_flow e =
         | Ast_c.CppTop (Ast_c.Include inc) -> 
             (Control_flow_c2.Include inc), "#include"
         | Ast_c.MacroTop (s, args, ii) -> 
-            let (st, (e, ii)) = specialdeclmacro_to_stmt (s, args, ii) in
+            let (st, (e, ii)) = specialdeclmacro_to_stmt (RegularName (s, []), args, ii) in
             (Control_flow_c2.ExprStatement (st, (Some e, ii))), "macrotoplevel"
           (*(Control_flow_c2.MacroTop (s, args,ii), "macrotoplevel") *)
         | _ -> raise (Impossible 42)

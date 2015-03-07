@@ -270,13 +270,16 @@ let flow_to_gflow flow =
 let read_ast_cfg_old file =
   v_print_endline "[Reader] parsing...";
   let (pgm2, parse_stats) = 
-    Parse_c.parse_print_error_heuristic file in
+    Parse_c.parse_cache false file in
     (*  let flows = List.map (function (c,info) -> Ast_to_flow2.ast_to_control_flow c) pgm2 in *)
     (* ast_to_control_flow is given a toplevel entry and turns that into a flow *)
     v_print_endline "[Reader] type annotating";
     let tops_envs = 
-      pgm2 +> List.map fst +>
-	Type_annoter_c.annotate_program 
+      pgm2
+			+> (function (tl,_,_) -> tl)
+			+> List.map fst
+			+> 
+				Type_annoter_c.annotate_program 
 	!Type_annoter_c.initial_env
     in
     let flows = tops_envs +> List.map (function (c,info) -> Ast_to_flow2.ast_to_control_flow c)  in
@@ -297,12 +300,14 @@ let read_ast_cfg_old file =
 let read_ast_cfg file =
   v_print_endline "[Reader] parsing...";
   let (pgm2, parse_stats) = 
-    Parse_c.parse_print_error_heuristic file in
+    Parse_c.parse_cache false file in
     (*  let flows = List.map (function (c,info) -> Ast_to_flow2.ast_to_control_flow c) pgm2 in *)
     (* ast_to_control_flow is given a toplevel entry and turns that into a flow *)
     v_print_endline "[Reader] type annotating";
     let tops_envs = 
-      pgm2 +> List.map fst +>
+      pgm2
+			+> (function (tl,_,_) -> tl)
+			+> List.map fst +>
 	Type_annoter_c.annotate_program 
 	!Type_annoter_c.initial_env
     in
@@ -381,8 +386,8 @@ let read_src_tgt_cfg src tgt =
 (* first, let's try to parse a C program with Yoann's parser *)
 let read_ast file =
   let (pgm2, parse_stats) = 
-    Parse_c.parse_print_error_heuristic file in
-    pgm2
+    Parse_c.parse_cache false file in
+    pgm2 +> (function (tl,_,_) -> tl)
 
 exception Reader_fail of string
 

@@ -4582,7 +4582,7 @@ let main () =
 
   if !Config.std_h <> "" then
     (print_endline ("[Main] have std.h file: " ^ !Config.std_h);
-     Parse_c.init_defs !Config.std_h
+     Parse_c.init_defs_builtins !Config.std_h
     );
   if !threshold = 0 then do_dmine := false;
   if !mfile = ""
