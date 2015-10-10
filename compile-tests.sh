@@ -1,0 +1,1 @@
+ocamlfind ocamlopt -o ounit -package oUnit,str,unix,bigarray -I localcocci/commons/ -linkpkg -annot localcocci/commons/commons.cmxa  localcocci/globals/globals.cmxa localcocci/parsing_c/parsing_c.cmxa ANSITerminal.ml hashcons.ml gtree.ml env.ml gtree_util.ml jconfig.ml msa.ml difftype.ml util.ml diff.ml ounit.ml
