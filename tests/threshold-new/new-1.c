@@ -1,0 +1,6 @@
+
+void foo() {
+	rab();
+	unicord();
+}
+	
