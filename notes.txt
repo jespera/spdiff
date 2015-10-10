@@ -1,4 +1,32 @@
-= Notes on ranking of spatches =
+# Context on patches
+
+A patch is a to be understod as a generic term rewrite. It could be useful to
+extend a patch with a notion of *context*. A context is really just a predicate
+on a term. [[ctx]](t) = true / false
+
+Safe patch for (t,t'):
+
+pt ≼ (t,t') <=>
+
+ctx(t) holds & pt(t) = t'' and δ(t,t'') + δ(t'',t') = δ(t,t')
+
+Subpatch pt ≼(t,t') pt' :
+
+ctx(t) & ctx'(t)
+
+pt' ≼ (t,t')
+
+pt'(t) = t''
+
+pt ≼ (t,t'')
+
+
+## Example of contexts
+
+
+
+
+# Notes on ranking of spatches
 
 There have been discussion as to whether we would like to provide a language
 (or other mechanism) for expressing the ranking we want to do on the returned
@@ -26,7 +54,7 @@ Cons:
   additional complexity for no apparent good reason
 - 
 
-= Example specifications =
+# Example specifications
 
 "Any sp should have a context size > 1"
 
