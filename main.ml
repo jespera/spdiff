@@ -24,7 +24,7 @@
 
 open Gtree
 open Common
-
+open Util
 
 let do_dmine     = ref true
 let malign       = ref true
@@ -203,14 +203,14 @@ let bp_of_list ls =
     | Some bp -> Some (Difftype.SEQ (l, bp))
   in
   match loop ls with
-  | None -> raise (Diff.Fail "None?")
+  | None -> raise (Fail "None?")
   | Some bp -> bp
 
 let list_of_bp bp = 
   let rec loop bp = match bp with
   | Difftype.SEQ (Difftype.UP (a, b), bps) -> (Difftype.UP (a,b)) :: loop bps
   | Difftype.UP _ -> [bp]
-  | _ -> raise (Diff.Fail "list_of_bp format")
+  | _ -> raise (Fail "list_of_bp format")
   in
   loop bp
 
@@ -280,14 +280,14 @@ let generate_sols chgset_orig simple_patches =
   (*Diff.no_occurs := List.length chgset_orig - !exceptions;*)
   print_endline ("[Main] min sup = " ^ string_of_int !Diff.no_occurs);
   let unwrap bp = match bp with 
-  | None -> raise (Diff.Fail "unable to unwrap")
+  | None -> raise (Fail "unable to unwrap")
   | Some bp -> bp in
   let extend_bp bp_old bp_new = 
     let rec loop bp_old bp_new =
       match bp_old with
       | Difftype.UP _ -> Difftype.SEQ(bp_old,bp_new)
       | Difftype.SEQ (a, b) -> Difftype.SEQ (a, loop b bp_new) 
-      | _ -> raise (Diff.Fail "extend_bp format")
+      | _ -> raise (Fail "extend_bp format")
     in
     match bp_old with
     | None -> Some bp_new
@@ -457,7 +457,7 @@ let get_all_safe changeset abs_patches =
 let strip term_pairs abs_patches =
   let in_eq atomp eq_class =
     match eq_class with
-    | [] -> raise (Diff.Fail "in_eq empty")
+    | [] -> raise (Fail "in_eq empty")
     | atomp' :: _ -> 
         Diff.subpatch_changeset term_pairs atomp atomp' &&
         Diff.subpatch_changeset term_pairs atomp' atomp
@@ -487,12 +487,12 @@ let spec_main () =
   (* now make diff-pairs is a list of abs-term pairs *)
   let term_pairs = 
     List.fold_left (fun acc_pairs (lfile, rfile) ->
-      try 
-  Reader.read_filepair_defs lfile rfile @ acc_pairs
-      with (Failure _) -> acc_pairs)
-      [] !file_pairs
-      +> List.filter 
-      (fun (l,r) -> not(!only_changes) || not(l = r))
+										try 
+											Reader.read_filepair_defs lfile rfile @ acc_pairs
+										with (Failure _) -> acc_pairs)
+									 [] !file_pairs
+    +> List.filter 
+				 (fun (l,r) -> not(!only_changes) || not(l = r))
   in
   (* assume that a threshold of 0 means the user did not set it
    * thus, set it to max instead 
@@ -507,7 +507,7 @@ let spec_main () =
     (* if !do_dmine *)
     (* then do_datamining abs_patches *)
     (* else get_all_safe term_pairs abs_patches *)
-    Diff.find_simple_updates_merge_changeset term_pairs
+    Diff.find_simple_updates_merge_changeset (!threshold) term_pairs
       +> (fun x ->
   begin
     print_string "[Main] find_simple_updates_merge return this many updates: ";
@@ -531,7 +531,7 @@ let spec_main () =
     (Diff.safe_part tu)
          )
       +> (fun tus -> begin
-  print_string "[Main] after filtering we have this many updates: ";
+  print_string "[Main] (generic infer) after filtering we have this many updates: ";
   tus +> List.length +> string_of_int +> print_endline;
   tus
       end
@@ -577,7 +577,7 @@ let spec_main_term_pairs term_pairs =
     (* if !do_dmine *)
     (* then do_datamining abs_patches *)
     (* else get_all_safe term_pairs abs_patches *)
-    Diff.find_simple_updates_merge_changeset term_pairs
+    Diff.find_simple_updates_merge_changeset !threshold term_pairs
       +> (fun x ->
   begin
     print_string "[Main] find_simple_updates_merge return this many updates: ";
@@ -601,7 +601,7 @@ let spec_main_term_pairs term_pairs =
     (Diff.safe_part tu)
          )
       +> (fun tus -> begin
-  print_string "[Main] after filtering we have this many updates: ";
+  print_string "[Main-] after filtering we have this many updates: ";
   tus +> List.length +> string_of_int +> print_endline;
   tus
       end
@@ -846,9 +846,9 @@ let get_fun_name_gflow f =
   | C("head:def",[{Hashcons.node=C("def",name::_)}]) -> 
       (match view name with
       | A("fname",name_str) -> name_str
-      | _ -> raise (Diff.Fail "impossible match get_fun_name_gflow")
+      | _ -> raise (Fail "impossible match get_fun_name_gflow")
       )
-  | _ -> raise (Diff.Fail "get_fun_name?")
+  | _ -> raise (Fail "get_fun_name?")
   
 
 let sameName other_fun =
@@ -1206,7 +1206,7 @@ let embedded_pattern sp1 sp2 =
   let (!!) x = match view x with
   | C("CM", [t]) -> t
   | _ when x == ddd -> x
-  | _ -> raise (Diff.Fail (
+  | _ -> raise (Fail (
     "!! applied to non-pattern:" ^ 
     Diff.string_of_gtree' x
          )) in
@@ -1504,7 +1504,7 @@ let find_seq_patterns_new unique_subterms sub_pat is_frequent_sp orig_gss get_pa
     print_string "\t";
     f +> Diff.get_fun_name_gflow +> print_endline;
   end
-    | _ -> raise (Diff.Fail "impossible match! in find_seq_patterns")
+    | _ -> raise (Fail "impossible match! in find_seq_patterns")
       );
   reset_meta();
   let mk_pat p = [mkC("CM",[p])] in
@@ -1817,7 +1817,7 @@ let unique_subterms sub_pat is_frequent_sp orig_gss get_pa  =
     print_string "\t";
     f +> Diff.get_fun_name_gflow +> print_endline;
   end
-    | _ -> raise (Diff.Fail "impossible match! in find_seq_patterns")
+    | _ -> raise (Fail "impossible match! in find_seq_patterns")
       );
   reset_meta();
   let mk_pat p = [mkC("CM",[p])] in
@@ -2109,7 +2109,7 @@ let rec infer map ps ts =
       )
     ) map sigma in
       infer map' ps ts
-  | _ -> raise (Diff.Fail "infer impossible error?")
+  | _ -> raise (Fail "infer impossible error?")
   
 let infer_all spattern occ = 
   occ 
@@ -2245,7 +2245,7 @@ let filter_changed (* gss *) gpats =
    graphs *)
 let rec get_context_point chunk =
   match chunk with
-  | [] -> raise (Diff.Fail "no context point?")
+  | [] -> raise (Fail "no context point?")
   | Difftype.ADD _ :: chunk -> get_context_point chunk
   | c :: _ -> c
 
@@ -2506,7 +2506,7 @@ let lhs_flows_of_term_pairs term_pairs =
   let f_name = 
     try get_fun_name_gflow flow 
     with Not_found ->
-      raise (Diff.Fail ("no fun found in LHS")) 
+      raise (Fail ("no fun found in LHS")) 
   in 
   (* if not(equal_flows flow flow')
    *)
@@ -2681,7 +2681,7 @@ let get_fun_in_term sname term =
   | C(_,ts) -> loop ts
   | _ -> None
   in match find term with
-  | None -> raise (Diff.Fail ("fun " ^ sname  ^ " not found"))
+  | None -> raise (Fail ("fun " ^ sname  ^ " not found"))
   | Some f -> f
 
 let is_exit_node t = match view t with
@@ -2777,7 +2777,7 @@ let corresponds st t next_node_val path =
          mkC("def",[rname;rtype;newbody])
            | _ -> raise (Impossible 9)
         ) +> same_path
-    | _ -> raise (Diff.Fail "def-fail"))
+    | _ -> raise (Fail "def-fail"))
       | _ -> None
       )
 
@@ -2792,7 +2792,7 @@ let corresponds st t next_node_val path =
   when t_name = g_name && args = args_node ->
     at_breaking_handler := true;
     (match next_node_val with
-    | None -> raise (Diff.Fail "no next control node val: InLoop could have been expected")
+    | None -> raise (Fail "no next control node val: InLoop could have been expected")
     | Some control_node ->
         if control_node = Diff.control_inloop
         then
@@ -2813,7 +2813,7 @@ let corresponds st t next_node_val path =
     Some([], fun ts -> s_func st) +> same_path
       | C("if",[b;t;f]), C("head:if",[c]) when b = c -> 
     (match next_node_val with
-    | None -> raise (Diff.Fail "no next control node val!")
+    | None -> raise (Fail "no next control node val!")
     | Some control_node ->
         if control_node = Diff.control_else
         then (* select false branch and consume control_node from path *)
@@ -2841,7 +2841,7 @@ let corresponds st t next_node_val path =
       | C("while",[e;s]), C("head:while", _) ->
     at_breaking_handler := true;
     (match next_node_val with
-    | None -> raise (Diff.Fail "no next control node in while")
+    | None -> raise (Fail "no next control node in while")
     | Some control_node ->
         if control_node = Diff.control_inloop
         then
@@ -2859,7 +2859,7 @@ let corresponds st t next_node_val path =
       | C("for", [e1;e2;e3;st]), C("head:for", _) ->
     at_breaking_handler := true;
     (match next_node_val with
-    | None -> raise (Diff.Fail "no next control node in for")
+    | None -> raise (Fail "no next control node in for")
     | Some control_node ->
         if control_node = Diff.control_inloop
         then 
@@ -3001,7 +3001,7 @@ let locate_subterm g orig_subterm orig_path f =
               List.rev +> List.hd +> get_val +> 
               Diff.string_of_gtree');  
   print_endline ("In fun: " ^ g +> get_fun_name_gflow);
-  raise (Diff.Fail "At end of path!")
+  raise (Fail "At end of path!")
     end
     | [n] -> 
   let node_term = get_val n 
@@ -3035,7 +3035,7 @@ let locate_subterm g orig_subterm orig_path f =
                continue but that we did not find the node term at
                this point?  *)
       raise LocateSubterm
-        (* raise (Diff.Fail "unable to locate subterm") *)
+        (* raise (Fail "unable to locate subterm") *)
     end
     | n' :: path -> 
   let t = get_val n' 
@@ -3161,7 +3161,7 @@ let insert_chunk flow pending_term chunk =
   let ctx_point_nodes = 
     match get_context_point chunk with
     | Difftype.ID(p,is) | Difftype.RM(p,is) -> is
-    | _ -> raise (Diff.Fail "insert_chunk get_context_point") in
+    | _ -> raise (Fail "insert_chunk get_context_point") in
   (* the 'f' fun is responsible for checking chunk compatibility *)
   let f t = 
     match view t with
@@ -3243,7 +3243,7 @@ let perform_pending pending_term =
     | _ -> [t] in
   match loop pending_term with
   | [t'] -> t'
-  | _ -> raise (Diff.Fail "perform pending error")
+  | _ -> raise (Fail "perform pending error")
   
 
 (* this fun applies a semantic patch to a term given a flow
@@ -4102,7 +4102,7 @@ let find_embedded t1 t2 =
   | Difftype.ID t' -> (t' :: acc_ts, acc_env)
   | Difftype.ADD _
   | Difftype.RM _ -> (acc_ts, acc_env)
-  | _ -> raise (Diff.Fail "unhandled case in find_embedded")
+  | _ -> raise (Fail "unhandled case in find_embedded")
   ) ([], env)
 
 (*
@@ -4142,11 +4142,6 @@ let find_embedded t1 t2 =
   | _, _ -> add_bind env (t1,t2)
   in 
   loop [] t1 t2
-
-
-let some = Diff.some
-let get_some = Diff.get_some 
-
 
 
 let find_merged_from_sets terms_lists = 
@@ -4586,7 +4581,7 @@ let main () =
     );
   if !threshold = 0 then do_dmine := false;
   if !mfile = ""
-  then raise (Diff.Fail "No specfile given")
+  then raise (Fail "No specfile given")
   else if !cache
   then print_term_pairs ()
   else if !spatch || !patterns
