@@ -39,3 +39,29 @@ let all_patterns all_subterm_seqs =
     let h, t = List.hd all_subterm_seqs, List.tl all_subterm_seqs in
     List.fold_left (fun acc x ->
       grow stop add_res ext_cur acc [x] t) [] h
+
+									 
+let for_some n f ls = 
+  let rec loop n ls =
+		n = 0 ||
+			match ls with
+      | x :: xs when f x -> loop (n - 1) xs
+      | _ :: xs -> loop n xs
+      | [] -> false in
+  loop n ls
+
+let (>>) f g x = g @@ (f @@ x)
+
+exception Fail of string
+
+let get_some x =
+	match x with
+  | None -> raise (Fail "get_some applied to none")
+  | Some x -> x
+								
+let some x = Some x
+
+let defaultArg ifNone opt =
+	match opt with
+	| None -> ifNone
+	| Some x -> x
