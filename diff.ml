@@ -27,15 +27,16 @@ let fdebug_endline f x = if f then print_endline x else ()
 let debug_newline () = if debug then print_newline () else ()
 
 
-exception Fail of string
 exception Impossible of int
+exception Unsafe
 
 open Hashcons
 open Gtree
 open Gtree_util
 open Env
 open Difftype
-
+open Util
+			 
 type term = gtree
 type up = term diff
 
@@ -361,7 +362,7 @@ let verbose_string_of_gtree gt =
 let str_of_ctype x = x
 let str_of_catom a = a
 
-let string_of_gtree' gt = 
+let string_of_gtree' gt =	
   if !verbose
   then
     verbose_string_of_gtree gt
@@ -1068,7 +1069,7 @@ let rec linearize_tree gt =
 let tail_flatten lss =
   lss +> List.fold_left List.rev_append []
 
-let get_tree_changes gt1 gt2 =
+let get_tree_changes (gt1, gt2) =
   let is_up op = match op with UP _ -> true | _ -> false in
   let get_ups up = match up with
           | (UP(gt1,gt2)) ->
@@ -1632,7 +1633,8 @@ and safe_part up (t, t'') =
     if !Jconfig.print_abs
     then (
       print_string "[Diff] rejecting:\n\t";
-      print_endline (string_of_diff up)
+      print_endline (string_of_diff up);
+			print_endline ("relative to: " ^ (string_of_diff (UP(t,t''))))
     );
     false)
 
@@ -1659,10 +1661,31 @@ and safe_part_changeset bp chgset =
   then (
     !cnt >= !no_occurs
   ) else false
+and list_choose ls f =
+	ls
+	+> List.map f
+	+> List.filter (fun x -> x <> None)
+	+> List.map (fun (Some x) -> x)
 
+and safe_part_changeset_with_changeset bp chgset threshold =
+	let is_safe (t, t') =
+      try
+        let t'' = apply_noenv bp t in
+        if part_of_edit_dist t t'' t'
+        then Some(t,t'')
+        else (print_endline "Unsafe!"; raise Unsafe)
+      with Nomatch -> None
+	in
+	try
+		let chop = list_choose chgset is_safe
+		in
+		if List.length chop >= threshold
+		then Some chop
+		else None
+	with Unsafe -> None
 
 and safe_part_changeset_unsafe bp chgset = 
-  Jconfig.for_some !no_occurs (safe_part bp) chgset
+  for_some !no_occurs (safe_part bp) chgset
 
 (* the changeset after application of the basic patch bp; if there is a term to
  * which bp does not apply an exception is raised unless we are in relaxed mode
@@ -1678,22 +1701,12 @@ and subpatch_single bp bp' (t, t') =
       safe_part bp (t, t'')
 
 and subpatch_changeset chgset bp bp' = 
-  if safe_part_changeset bp' chgset 
-  then
-    let chop = chop_changeset chgset bp' in
-      if safe_part_changeset bp chop
-      then true
-      else 
-  (
-          (*print_string "[Diff] <\n\t";*)
-          (*print_endline (string_of_diff bp);*)
-          false)
-  else 
-    (
-      (*print_string "[Diff] .\n\t";*)
-      (*print_endline (string_of_diff bp');*)
-      false
-    )
+  match safe_part_changeset_with_changeset bp' chgset !no_occurs with
+	| Some chop -> (
+     match safe_part_changeset_with_changeset bp chop (List.length chop) with
+		 | Some chop' -> List.length chop = List.length chop'
+		 | None -> false)
+	| None -> false
       
 
 and get_ctf_diffs_all work gt1 gt2 =
@@ -3433,74 +3446,6 @@ let infeasible p =
   then false
   else useless_abstraction p || contains_infeasible p || is_nested_meta p
 
-let make_abs_on_demand term_pairs subterms_lists unique_subterms (gt1, gt2) =
-  let c_parts = 
-    if !malign_mode
-    then (
-      print_string "[Diff] getting concrete parts ...";
-      let cs = get_tree_changes gt1 gt2 in
-  print_endline (cs +> List.length +> string_of_int ^ " found");
-  print_endline ("[Diff] filtering " ^ 
-       cs +> List.length +> string_of_int ^ " safe parts");
-  List.filter (function up -> 
-           v_print_endline "[Diff] filtering cpart:";
-           up +> string_of_diff +> v_print_endline;
-           safe_part up (gt1, gt2)
-        ) cs
-    ) else get_ctf_diffs_safe [] gt1 gt2 
-  in
-    print_endline ("[Diff] number of concrete parts: " ^ string_of_int (List.length c_parts));
-    (* new generalize each such part and add it to our resulting list in case it
-     * is not already there and in case it is still a safe part
-     *)
-    print_endline "[Diff] finding abstract parts using \"on-demand\" method";
-    c_parts 
-    +> List.fold_left
-      (fun acc_parts c_up ->
-   match c_up with
-     | UP(lhs,rhs) -> 
-         v_print_endline ("[Diff] get patterns for:" ^ 
-          lhs +> string_of_gtree');
-         let p_env = get_patterns subterms_lists unique_subterms [] lhs 
-         +> List.filter (function (p,_) -> not(infeasible p)) in
-     if !Jconfig.print_abs
-     then (
-       print_endline ("[Diff] for UP(" ^
-               lhs +> string_of_gtree' ^ ", " ^
-               rhs +> string_of_gtree'
-             ^ ") we found the following patterns:");
-       p_env +> List.iter
-         (function (p,_) -> p +> string_of_gtree' +> print_endline);
-     );
-     p_env +> List.fold_left 
-       (fun acc_parts (p,env) -> 
-          let p' = rev_sub env rhs in
-      if p = p' 
-      then
-        acc_parts
-      else
-        let up = UP(p,p') in
-          if safe_part up (gt1, gt2)
-          then (
-            if !Jconfig.print_abs
-            then (
-        print_endline "[Diff] found *safe* part:";
-        up +> string_of_diff +> print_endline; 
-            );
-            up +++ acc_parts
-          )
-          else (
-            if !Jconfig.print_abs 
-            then (
-        print_endline "[Diff] *UNsafe* part:";
-        up +> string_of_diff +> print_endline; 
-            );
-            acc_parts
-          )
-       ) acc_parts
-     | _ -> raise (Fail "non supported update ...")
-      ) []
-
 (* abstract term respecting bindings given in env;
    return all found abstractions of the term and the correspond env
 *)
@@ -3711,11 +3656,6 @@ let chunks_of_diff_spatterns spatterns diff =
       +> List.filter (fun c -> not(all_adds c))
 
 
-let some x = Some x
-let get_some x = match x with
-  | None -> raise (Fail "get_some applied to none")
-  | Some x -> x
-
 (***
  * Given lists of subterms [subterms_lists] and a list of unique subterms
  * [unique_subters] this function produces a list of patterns (terms with
@@ -3880,61 +3820,53 @@ let get_metas t =
   in
     loop [] t
 
-let find_simple_updates_merge_changeset changeset =
-  print_endline ("[Diff] threshold " ^ string_of_int !no_occurs);
-  let for_some n f ls = 
-    let rec loop n ls = n = 0 || match ls with
-                                 | x :: xs when f x -> loop (n - 1) xs
-                                 | _ :: xs -> loop n xs
-                                 | [] -> false in
-    loop n ls
-  in
-  let interesting_tu up acc_tus = match up with
-    | (UP (l,r)) ->
-      not(l = r) &&
-      not(infeasible l) &&
-      sublist (get_metas r) (get_metas l)
-      && changeset +> for_some !no_occurs (safe_part (UP(l,r)))
-      && not(acc_tus +> List.exists (function tu' -> (UP(l,r)) = tu'))
+(* This function finds the/a set of term-updates safe relative to a
+given changeset *)
+let find_simple_updates_merge_changeset threshold changeset =
+	let rec partly_safe tu = for_some threshold (safe_part tu) changeset
+	(* function to decide if a given term-update is "interesting" enough
+	to include in final result *)
+  and interesting_tu up = match up with
+    | UP(l,r) ->
+       not(l = r)
+			 && not(infeasible l)
+			 && sublist (get_metas r) (get_metas l)
     | _ -> failwith "unhandled update type in 'find_simple_udpdates_merge_changeset.interesting_tu'"
-  in
-    changeset
-    +> List.rev_map (fun (l,r) -> get_tree_changes l r +> rm_dub)
-    +> (fun x -> 
-        begin
-          print_endline ("[Diff] got all non-abstract tree changes (" ^ 
-                          x +> List.rev_map List.length +> List.fold_left (+) 0 +> string_of_int ^ 
-                          ")");
-          print_string ("[Diff] possible combinations: ");
-          x +> List.rev_map List.length +> List.fold_left ( * ) 1 +> string_of_int +> print_endline;
-          x
-        end)
-    +> List.fold_left 
-        (fun acc_tus tu_list ->
-          match acc_tus with
-          | None -> tu_list +> List.filter (fun tu -> interesting_tu tu []) +> some
-          | Some tus -> begin
-              if !Jconfig.print_abs
-              then begin
-                print_endline ("[Diff] acc_tus (" ^ tus +> List.length +> string_of_int ^ ")");
-                tus +> List.iter (fun tu -> tu 
-                 +> string_of_diff 
-                 +> print_endline);
-              end;
-              tus
-              +> List.fold_left 
-                   (fun acc_tus tu_merged -> 
-                     tu_list +> List.fold_left 
-                        (fun acc_tus tu ->
-                            let tu' = merge_tus tu tu_merged in
-                            if interesting_tu tu' acc_tus
-                            then tu' :: acc_tus
-                            else acc_tus
-                        )
-                        acc_tus
-                   ) 
-                   (List.rev_append tus tu_list)
-              +> some
-             end)
-        None
-    +> get_some
+	and add_tu tus tu_opt =
+		match tu_opt with
+		| None -> tus
+		| Some tu -> if interesting_tu tu
+										&& not (List.exists ((=) tu) tus)
+										&& partly_safe tu
+								 then tu :: tus
+								 else tus
+	and loop acc_merged_tus cur_tu_opt rem_tu_lists =
+		match rem_tu_lists with
+		| [] -> add_tu acc_merged_tus cur_tu_opt
+		| tu_list :: lists ->
+			 let new_acc = add_tu acc_merged_tus cur_tu_opt in
+			 match cur_tu_opt with
+			 | Some cur_tu ->
+					List.fold_left
+						(fun acc tu ->
+						 let merged_tu = merge_tus cur_tu tu in
+						 let new_tu = if interesting_tu merged_tu
+													then Some merged_tu
+													else cur_tu_opt in
+						 loop acc new_tu lists
+						) new_acc tu_list
+			 | None ->
+					let tu_list_results =
+						List.fold_left
+							(fun acc tu ->
+							 if interesting_tu tu
+							 then loop acc (Some tu) lists
+							 else acc
+							) new_acc tu_list in
+					loop tu_list_results None lists
+	in
+	List.rev_map (get_tree_changes >> rm_dub) changeset
+	|> loop [] None
+	|> rm_dub
+
+
