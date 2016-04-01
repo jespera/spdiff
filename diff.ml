@@ -3870,3 +3870,49 @@ let find_simple_updates_merge_changeset threshold changeset =
 	|> rm_dub
 
 
+let find_simple_updates threshold changeset =
+	let rec partly_safe tu = for_some threshold (safe_part tu) changeset
+	(* function to decide if a given term-update is "interesting" enough
+	to include in final result *)
+  and interesting_tu up = match up with
+    | UP(l,r) ->
+       not(l = r)
+			 && not(infeasible l)
+			 && sublist (get_metas r) (get_metas l)
+    | _ -> failwith "unhandled update type in 'find_simple_udpdates_merge_changeset.interesting_tu'"
+	and add_tu tus tu_opt =
+		match tu_opt with
+		| None -> tus
+		| Some tu -> if interesting_tu tu
+										&& not (List.exists ((=) tu) tus)
+										&& partly_safe tu
+								 then tu :: tus
+								 else tus
+	and loop acc_merged_tus cur_tu_opt rem_tu_lists =
+		match rem_tu_lists with
+		| [] -> add_tu acc_merged_tus cur_tu_opt
+		| tu_list :: lists ->
+			 let new_acc = add_tu acc_merged_tus cur_tu_opt in
+			 match cur_tu_opt with
+			 | Some cur_tu ->
+					List.fold_left
+						(fun acc tu ->
+						 let merged_tu = merge_tus cur_tu tu in
+						 let new_tu = if interesting_tu merged_tu
+													then Some merged_tu
+													else cur_tu_opt in
+						 loop acc new_tu lists
+						) new_acc tu_list
+			 | None ->
+					let tu_list_results =
+						List.fold_left
+							(fun acc tu ->
+							 if interesting_tu tu
+							 then loop acc (Some tu) lists
+							 else acc
+							) new_acc tu_list in
+					loop tu_list_results None lists
+	in
+	List.rev_map (get_tree_changes >> rm_dub) changeset
+	|> loop [] None
+	|> rm_dub
